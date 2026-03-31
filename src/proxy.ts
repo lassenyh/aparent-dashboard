@@ -41,6 +41,10 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname === "/api/health" || pathname.startsWith("/api/health/")) {
+    return NextResponse.next();
+  }
+
   const session = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!session) {
     const loginUrl = new URL("/login", request.url);
