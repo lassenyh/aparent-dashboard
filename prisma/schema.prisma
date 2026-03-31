@@ -1,0 +1,423 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  /** App (Neon: gjerne pooled / -pooler) */
+  url       = env("DATABASE_URL")
+  /** Migrasjoner: må være direkte til Postgres — pooler støtter ikke pg_advisory_lock. Neon: «Direct»-streng uten -pooler. */
+  directUrl = env("DIRECT_URL")
+}
+
+enum RateType {
+  day
+  hour
+}
+
+enum DietaryPreference {
+  none
+  vegetarian
+  vegan
+}
+
+enum ProjectStatus {
+  active
+  archived
+}
+
+enum CallSheetStatus {
+  draft
+  final
+}
+
+/** Manuelt valgt vær-ikon på dagsplan (ingen ekstern API-henting). */
+enum WeatherIconKind {
+  none
+  sun
+  partly_cloudy
+  cloudy
+  rain
+  snow
+  thunder
+  fog
+  wind
+}
+
+/** Byrå — brukes på call sheet PDF (logo + org.nr). */
+model Agency {
+  id        String   @id @default(cuid())
+  name      String
+  orgNumber String?
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+
+  @@index([name])
+}
+
+/** Kunde — logo på prosjektdashboard og call sheet PDF. */
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+
+  @@index([name])
+}
+
+model Person {
+  id                  String              @id @default(cuid())
+  firstName           String
+  lastName            String
+  fullName            String
+  email               String?
+  phone               String?
+  /** Gate / adresselinje (før komma i visning). */
+  addressLine         String?
+  postalCode          String?
+  /** Poststed. */
+  city                String?
+  country             String?
+  roles               String[]            @default([])
+  defaultRate         Decimal?            @db.Decimal(10, 2)
+  rateType            RateType            @default(day)
+  dietaryPreference   DietaryPreference   @default(none)
+  allergies           String?
+  /** Kun i crew-database (profil). Ikke brukt i prosjekt, plan, PDF eller delingslenker. 1–5. */
+  internalStarRating  Int?
+  /** AES-256-GCM (base64). Ikke klartekst. */
+  bankAccountEncrypted String?
+  /** AES-256-GCM (base64). Ikke klartekst. */
+  nationalIdEncrypted  String?
+  isActive            Boolean             @default(true)
+  lastUsedAt          DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  projectCrews        ProjectCrew[]
+  callSheetCrews      CallSheetCrew[]
+  payrollRows         PayrollRow[]
+  dagsplanCrewEntries DagsplanCrewEntry[]
+
+  @@index([fullName])
+  @@index([city])
+  @@index([isActive])
+}
+
+model Project {
+  id             String         @id @default(cuid())
+  name           String
+  internalTitle  String?
+  startDate      DateTime?      @db.Date
+  endDate        DateTime?      @db.Date
+  status         ProjectStatus  @default(active)
+  notes          String?
+  agencyId       String?
+  agency         Agency?        @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  customerId     String?
+  customer       Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  crew       ProjectCrew[]
+  callSheets CallSheet[]
+  dagsplaner Dagsplan[]
+  /** Én standard crewliste per prosjekt — brukes som utgangspunkt for nye call sheets. */
+  defaultCrewList ProjectCrewList?
+  /** Offentlig read-only lenke til crewliste-PDF (token-basert). */
+  crewListShare ProjectCrewListShare?
+  /** Lønningslister til regnskapsfører (flere per prosjekt mulig). */
+  payrollLists PayrollList[]
+
+  @@index([status])
+  @@index([agencyId])
+  @@index([customerId])
+}
+
+model ProjectCrew {
+  id                String     @id @default(cuid())
+  projectId         String
+  project           Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  personId          String
+  person            Person     @relation(fields: [personId], references: [id], onDelete: Cascade)
+  roleOverride      String?
+  rateOverride      Decimal?   @db.Decimal(10, 2)
+  rateTypeOverride  RateType?
+  notes             String?
+  sortOrder         Int?
+  isActive          Boolean    @default(true)
+  /** Bruker har fjernet personen fra standard crewliste; synk legger ikke inn igjen før man legger til manuelt. */
+  excludedFromDefaultCrewList Boolean @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  defaultListEntries ProjectCrewListMember[]
+  dagsplanCrewLinks  DagsplanCrewEntry[]
+
+  @@unique([projectId, personId])
+  @@index([projectId])
+  @@index([personId])
+}
+
+/** Lønningsliste til regnskapsfører (flere kan knyttes til samme prosjekt). */
+model PayrollList {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  /** Visningsnavn i lister og PDF. */
+  title     String   @default("Lønningsliste")
+  /** Merket som innsendt til regnskapsfører. */
+  submitted Boolean  @default(false)
+  /** Sist satt ved «Lagre» på lønningslisten — vises som dato på ferdig skjema/utskrift. */
+  documentSavedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rows PayrollRow[]
+
+  @@index([projectId])
+}
+
+enum PayrollRowSegment {
+  crew
+  cast
+}
+
+model PayrollRow {
+  id        String   @id @default(cuid())
+  payrollListId String
+  payrollList PayrollList @relation(fields: [payrollListId], references: [id], onDelete: Cascade)
+  sortOrder Int      @default(0)
+  /** Seksjonsrad (f.eks. «NYE:») — da vises ikke personfelter som data. */
+  isSectionHeader Boolean @default(false)
+  sectionTitle String?
+  personId String?
+  person   Person?  @relation(fields: [personId], references: [id], onDelete: SetNull)
+  fullName String
+  projectLabel String
+  addressLine  String?
+  postalCode   String?
+  /** Poststed */
+  city         String?
+  country      String?
+  honorar Decimal? @db.Decimal(10, 2)
+  includesHolidayPay Boolean @default(false)
+  nationalId String?
+  bankAccount String?
+  mobile String?
+  email String?
+  /** Masker personnr./kontonr. i redigering og forhåndsvis; klartekst kun på utskrift/eksport. */
+  sensitiveFieldsMaskInUi Boolean @default(false)
+  /** Crew eller cast — to adskilte lister i lønningslisten. */
+  segment PayrollRowSegment @default(crew)
+
+  @@index([payrollListId])
+  @@index([payrollListId, segment])
+}
+
+/** Standard crewliste for prosjektet (maks én rad per prosjekt). */
+model ProjectCrewList {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members ProjectCrewListMember[]
+}
+
+/** Rekkefølge på hvem som legges inn på nye call sheets (subset av prosjektcrew). */
+model ProjectCrewListMember {
+  id                String          @id @default(cuid())
+  projectCrewListId String
+  projectCrewList   ProjectCrewList @relation(fields: [projectCrewListId], references: [id], onDelete: Cascade)
+  projectCrewId     String
+  projectCrew       ProjectCrew     @relation(fields: [projectCrewId], references: [id], onDelete: Cascade)
+  sortOrder         Int             @default(0)
+
+  @@unique([projectCrewListId, projectCrewId])
+  @@index([projectCrewListId])
+}
+
+/** Offentlig delingslenke: kun lese crewliste (PDF-visning), ingen innlogging. */
+model ProjectCrewListShare {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+}
+
+model CallSheet {
+  id                String           @id @default(cuid())
+  projectId         String
+  project           Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name              String
+  date              DateTime         @db.Date
+  location          String?
+  generalCallTime   String?
+  notes             String?
+  status            CallSheetStatus  @default(draft)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  crew CallSheetCrew[]
+
+  @@index([projectId])
+  @@index([date])
+}
+
+model CallSheetCrew {
+  id                           String              @id @default(cuid())
+  callSheetId                  String
+  callSheet                    CallSheet           @relation(fields: [callSheetId], references: [id], onDelete: Cascade)
+  personId                     String
+  person                       Person              @relation(fields: [personId], references: [id], onDelete: Restrict)
+  fullNameSnapshot             String
+  roleSnapshot                 String
+  phoneSnapshot                String?
+  emailSnapshot                String?
+  dietaryPreferenceSnapshot    DietaryPreference   @default(none)
+  allergiesSnapshot            String?
+  rateSnapshot                 Decimal?            @db.Decimal(10, 2)
+  rateTypeSnapshot             RateType?
+  callTime                     String?
+  pickupInfo                   String?
+  notes                        String?
+  sortOrder                    Int                 @default(0)
+  createdAt                    DateTime            @default(now())
+  updatedAt                    DateTime            @updatedAt
+
+  @@index([callSheetId])
+  @@index([personId])
+}
+
+/** Innspillingsdagsplan per prosjekt — operativt dagsdokument. */
+model Dagsplan {
+  id                   String   @id @default(cuid())
+  projectId            String
+  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title                String
+  shootDate            DateTime @db.Date
+  workStartTime        String?
+  workEndTime          String?
+  agencyLogoUrl        String?
+  clientLogoUrl        String?
+  infoText             String?  @db.Text
+  weatherIcon    WeatherIconKind @default(none)
+  weatherTempMin Int?
+  weatherTempMax Int?
+  weatherText    String?         @db.Text
+  emergencyNumbersText String?  @db.Text
+  radioChannelsText    String?  @db.Text
+  /** true = med på utskrift (standard). false = ekskludert fra utskrift. */
+  printIncludeActors          Boolean @default(true)
+  /** true = med på utskrift (standard). false = ekskludert fra utskrift. */
+  printIncludeDepartmentInfo  Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  locations       DagsplanLocation[]
+  crewEntries     DagsplanCrewEntry[]
+  actorEntries    DagsplanActorEntry[]
+  scheduleEntries DagsplanScheduleEntry[]
+  departmentInfos DagsplanDepartmentInfoEntry[]
+
+  @@index([projectId])
+  @@index([shootDate])
+}
+
+/** Én lokasjon med kart, parkering og valgfritt parkeringsbilde (egen utskriftside per bilde). */
+model DagsplanLocation {
+  id                 String   @id @default(cuid())
+  dagsplanId         String
+  dagsplan           Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  sortOrder          Int      @default(0)
+  /** Visningsnavn (f.eks. «Hovedlokasjon»). Adresse i `locationText` brukes til Google Maps-søk. */
+  locationName       String?  @db.Text
+  locationText       String?  @db.Text
+  locationMapsUrl    String?
+  parkingText        String?  @db.Text
+  parkingMapsUrl     String?
+  parkingImageUrl    String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([dagsplanId])
+}
+
+model DagsplanCrewEntry {
+  id                    String       @id @default(cuid())
+  dagsplanId            String
+  dagsplan              Dagsplan     @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  departmentTitle       String
+  personName            String
+  mobile                String?
+  /** Som i stabsliste / crew-import: valgfri e-postlinje. */
+  email                 String?
+  onSetTime             String?
+  sortOrder             Int          @default(0)
+  linkedProjectCrewId   String?
+  projectCrew           ProjectCrew? @relation(fields: [linkedProjectCrewId], references: [id], onDelete: SetNull)
+  linkedPersonId        String?
+  linkedPerson          Person?      @relation(fields: [linkedPersonId], references: [id], onDelete: SetNull)
+
+  @@index([dagsplanId])
+  @@index([linkedProjectCrewId])
+  @@index([linkedPersonId])
+}
+
+model DagsplanActorEntry {
+  id               String   @id @default(cuid())
+  dagsplanId       String
+  dagsplan         Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  actorNumber      String
+  actorName        String
+  phone            String?
+  film             String?
+  meetTime         String?
+  readyOnSetTime   String?
+  sortOrder        Int      @default(0)
+
+  @@index([dagsplanId])
+}
+
+model DagsplanScheduleEntry {
+  id                 String   @id @default(cuid())
+  dagsplanId         String
+  dagsplan           Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  startTime          String?
+  endTime            String?
+  /** Internt planleggingsfelt — vises ikke på print. */
+  durationMinutes    Int      @default(30)
+  /** anchor = ny sekvensblokk; sequential = følger forrige i blokk; free = manuell, påvirker ikke sekvens. */
+  rowKind            String   @default("sequential")
+  interiorExterior   String?
+  dayNight           String?
+  sceneSetting       String?
+  info               String?
+  actorNumbers       String?
+  sortOrder          Int      @default(0)
+
+  @@index([dagsplanId])
+}
+
+model DagsplanDepartmentInfoEntry {
+  id             String   @id @default(cuid())
+  dagsplanId     String
+  dagsplan       Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  departmentName String
+  info           String?  @db.Text
+  sortOrder      Int      @default(0)
+
+  @@index([dagsplanId])
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "PayrollRow" DROP COLUMN IF EXISTS "status";

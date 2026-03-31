@@ -1,0 +1,1 @@
+ALTER TABLE "PayrollList" ADD COLUMN IF NOT EXISTS "documentSavedAt" TIMESTAMP(3);

@@ -1,0 +1,1 @@
+ALTER TABLE "PayrollRow" ADD COLUMN IF NOT EXISTS "sensitiveFieldsMaskInUi" BOOLEAN NOT NULL DEFAULT false;
