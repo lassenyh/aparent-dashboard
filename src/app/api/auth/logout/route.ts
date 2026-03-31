@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 
+export const runtime = "nodejs";
+
 export async function POST() {
   const secure =
     process.env.NODE_ENV === "production" || process.env.VERCEL === "1";

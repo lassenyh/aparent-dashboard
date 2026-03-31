@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Users, FolderKanban, Building2, Store, LogOut } from "lucide-react";
 import { AparentLogo } from "@/components/aparent-logo";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,10 @@ const nav = [
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
 
   async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+    window.location.assign("/login");
   }
 
   return (

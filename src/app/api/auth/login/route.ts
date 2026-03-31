@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 import { validateLogin } from "@/lib/supabase/auth";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   let body: { username?: string; password?: string };
   try {

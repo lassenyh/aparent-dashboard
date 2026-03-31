@@ -1,16 +1,16 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { safeLoginRedirect } from "@/lib/login-redirect";
 import { LoginForm } from "./login-form";
 
 export function LoginPageClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   function handleSuccess() {
-    router.push(safeLoginRedirect(searchParams.get("next")));
-    router.refresh();
+    const target = safeLoginRedirect(searchParams.get("next"));
+    /** Full navigasjon slik at httpOnly-cookie alltid følger neste dokument (mer stabilt på Vercel enn client router etter Set-Cookie). */
+    window.location.assign(target);
   }
 
   return (
