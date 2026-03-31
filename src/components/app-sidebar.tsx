@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Users, FolderKanban, Building2, Store } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Users, FolderKanban, Building2, Store, LogOut } from "lucide-react";
 import { AparentLogo } from "@/components/aparent-logo";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -15,8 +16,16 @@ const nav = [
 
 export function AppSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
-    <aside className="flex w-[188px] shrink-0 flex-col border-r border-border bg-background py-8 pl-6 pr-4 md:w-[200px] md:pl-8">
+    <aside className="flex min-h-screen w-[188px] shrink-0 flex-col border-r border-border bg-background py-8 pl-6 pr-4 md:w-[200px] md:pl-8">
       <div className="mb-8">
         <Link
           href="/"
@@ -54,6 +63,18 @@ export function AppSidebar() {
           );
         })}
       </nav>
+      <div className="mt-auto pt-6">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-[13px] text-muted-foreground"
+          onClick={() => void handleLogout()}
+        >
+          <LogOut className="h-[15px] w-[15px] shrink-0 opacity-80" strokeWidth={1.75} />
+          Logg ut
+        </Button>
+      </div>
     </aside>
   );
 }
