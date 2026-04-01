@@ -16,10 +16,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Aparent Dashboard",
   description: "Internt crew-verktøy for Aparent",
-  icons: {
-    icon: "/favicon/dash-favicon.png",
-    apple: "/favicon/dash-favicon.png",
-  },
 };
 
 export default function RootLayout({
