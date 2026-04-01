@@ -5,9 +5,12 @@ export function computeFullName(firstName: string, lastName: string): string {
 }
 
 export function primaryRole(person: Pick<Person, "roles">): string {
-  return person.roles[0] ?? "—";
+  const roles = person.roles;
+  if (!roles?.length) return "—";
+  return roles[0] ?? "—";
 }
 
 export function rolesLabel(person: Pick<Person, "roles">): string {
-  return person.roles.length ? person.roles.join(", ") : "—";
+  const roles = person.roles;
+  return roles?.length ? roles.join(", ") : "—";
 }

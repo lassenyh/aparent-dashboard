@@ -625,6 +625,7 @@ export async function searchPeopleForPayroll(
   const filtered = needle
     ? all.filter((p) => {
         if (exclude.has(p.id)) return false;
+        const roles = p.roles ?? [];
         const hay = [
           p.firstName,
           p.lastName,
@@ -635,14 +636,14 @@ export async function searchPeopleForPayroll(
           p.postalCode,
           p.city,
           p.country,
-          ...p.roles,
+          ...roles,
         ]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
         return (
           hay.includes(needle) ||
-          p.roles.some((r) => r.toLowerCase().includes(needle))
+          roles.some((r) => r.toLowerCase().includes(needle))
         );
       })
     : all.filter((p) => !exclude.has(p.id));

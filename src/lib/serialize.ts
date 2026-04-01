@@ -38,7 +38,7 @@ export function serializePersonForClient(person: Person): PersonClient {
     postalCode: person.postalCode,
     city: person.city,
     country: person.country,
-    roles: person.roles,
+    roles: person.roles ?? [],
     defaultRate: person.defaultRate != null ? Number(person.defaultRate) : null,
     rateType: person.rateType,
     dietaryPreference: person.dietaryPreference,

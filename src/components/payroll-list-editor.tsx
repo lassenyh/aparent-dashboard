@@ -305,8 +305,13 @@ export function PayrollListEditor({
   useEffect(() => {
     const t = setTimeout(() => {
       startDbSearch(async () => {
-        const r = await searchPeopleForPayroll(projectId, listId, dbQuery);
-        setDbResults(r);
+        try {
+          const r = await searchPeopleForPayroll(projectId, listId, dbQuery);
+          setDbResults(r);
+        } catch (e) {
+          console.error("[payroll] searchPeopleForPayroll failed", e);
+          setDbResults([]);
+        }
       });
     }, 160);
     return () => clearTimeout(t);
