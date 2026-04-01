@@ -120,6 +120,24 @@ export async function getPayrollPageData(
   listId: string,
   options?: { maskSensitiveForUi?: boolean },
 ) {
+  try {
+    return await loadPayrollPageData(projectId, listId, options);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    // Én streng per linje — lettere å søke i Vercel Logs enn console.error(objekt)
+    console.error(
+      `APARENT_PAYROLL_FETCH_FAILED projectId=${projectId} listId=${listId} message=${JSON.stringify(message)} stack=${stack ? JSON.stringify(stack) : ""}`,
+    );
+    throw err;
+  }
+}
+
+async function loadPayrollPageData(
+  projectId: string,
+  listId: string,
+  options?: { maskSensitiveForUi?: boolean },
+) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: {
@@ -134,7 +152,12 @@ export async function getPayrollPageData(
   const list = await prisma.payrollList.findFirst({
     where: { id: listId, projectId },
     include: {
-      rows: { orderBy: [{ sortOrder: "asc" }] },
+      rows: {
+        orderBy: [{ sortOrder: "asc" }],
+        include: {
+          person: { select: { dietaryPreference: true } },
+        },
+      },
     },
   });
   if (!list) return null;
@@ -147,6 +170,8 @@ export async function getPayrollPageData(
 
   const defaultProjectLabel = formatPayrollProjectLabel(project);
   const maskUi = options?.maskSensitiveForUi === true;
+
+  logPayrollFetchOk(projectId, list.id, list.rows.length, crew.length);
 
   return {
     project,
@@ -180,6 +205,7 @@ export async function getPayrollPageData(
         email: r.email,
         sensitiveFieldsMaskInUi: r.sensitiveFieldsMaskInUi,
         segment: r.segment,
+        dietaryPreference: r.person?.dietaryPreference ?? null,
       };
     }),
     crew: crew.map((pc) => ({
@@ -197,13 +223,25 @@ export async function getPayrollPageData(
         resolveRateForProject(pc) != null
           ? Number(resolveRateForProject(pc))
           : null,
+      dietaryPreference: pc.person.dietaryPreference,
     })),
     defaultProjectLabel,
   };
 }
 
+function logPayrollFetchOk(
+  projectId: string,
+  listId: string,
+  rowCount: number,
+  crewCount: number,
+) {
+  console.log(
+    `APARENT_PAYROLL_FETCH_OK projectId=${projectId} listId=${listId} rows=${rowCount} crew=${crewCount}`,
+  );
+}
+
 export type PayrollPageData = NonNullable<
-  Awaited<ReturnType<typeof getPayrollPageData>>
+  Awaited<ReturnType<typeof loadPayrollPageData>>
 >;
 
 export async function savePayrollRows(

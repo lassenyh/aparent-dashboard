@@ -3,6 +3,9 @@ import { prisma } from "@/lib/db";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** Økes når health-JSON får nye felt — bruk for å se om Vercel faktisk kjører siste deploy. */
+const HEALTH_PAYLOAD_VERSION = 2;
+
 /**
  * Offentlig helsesjekk (uten innlogging) for feilsøking på Vercel.
  * Åpne /api/health i nettleseren — viser om DB og nødvendige env er på plass.
@@ -43,13 +46,6 @@ export async function GET() {
 
   try {
     await prisma.$queryRaw`SELECT 1`;
-    return Response.json({
-      ok: true,
-      database: "connected",
-      hasDatabaseUrl,
-      hasDirectUrl,
-      hasEncryptionKey,
-    });
   } catch (e) {
     console.error("[health] database check failed:", e);
     return Response.json(
@@ -65,4 +61,46 @@ export async function GET() {
       { status: 503 },
     );
   }
+
+  /** Bekrefter at migrert skjema matcher Prisma-klienten (fanger «Unknown column» e.l.). */
+  try {
+    await prisma.person.findFirst({
+      select: { id: true, dietaryPreference: true },
+    });
+  } catch (e) {
+    console.error("[health] prisma schema / Person query failed:", e);
+    return Response.json(
+      {
+        ok: false,
+        error: "prisma_schema",
+        hasDatabaseUrl,
+        hasDirectUrl,
+        hasEncryptionKey,
+        hint:
+          "Databasen er tilkoblet, men spørring mot Person feilet. Kjør migrasjoner mot produksjon: npx prisma migrate deploy (eller sjekk at deploy kjører migrate).",
+      },
+      { status: 503 },
+    );
+  }
+
+  const deploymentId = process.env.VERCEL_DEPLOYMENT_ID ?? null;
+  const gitSha = process.env.VERCEL_GIT_COMMIT_SHA ?? null;
+
+  // Én søkbar linje i Vercel → Logs → Runtime (ikke Build): bekrefter at denne funksjonen kjørte.
+  console.log(
+    `APARENT_HEALTH_OK deployment=${deploymentId ?? "local"} healthPayloadVersion=${HEALTH_PAYLOAD_VERSION}`,
+  );
+
+  return Response.json({
+    ok: true,
+    database: "connected",
+    prismaSchema: "ok",
+    healthPayloadVersion: HEALTH_PAYLOAD_VERSION,
+    /** Siste deploy på Vercel — null lokalt. Mangler du prismaSchema/healthPayloadVersion, er ikke siste kode ute. */
+    vercelDeploymentId: deploymentId,
+    vercelGitCommitSha: gitSha,
+    hasDatabaseUrl,
+    hasDirectUrl,
+    hasEncryptionKey,
+  });
 }

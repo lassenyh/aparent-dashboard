@@ -44,7 +44,9 @@ import {
 } from "@/lib/norwegian-mobile";
 import type { PayrollContractExtract } from "@/lib/payroll-contract-pdf-parse";
 import { validatePayrollRowsForSave } from "@/lib/payroll-row-validation";
+import { dietaryLabel } from "@/lib/dietary";
 import { cn } from "@/lib/utils";
+import type { DietaryPreference } from "@prisma/client";
 import { z } from "zod";
 
 export type PayrollSegment = "crew" | "cast";
@@ -75,6 +77,7 @@ export type PayrollCrewOption = {
   country: string | null;
   roleLine: string;
   honorar: number | null;
+  dietaryPreference: DietaryPreference;
 };
 
 export type PayrollRowDraft = {
@@ -97,6 +100,8 @@ export type PayrollRowDraft = {
   /** Maskert visning i editor; klartekst lagres server-side / vises ved utskrift uten ?preview=1 */
   sensitiveFieldsMaskInUi: boolean;
   segment: PayrollSegment;
+  /** Fra crew-database (Person); vises ikke lagret på rad. */
+  dietaryPreference: DietaryPreference | null;
 };
 
 export type PayrollRowInput = Omit<PayrollRowDraft, "key"> & { id: string };
@@ -123,6 +128,7 @@ function rowFromServer(r: PayrollRowInput): PayrollRowDraft {
     email: r.email,
     sensitiveFieldsMaskInUi: r.sensitiveFieldsMaskInUi,
     segment: r.segment,
+    dietaryPreference: r.dietaryPreference ?? null,
   };
 }
 
@@ -155,6 +161,7 @@ function rowPayloadSnapshot(r: PayrollRowDraft, segment: PayrollSegment) {
     email: r.email,
     sensitiveFieldsMaskInUi: r.sensitiveFieldsMaskInUi,
     segment,
+    dietaryPreference: r.dietaryPreference ?? null,
   };
 }
 
@@ -177,6 +184,7 @@ function rowSnapshotFromInput(r: PayrollRowInput, segment: PayrollSegment) {
     email: r.email,
     sensitiveFieldsMaskInUi: r.sensitiveFieldsMaskInUi,
     segment,
+    dietaryPreference: r.dietaryPreference ?? null,
   };
 }
 
@@ -391,6 +399,7 @@ export function PayrollListEditor({
           email: c.email,
           sensitiveFieldsMaskInUi: true,
           segment,
+          dietaryPreference: c.dietaryPreference,
         },
       ]);
       setPicker(false);
@@ -460,6 +469,7 @@ export function PayrollListEditor({
           email: p.email,
           sensitiveFieldsMaskInUi: true,
           segment,
+          dietaryPreference: p.dietaryPreference ?? null,
         },
       ]);
       setDbPicker(false);
@@ -491,6 +501,7 @@ export function PayrollListEditor({
         email: null,
         sensitiveFieldsMaskInUi: false,
         segment,
+        dietaryPreference: null,
       },
     ]);
   }
@@ -524,6 +535,7 @@ export function PayrollListEditor({
         email: d.email,
         sensitiveFieldsMaskInUi: false,
         segment,
+        dietaryPreference: null,
       },
     ]);
   }
@@ -885,6 +897,10 @@ export function PayrollListEditor({
                           ? `${row.honorar} kr`
                           : "—"}
                         {row.includesHolidayPay ? " · FP" : ""}
+                        {row.dietaryPreference &&
+                        row.dietaryPreference !== "none"
+                          ? ` · ${dietaryLabel(row.dietaryPreference)}`
+                          : ""}
                       </span>
                     </span>
                   </button>
@@ -967,6 +983,7 @@ export function PayrollListEditor({
                                 }
                                 updateRow(segment, row.key, {
                                   personId: res.personId,
+                                  dietaryPreference: "none",
                                 });
                                 toast.success(
                                   "Person opprettet og lagt til prosjektcrew.",

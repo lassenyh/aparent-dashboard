@@ -13,6 +13,11 @@ export default async function PayrollListDetailPage({ params }: PageProps) {
   });
   if (!data) notFound();
 
+  // Etter dette punktet er databasen OK; feil i UI er ofte klient/rendering (søk APARENT_PAYROLL_PAGE i logs).
+  console.log(
+    `APARENT_PAYROLL_PAGE_READY projectId=${id} listId=${listId} rows=${data.rows.length}`,
+  );
+
   const initialRows = data.rows.map((r) => ({
     id: r.id,
     isSectionHeader: r.isSectionHeader,
@@ -32,6 +37,7 @@ export default async function PayrollListDetailPage({ params }: PageProps) {
     email: r.email,
     sensitiveFieldsMaskInUi: r.sensitiveFieldsMaskInUi,
     segment: r.segment,
+    dietaryPreference: r.dietaryPreference,
   }));
 
   return (
