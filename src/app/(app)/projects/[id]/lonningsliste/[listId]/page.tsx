@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getPayrollPageData } from "@/actions/payroll";
 import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
-import { PayrollListEditor } from "@/components/payroll-list-editor";
+import { PayrollListEditorLoader } from "@/components/payroll-list-editor-loader";
 
 type PageProps = { params: Promise<{ id: string; listId: string }> };
 
@@ -51,7 +51,7 @@ export default async function PayrollListDetailPage({ params }: PageProps) {
         title="Lønningsliste"
         description="Gi listen et navn, fyll inn rader og merk som innsendt når den er sendt til regnskapsfører. Lagre når du er klar."
       />
-      <PayrollListEditor
+      <PayrollListEditorLoader
         key={`${data.listId}-${data.listUpdatedAt}`}
         projectId={data.project.id}
         listId={data.listId}
