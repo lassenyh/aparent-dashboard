@@ -365,12 +365,6 @@ export function PayrollListEditor({
       );
       return;
     }
-    if (!hasCompleteAddressParts(c)) {
-      toast.error(
-        "Adresse mangler (gate, postnummer, poststed). Oppdater personen under Crew først.",
-      );
-      return;
-    }
     if (c.honorar == null || Number.isNaN(c.honorar)) {
       toast.error(
         "Honorar mangler på prosjektcrew. Oppdater under Crew først.",
@@ -435,12 +429,6 @@ export function PayrollListEditor({
     if (!z.string().email().safeParse(pem).success) {
       toast.error(
         "Ugyldig e-postadresse i databasen. Oppdater under Crew først.",
-      );
-      return;
-    }
-    if (!hasCompleteAddressParts(p)) {
-      toast.error(
-        "Adresse mangler (gate, postnummer, poststed). Oppdater personen under Crew først.",
       );
       return;
     }
