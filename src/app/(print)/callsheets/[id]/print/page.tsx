@@ -142,7 +142,7 @@ export default async function CallSheetPrintPage({ params }: PageProps) {
       </section>
 
       <footer className="mt-12 border-t border-neutral-100 pt-6 text-center text-xs text-neutral-400 print:mt-8">
-        Aparent Crew · generert {new Date().toLocaleString("nb-NO")}
+        Aparent Dashboard · generert {new Date().toLocaleString("nb-NO")}
       </footer>
     </div>
   );
