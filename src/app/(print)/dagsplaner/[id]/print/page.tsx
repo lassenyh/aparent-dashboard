@@ -21,6 +21,8 @@ import {
   effectiveSunsetDisplay,
 } from "@/lib/sunrise-oslo";
 import { Truck } from "lucide-react";
+import { PublicLogoImg } from "@/components/public-logo-img";
+import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { cn, formatDate } from "@/lib/utils";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -256,9 +258,8 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
       <header className="mb-8 border-b border-neutral-200 pb-4 print:mb-6 print:pb-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-5 print:gap-4">
           <div className="flex items-center justify-start">
-            {agencyLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+            {sanitizePublicImageUrl(agencyLogo) ? (
+              <PublicLogoImg
                 src={agencyLogo}
                 alt=""
                 className="max-h-14 max-w-full object-contain object-left print:max-h-12"
@@ -276,9 +277,8 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
             />
           </div>
           <div className="flex items-center justify-end">
-            {clientLogo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+            {sanitizePublicImageUrl(clientLogo) ? (
+              <PublicLogoImg
                 src={clientLogo}
                 alt=""
                 className="max-h-14 max-w-full object-contain object-right print:max-h-12"
@@ -627,10 +627,9 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                             lunch && lunchPrintText,
                           )}
                         >
-                          {r.shotImageUrl?.trim() ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={r.shotImageUrl.trim()}
+                          {sanitizePublicImageUrl(r.shotImageUrl) ? (
+                            <PublicLogoImg
+                              src={r.shotImageUrl}
                               alt=""
                               className="mx-auto block h-auto w-full max-h-80 object-contain object-center"
                             />
@@ -731,7 +730,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
       </footer>
 
       {d.locations.map((loc, i) =>
-        loc.parkingImageUrl?.trim() ? (
+        sanitizePublicImageUrl(loc.parkingImageUrl) ? (
           <section
             key={loc.id}
             className="dagsplan-print-parking-attachment mx-auto max-w-[210mm] px-6 py-10 print:max-w-none print:px-0 print:py-0"
@@ -754,8 +753,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                   : pt.parkingSketch}
               </h2>
               <div className="flex w-full justify-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <PublicLogoImg
                   src={loc.parkingImageUrl}
                   alt="Parking"
                   className="max-h-[min(1000px,calc(100vh-120px))] w-full max-w-full object-contain object-center print:max-h-[calc(297mm-40mm)]"

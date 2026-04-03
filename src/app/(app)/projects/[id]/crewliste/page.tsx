@@ -11,6 +11,7 @@ import { PageBackLink } from "@/components/page-back-link";
 import { ProjectDefaultCrewListEditor } from "@/components/project-default-crew-list-editor";
 import { Button } from "@/components/ui/button";
 import { getRequestOrigin } from "@/lib/request-origin";
+import { formatCrewListDietaryAllergies } from "@/lib/dietary";
 import {
   resolveRateForProject,
   resolveRateTypeForProject,
@@ -38,13 +39,18 @@ export default async function ProjectCrewListPage({ params }: PageProps) {
 
   const rows = data.members.map((m) => {
     const pc = m.projectCrew;
+    const p = pc.person;
     return {
       memberId: m.id,
-      fullName: pc.person.fullName,
+      fullName: p.fullName,
       roleLine: resolveRoleForProject(pc),
       rateLine: formatRate(
         resolveRateForProject(pc),
         resolveRateTypeForProject(pc),
+      ),
+      dietaryAllergiesLine: formatCrewListDietaryAllergies(
+        p.dietaryPreference,
+        p.allergies,
       ),
     };
   });

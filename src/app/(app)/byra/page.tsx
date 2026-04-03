@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getAgenciesList } from "@/actions/agencies";
+import { PublicLogoImg } from "@/components/public-logo-img";
 import { PageHeader } from "@/components/page-header";
+import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { Button } from "@/components/ui/button";
 import { requireInternalUser } from "@/lib/project-access";
 
@@ -27,9 +29,8 @@ export default async function AgenciesPage() {
             className="flex min-h-[48px] items-center justify-between gap-4 px-4 py-3 transition-colors first:rounded-t-md last:rounded-b-md hover:bg-muted/40"
           >
             <div className="flex min-w-0 flex-1 items-center gap-4">
-              {a.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+              {sanitizePublicImageUrl(a.logoUrl) ? (
+                <PublicLogoImg
                   src={a.logoUrl}
                   alt=""
                   className="h-10 w-[72px] shrink-0 rounded-md border border-border bg-background object-contain object-center p-1"

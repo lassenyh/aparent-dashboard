@@ -1,4 +1,5 @@
 import type { Person, ProjectCrew } from "@prisma/client";
+import { formatCrewListDietaryAllergies } from "@/lib/dietary";
 import { resolveRoleForProject } from "@/lib/snapshot";
 
 export type CrewListSharePayload = {
@@ -9,6 +10,8 @@ export type CrewListSharePayload = {
     fullName: string;
     phone: string;
     email: string;
+    /** Sammensatt kost/allergier — `null` når tomt (kolonne skjules da for hele tabellen). */
+    dietaryAllergiesLine: string | null;
   }>;
   crewListUpdatedAt: string;
 };
@@ -32,6 +35,10 @@ export function toCrewListSharePayload(data: {
       fullName: p.fullName,
       phone: p.phone?.trim() || "—",
       email: p.email?.trim() || "—",
+      dietaryAllergiesLine: formatCrewListDietaryAllergies(
+        p.dietaryPreference,
+        p.allergies,
+      ),
     };
   });
   return {

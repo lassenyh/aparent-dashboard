@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FEATURE_CALL_SHEETS_UI } from "@/lib/feature-flags";
 import { getSessionDashboardUser } from "@/lib/auth-session";
+import { PublicLogoImg } from "@/components/public-logo-img";
 import { formatDateShort, formatProjectDisplayName } from "@/lib/utils";
 
 export default async function HomePage() {
@@ -40,8 +41,7 @@ export default async function HomePage() {
           >
             <div className="flex min-w-0 flex-1 items-start gap-3">
               {p.customer?.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <PublicLogoImg
                   src={p.customer.logoUrl}
                   alt=""
                   className="mt-0.5 h-8 w-20 shrink-0 object-contain object-left"

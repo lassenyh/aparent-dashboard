@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { updateCustomer } from "@/actions/customers";
 import type { Customer } from "@prisma/client";
+import { PublicLogoImg } from "@/components/public-logo-img";
+import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,12 +29,11 @@ export function CustomerEditForm({ customer }: { customer: Customer }) {
         <Input id="name" name="name" required defaultValue={customer.name} />
       </div>
 
-      {customer.logoUrl ? (
+      {sanitizePublicImageUrl(customer.logoUrl) ? (
         <div className="space-y-2 rounded-md border border-border bg-muted/20 px-4 py-3">
           <p className="text-xs font-medium text-muted-foreground">Nåværende logo</p>
           <div className="flex items-center gap-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <PublicLogoImg
               src={customer.logoUrl}
               alt=""
               className="h-12 max-w-[200px] object-contain object-left"

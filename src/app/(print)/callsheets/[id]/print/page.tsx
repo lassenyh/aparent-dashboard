@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getCallSheetById } from "@/actions/callsheets";
+import { PublicLogoImg } from "@/components/public-logo-img";
 import { FEATURE_CALL_SHEETS_UI } from "@/lib/feature-flags";
+import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { PrintToolbar } from "@/components/print-toolbar";
 import { formatDate, formatRate } from "@/lib/utils";
 import { dietaryLabel } from "@/lib/dietary";
@@ -20,27 +22,25 @@ export default async function CallSheetPrintPage({ params }: PageProps) {
       <header className="mb-10 border-b border-neutral-200 pb-8">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="flex min-w-0 flex-wrap items-end gap-8">
-            {sheet.project.customer?.logoUrl ? (
+            {sanitizePublicImageUrl(sheet.project.customer?.logoUrl) ? (
               <div className="space-y-1">
                 <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">
                   Kunde
                 </p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={sheet.project.customer.logoUrl}
+                <PublicLogoImg
+                  src={sheet.project.customer?.logoUrl}
                   alt=""
                   className="h-10 max-w-[180px] object-contain object-left"
                 />
               </div>
             ) : null}
-            {sheet.project.agency?.logoUrl ? (
+            {sanitizePublicImageUrl(sheet.project.agency?.logoUrl) ? (
               <div className="space-y-1">
                 <p className="text-[10px] font-medium uppercase tracking-wider text-neutral-500">
                   Byrå
                 </p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={sheet.project.agency.logoUrl}
+                <PublicLogoImg
+                  src={sheet.project.agency?.logoUrl}
                   alt=""
                   className="h-10 max-w-[180px] object-contain object-left"
                 />

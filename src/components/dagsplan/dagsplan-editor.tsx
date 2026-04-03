@@ -52,7 +52,9 @@ import {
   DagsplanScheduleTable,
   type ScheduleRow,
 } from "@/components/dagsplan/dagsplan-schedule-table";
+import { PublicLogoImg } from "@/components/public-logo-img";
 import { SectionHeading } from "@/components/section-heading";
+import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { PageBackLink } from "@/components/page-back-link";
 import {
   Select,
@@ -714,9 +716,8 @@ export function DagsplanEditor({
           <SectionHeading className="mb-4">{t.branding}</SectionHeading>
           <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 sm:gap-6">
             <div className="flex min-h-[56px] items-center justify-center">
-              {displayAgencyLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+              {sanitizePublicImageUrl(displayAgencyLogo) ? (
+                <PublicLogoImg
                   src={displayAgencyLogo}
                   alt=""
                   className="max-h-14 max-w-full object-contain"
@@ -736,9 +737,8 @@ export function DagsplanEditor({
               />
             </div>
             <div className="flex min-h-[56px] items-center justify-center">
-              {displayClientLogo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+              {sanitizePublicImageUrl(displayClientLogo) ? (
+                <PublicLogoImg
                   src={displayClientLogo}
                   alt=""
                   className="max-h-14 max-w-full object-contain"

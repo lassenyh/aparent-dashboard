@@ -12,6 +12,7 @@ import { ProjectCrewList } from "@/components/project-crew-list";
 import { ProjectDeleteControl } from "@/components/project-delete-control";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PublicLogoImg } from "@/components/public-logo-img";
 import { cn, formatDateShort, formatProjectDisplayName } from "@/lib/utils";
 import {
   projectScalarsForClient,
@@ -82,8 +83,7 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       <PageHeader
         branding={
           customerHasLogo && project.customer?.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <PublicLogoImg
               src={project.customer.logoUrl}
               alt={customerName ? customerName : "Kunde"}
               className="h-14 max-w-[240px] object-contain object-left"

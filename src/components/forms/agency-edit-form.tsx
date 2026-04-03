@@ -4,6 +4,8 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { updateAgency } from "@/actions/agencies";
 import type { Agency } from "@prisma/client";
+import { PublicLogoImg } from "@/components/public-logo-img";
+import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,11 +38,10 @@ export function AgencyEditForm({ agency }: { agency: Agency }) {
         />
       </div>
 
-      {agency.logoUrl ? (
+      {sanitizePublicImageUrl(agency.logoUrl) ? (
         <div className="space-y-2 rounded-md border border-border bg-muted/20 px-4 py-3">
           <p className="text-xs font-medium text-muted-foreground">Nåværende logo</p>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <PublicLogoImg
             src={agency.logoUrl}
             alt=""
             className="h-12 max-w-[200px] object-contain object-left"

@@ -10,6 +10,7 @@ import {
   removeProjectCrewListMember,
 } from "@/actions/project-crew-list";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -23,6 +24,8 @@ export type DefaultCrewRowProps = {
   fullName: string;
   roleLine: string;
   rateLine: string;
+  /** `null` når ingen kost/allergier — kolonne skjules om alle er null. */
+  dietaryAllergiesLine: string | null;
 };
 
 export type DefaultCrewAvailableProps = {
@@ -41,6 +44,11 @@ export function ProjectDefaultCrewListEditor({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+
+  const showDietaryColumn = rows.some((r) => r.dietaryAllergiesLine);
+  const rowGridClass = showDietaryColumn
+    ? "sm:grid-cols-[minmax(0,1fr)_minmax(7rem,0.35fr)_5.5rem_auto]"
+    : "sm:grid-cols-[minmax(0,1fr)_5.5rem_auto]";
 
   function run(fn: () => Promise<void>) {
     startTransition(async () => {
@@ -88,10 +96,26 @@ export function ProjectDefaultCrewListEditor({
 
       {rows.length > 0 ? (
         <div className="divide-y divide-border rounded-md border border-border">
+          {showDietaryColumn ? (
+            <div
+              className={cn(
+                "hidden gap-2 border-b border-border bg-muted/30 py-2 pl-3 pr-2 text-xs font-medium text-muted-foreground sm:grid sm:items-center",
+                rowGridClass,
+              )}
+            >
+              <span>Navn / funksjon</span>
+              <span className="text-right sm:text-left">Kosthold / allergier</span>
+              <span className="text-right">Sats</span>
+              <span className="sr-only sm:not-sr-only sm:w-[7.5rem]" />
+            </div>
+          ) : null}
           {rows.map((row, index) => (
             <div
               key={row.memberId}
-              className="flex min-h-[40px] items-center gap-2 py-2 pl-3 pr-2"
+              className={cn(
+                "flex min-h-[40px] flex-col gap-2 py-2 pl-3 pr-2 sm:grid sm:items-center sm:gap-2",
+                rowGridClass,
+              )}
             >
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <p className="font-semibold leading-tight text-foreground">
@@ -101,7 +125,12 @@ export function ProjectDefaultCrewListEditor({
                   {row.roleLine}
                 </p>
               </div>
-              <span className="shrink-0 tabular-nums text-sm text-foreground">
+              {showDietaryColumn ? (
+                <p className="text-xs leading-snug text-muted-foreground sm:min-w-0">
+                  {row.dietaryAllergiesLine ?? "—"}
+                </p>
+              ) : null}
+              <span className="shrink-0 tabular-nums text-sm text-foreground sm:text-right">
                 {row.rateLine}
               </span>
               <div className="flex shrink-0 items-center gap-0.5">

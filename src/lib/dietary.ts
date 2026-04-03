@@ -17,3 +17,20 @@ export function payrollDietaryCell(
   if (!v || v === "none") return "—";
   return dietaryLabel(v);
 }
+
+/**
+ * Én linje til crewliste / delt visning: kosthold (hvis ikke «none») og fritekst allergier.
+ * `null` når ingenting er satt — brukes til å skjule kolonne for hele listen.
+ */
+export function formatCrewListDietaryAllergies(
+  dietaryPreference: DietaryPreference,
+  allergies: string | null | undefined,
+): string | null {
+  const parts: string[] = [];
+  if (dietaryPreference && dietaryPreference !== "none") {
+    parts.push(dietaryLabel(dietaryPreference));
+  }
+  const a = allergies?.trim();
+  if (a) parts.push(a);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}

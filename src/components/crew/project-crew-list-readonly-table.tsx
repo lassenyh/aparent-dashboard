@@ -15,19 +15,37 @@ export function ProjectCrewListReadonlyTable({
 }: {
   rows: CrewListSharePayload["rows"];
 }) {
+  const showDietaryColumn = rows.some((r) => r.dietaryAllergiesLine);
+  const colCount = showDietaryColumn ? 5 : 4;
+
   return (
     <div className="overflow-x-auto">
       <table className={tableShell}>
         <colgroup>
-          <col className="w-[22%]" />
-          <col className="w-[26%]" />
-          <col className="w-[18%]" />
-          <col className="w-[34%]" />
+          {showDietaryColumn ? (
+            <>
+              <col className="w-[18%]" />
+              <col className="w-[20%]" />
+              <col className="w-[18%]" />
+              <col className="w-[14%]" />
+              <col className="w-[30%]" />
+            </>
+          ) : (
+            <>
+              <col className="w-[22%]" />
+              <col className="w-[26%]" />
+              <col className="w-[18%]" />
+              <col className="w-[34%]" />
+            </>
+          )}
         </colgroup>
         <thead>
           <tr>
             <th className={th}>Funksjon</th>
             <th className={th}>Navn</th>
+            {showDietaryColumn ? (
+              <th className={th}>Kosthold / allergier</th>
+            ) : null}
             <th className={th}>Mobil</th>
             <th className={th}>E-post</th>
           </tr>
@@ -36,7 +54,7 @@ export function ProjectCrewListReadonlyTable({
           {rows.length === 0 ? (
             <tr>
               <td
-                colSpan={4}
+                colSpan={colCount}
                 className={cn(td, "py-8 text-center text-neutral-500")}
               >
                 Ingen personer i standard crewliste ennå.
@@ -49,6 +67,11 @@ export function ProjectCrewListReadonlyTable({
               <td className={cn(td, "font-medium text-neutral-950")}>
                 {row.fullName}
               </td>
+              {showDietaryColumn ? (
+                <td className={cn(td, "text-neutral-800")}>
+                  {row.dietaryAllergiesLine ?? "—"}
+                </td>
+              ) : null}
               <td className={cn(td, "tabular-nums")}>{row.phone}</td>
               <td className={cn(td, "break-all")}>{row.email}</td>
             </tr>
