@@ -8,10 +8,10 @@ export function AppShell({
   isInternal: boolean;
 }) {
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen">
       <AppSidebar isInternal={isInternal} />
-      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-        <main className="flex-1">
+      <div className="min-h-screen min-w-0 pl-[188px] md:pl-[200px]">
+        <main>
           <div className="mx-auto w-full max-w-[1120px] px-6 py-8 md:px-8">
             {children}
           </div>

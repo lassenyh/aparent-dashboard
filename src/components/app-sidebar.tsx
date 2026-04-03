@@ -30,7 +30,7 @@ export function AppSidebar({ isInternal }: { isInternal: boolean }) {
   return (
     <aside
       className={cn(
-        "flex min-h-screen w-[188px] shrink-0 flex-col border-r border-white/10 py-8 pl-6 pr-4 md:w-[200px] md:pl-8",
+        "fixed inset-y-0 left-0 z-40 flex h-screen w-[188px] flex-col overflow-y-auto border-r border-white/10 py-8 pl-6 pr-4 md:w-[200px] md:pl-8",
         "bg-gradient-to-b from-[#1a2a4a] via-[#152238] to-[#0c1424]",
         "text-zinc-100",
       )}

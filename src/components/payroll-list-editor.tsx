@@ -347,30 +347,14 @@ export function PayrollListEditor({
   }
 
   function addFromCrew(c: PayrollCrewOption, segment: PayrollSegment) {
-    const mob = formatNorwegianMobileFromRaw(c.phone);
-    if (!mob) {
-      toast.error(
-        "Telefonnummeret er ikke gyldig norsk mobil (8 siffer). Oppdater telefon under Crew først.",
-      );
-      return;
-    }
+    const mob =
+      formatNorwegianMobileFromRaw(c.phone) ??
+      (c.phone?.trim() ? c.phone.trim() : null);
     const em = (c.email ?? "").trim();
-    if (!em) {
-      toast.error("E-post mangler. Oppdater personen under Crew først.");
-      return;
-    }
-    if (!z.string().email().safeParse(em).success) {
-      toast.error(
-        "Ugyldig e-postadresse i databasen. Oppdater under Crew først.",
-      );
-      return;
-    }
-    if (c.honorar == null || Number.isNaN(c.honorar)) {
-      toast.error(
-        "Honorar mangler på prosjektcrew. Oppdater under Crew først.",
-      );
-      return;
-    }
+    const emailNorm =
+      em && z.string().email().safeParse(em).success ? em : null;
+    const honorarNorm =
+      c.honorar != null && !Number.isNaN(c.honorar) ? c.honorar : null;
     const setter = segment === "crew" ? setCrewRows : setCastRows;
     const setPicker =
       segment === "crew" ? setPickerOpenCrew : setPickerOpenCast;
@@ -390,12 +374,12 @@ export function PayrollListEditor({
           postalCode: c.postalCode,
           city: c.city,
           country: c.country,
-          honorar: c.honorar,
+          honorar: honorarNorm,
           includesHolidayPay: false,
           nationalId,
           bankAccount,
           mobile: mob,
-          email: c.email,
+          email: emailNorm,
           sensitiveFieldsMaskInUi: true,
           segment,
           dietaryPreference: c.dietaryPreference,
@@ -414,24 +398,12 @@ export function PayrollListEditor({
       toast.error("Personen er allerede på listen");
       return;
     }
-    const mob = formatNorwegianMobileFromRaw(p.phone);
-    if (!mob) {
-      toast.error(
-        "Telefonnummeret er ikke gyldig norsk mobil (8 siffer). Oppdater telefon under Crew først.",
-      );
-      return;
-    }
+    const mob =
+      formatNorwegianMobileFromRaw(p.phone) ??
+      (p.phone?.trim() ? p.phone.trim() : null);
     const pem = (p.email ?? "").trim();
-    if (!pem) {
-      toast.error("E-post mangler. Oppdater personen under Crew først.");
-      return;
-    }
-    if (!z.string().email().safeParse(pem).success) {
-      toast.error(
-        "Ugyldig e-postadresse i databasen. Oppdater under Crew først.",
-      );
-      return;
-    }
+    const emailNorm =
+      pem && z.string().email().safeParse(pem).success ? pem : null;
     const setter = segment === "crew" ? setCrewRows : setCastRows;
     const setDbPicker =
       segment === "crew" ? setDbPickerOpenCrew : setDbPickerOpenCast;
@@ -459,7 +431,7 @@ export function PayrollListEditor({
           nationalId,
           bankAccount,
           mobile: mob,
-          email: p.email,
+          email: emailNorm,
           sensitiveFieldsMaskInUi: true,
           segment,
           dietaryPreference: p.dietaryPreference ?? null,
