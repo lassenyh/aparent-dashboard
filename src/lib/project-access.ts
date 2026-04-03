@@ -58,8 +58,8 @@ function hasKey(flags: ProjectAccessFlags, key: PermissionKey): boolean {
 }
 
 function membershipToFlags(m: ProjectMembership): ProjectAccessFlags {
-  const canEditProjectInfo =
-    m.role === "owner" || m.role === "admin" || m.role === "editor";
+  /** Eksterne brukere skal kun kunne lese prosjektinfo; redigering er kun for interne (FULL_ACCESS). */
+  const canEditProjectInfo = false;
   const canManageMemberships = m.role === "owner" || m.role === "admin";
   return {
     role: m.role,
