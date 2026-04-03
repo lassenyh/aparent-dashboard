@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { requireSessionDashboardUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import { requireInternalUser } from "@/lib/project-access";
 import {
   isPublicUploadPath,
   removePublicUploadFile,
@@ -23,6 +25,7 @@ function getLogoFile(formData: FormData): File | null {
 }
 
 export async function getAgenciesList() {
+  await requireInternalUser();
   return prisma.agency.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -32,6 +35,7 @@ export async function getAgenciesList() {
 }
 
 export async function getAgencyById(id: string) {
+  await requireInternalUser();
   return prisma.agency.findUnique({
     where: { id },
     include: {
@@ -41,6 +45,7 @@ export async function getAgencyById(id: string) {
 }
 
 export async function getAgencyOptions() {
+  await requireSessionDashboardUser();
   return prisma.agency.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true },
@@ -51,6 +56,7 @@ export async function createAgency(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string }> {
+  await requireInternalUser();
   const raw = {
     name: String(formData.get("name") ?? ""),
     orgNumber: String(formData.get("orgNumber") ?? ""),
@@ -101,6 +107,7 @@ export async function updateAgency(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
+  await requireInternalUser();
   const raw = {
     name: String(formData.get("name") ?? ""),
     orgNumber: String(formData.get("orgNumber") ?? ""),
@@ -158,6 +165,7 @@ export async function updateAgency(
 }
 
 export async function deleteAgency(id: string) {
+  await requireInternalUser();
   const row = await prisma.agency.findUnique({ where: { id } });
   if (row?.logoUrl) await removePublicUploadFile(row.logoUrl);
   await prisma.agency.delete({ where: { id } });

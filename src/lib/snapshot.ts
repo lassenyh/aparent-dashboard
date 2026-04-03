@@ -26,6 +26,15 @@ export function resolveRateTypeForProject(
   return pc.rateTypeOverride ?? pc.person.rateType;
 }
 
+/** Om listen viser sats fra prosjektoverride, fra personens standard sats, eller ingen. */
+export function effectiveRateSourceForProject(
+  pc: ProjectCrewWithPerson,
+): "project" | "person" | "none" {
+  if (pc.rateOverride != null) return "project";
+  if (pc.person.defaultRate != null) return "person";
+  return "none";
+}
+
 /** Snapshot source: project overrides first, then person defaults. */
 export function buildCallSheetSnapshotData(pc: ProjectCrewWithPerson): {
   fullNameSnapshot: string;

@@ -52,7 +52,7 @@ export function CustomerNewForm() {
       </div>
 
       <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="sidebar" disabled={pending}>
           {pending ? "Oppretter…" : "Opprett kunde"}
         </Button>
         <Button type="button" variant="outline" asChild>

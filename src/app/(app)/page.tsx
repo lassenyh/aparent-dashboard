@@ -5,23 +5,29 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FEATURE_CALL_SHEETS_UI } from "@/lib/feature-flags";
+import { getSessionDashboardUser } from "@/lib/auth-session";
 import { formatDateShort, formatProjectDisplayName } from "@/lib/utils";
 
 export default async function HomePage() {
-  const projects = await getProjectsList();
+  const [projects, user] = await Promise.all([
+    getProjectsList(),
+    getSessionDashboardUser(),
+  ]);
+  const isInternal = user?.isInternal ?? false;
 
   return (
     <>
       <PageHeader
         title="Prosjekter"
-        description="Koble global crew til konkrete produksjoner. Arkiver når dere er ferdige."
         actions={
-          <Button asChild>
-            <Link href="/projects/new">
-              <Plus className="h-4 w-4" />
-              Nytt prosjekt
-            </Link>
-          </Button>
+          isInternal ? (
+            <Button variant="sidebar" asChild>
+              <Link href="/projects/new">
+                <Plus className="h-4 w-4" />
+                Nytt prosjekt
+              </Link>
+            </Button>
+          ) : null
         }
       />
 

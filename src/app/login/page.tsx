@@ -1,9 +1,16 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { getSessionDashboardUser } from "@/lib/auth-session";
 import { LoginPageClient } from "./login-page-client";
 
 export const dynamic = "force-dynamic";
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  const user = await getSessionDashboardUser();
+  if (user) {
+    redirect("/");
+  }
+
   return (
     <Suspense
       fallback={

@@ -45,7 +45,7 @@ export default async function PayrollListsIndexPage({ params }: PageProps) {
               className="w-[min(100vw-2rem,320px)]"
             />
           </div>
-          <Button type="submit" size="sm">
+          <Button type="submit" variant="sidebar" size="sm">
             Ny lønningsliste
           </Button>
         </form>

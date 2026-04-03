@@ -3,6 +3,10 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
+import {
+  assertPermission,
+  requireProjectAccess,
+} from "@/lib/project-access";
 
 function newShareToken(): string {
   return randomBytes(24).toString("base64url");
@@ -25,6 +29,9 @@ export async function ensureProjectCrewList(projectId: string) {
 
 /** Legger inn aktive prosjektcrew som mangler i standardlisten (respekterer excludedFromDefaultCrewList). */
 export async function syncMissingProjectCrewIntoDefaultList(projectId: string) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCrew");
+
   const list = await ensureProjectCrewList(projectId);
   const members = await prisma.projectCrewListMember.findMany({
     where: { projectCrewListId: list.id },
@@ -69,6 +76,9 @@ export async function syncMissingProjectCrewIntoDefaultList(projectId: string) {
 }
 
 export async function getProjectCrewListPageData(projectId: string) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canViewCrew");
+
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { id: true, name: true, internalTitle: true },
@@ -118,6 +128,9 @@ export async function getProjectIdByCrewListShareToken(
 }
 
 export async function getCrewListShareForProject(projectId: string) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canViewCrew");
+
   return prisma.projectCrewListShare.findUnique({
     where: { projectId },
     select: { token: true, createdAt: true },
@@ -125,6 +138,9 @@ export async function getCrewListShareForProject(projectId: string) {
 }
 
 export async function ensureCrewListShare(projectId: string) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCrew");
+
   const row = await prisma.projectCrewListShare.upsert({
     where: { projectId },
     create: { projectId, token: newShareToken() },
@@ -135,6 +151,9 @@ export async function ensureCrewListShare(projectId: string) {
 }
 
 export async function rotateCrewListShareToken(projectId: string) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCrew");
+
   const token = newShareToken();
   await prisma.projectCrewListShare.upsert({
     where: { projectId },
@@ -148,6 +167,9 @@ export async function addProjectCrewToDefaultList(
   projectId: string,
   projectCrewId: string,
 ) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCrew");
+
   const list = await ensureProjectCrewList(projectId);
 
   const pc = await prisma.projectCrew.findFirst({
@@ -200,6 +222,10 @@ export async function removeProjectCrewListMember(memberId: string) {
   });
   if (!row) return;
   const projectId = row.projectCrewList.projectId;
+
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCrew");
+
   await prisma.projectCrewListMember.delete({ where: { id: memberId } });
   await prisma.projectCrew.update({
     where: { id: row.projectCrew.id },
@@ -215,6 +241,9 @@ export async function moveProjectCrewListMember(
   memberId: string,
   direction: "up" | "down",
 ) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCrew");
+
   const list = await prisma.projectCrewList.findUnique({
     where: { projectId },
     include: {

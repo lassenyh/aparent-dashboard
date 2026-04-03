@@ -2,8 +2,10 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { CrewListImportClient } from "@/components/crew/crew-list-import-client";
+import { requireInternalUser } from "@/lib/project-access";
 
-export default function CrewImportPage() {
+export default async function CrewImportPage() {
+  await requireInternalUser();
   return (
     <>
       <div className="mb-6">

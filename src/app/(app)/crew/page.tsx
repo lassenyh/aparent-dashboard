@@ -16,12 +16,14 @@ import { formatRate } from "@/lib/utils";
 import { rolesLabel } from "@/lib/person";
 import { dietaryLabel } from "@/lib/dietary";
 import { nativeSelectClassName } from "@/lib/form-classes";
+import { requireInternalUser } from "@/lib/project-access";
 
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 export default async function CrewPage({ searchParams }: PageProps) {
+  await requireInternalUser();
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q : "";
   const role = typeof sp.role === "string" ? sp.role : "";
@@ -68,7 +70,7 @@ export default async function CrewPage({ searchParams }: PageProps) {
             <Button variant="outline" asChild>
               <Link href="/crew/import">Importer fra PDF/tekst</Link>
             </Button>
-            <Button asChild>
+            <Button variant="sidebar" asChild>
               <Link href="/crew/new">
                 <Plus className="h-4 w-4" />
                 Ny person

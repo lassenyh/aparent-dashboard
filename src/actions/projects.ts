@@ -1,10 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { FEATURE_CALL_SHEETS_UI } from "@/lib/feature-flags";
+import { getSessionDashboardUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import {
+  assertPermission,
+  getAccessibleProjectIds,
+  getProjectAccessForUser,
+  requireInternalUser,
+  requireProjectAccess,
+  requireProjectAccessByProjectCrewId,
+} from "@/lib/project-access";
 import { projectListSortKey } from "@/lib/utils";
 import { serializePersonForClient } from "@/lib/serialize";
 import { touchPersonLastUsed } from "@/actions/crew";
@@ -19,7 +28,6 @@ const projectSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   status: z.enum(["active", "archived"]),
-  notes: z.string().optional(),
   agencyId: z.string().optional(),
   customerId: z.string().optional(),
 });
@@ -37,7 +45,15 @@ function parseOptionalDate(s: string): Date | null {
 }
 
 export async function getProjectsList() {
+  const sessionUser = await getSessionDashboardUser();
+  if (!sessionUser) return [];
+  const accessibleIds = await getAccessibleProjectIds(sessionUser);
+  if (accessibleIds !== null && accessibleIds.length === 0) {
+    return [];
+  }
+
   const rows = await prisma.project.findMany({
+    where: accessibleIds === null ? undefined : { id: { in: accessibleIds } },
     include: {
       _count: {
         select: {
@@ -58,6 +74,11 @@ export async function getProjectsList() {
 }
 
 export async function getProjectById(id: string) {
+  const sessionUser = await getSessionDashboardUser();
+  if (!sessionUser) notFound();
+  const flags = await getProjectAccessForUser(sessionUser, id);
+  if (!flags) notFound();
+
   return prisma.project.findUnique({
     where: { id },
     include: {
@@ -103,7 +124,6 @@ export async function createProject(
     endDate: String(formData.get("endDate") ?? ""),
     status:
       formData.get("status") === "archived" ? "archived" : ("active" as const),
-    notes: String(formData.get("notes") ?? ""),
     agencyId: String(formData.get("agencyId") ?? ""),
     customerId: String(formData.get("customerId") ?? ""),
   };
@@ -114,6 +134,8 @@ export async function createProject(
   }
 
   const d = parsed.data;
+  await requireInternalUser();
+
   const p = await prisma.project.create({
     data: {
       name: d.name.trim(),
@@ -121,7 +143,6 @@ export async function createProject(
       startDate: parseOptionalDate(d.startDate ?? ""),
       endDate: parseOptionalDate(d.endDate ?? ""),
       status: d.status,
-      notes: d.notes || null,
       agencyId: optionalRelationId(d.agencyId ?? ""),
       customerId: optionalRelationId(d.customerId ?? ""),
     },
@@ -135,9 +156,9 @@ export async function createProject(
 
 export async function updateProject(
   id: string,
-  _prev: { error?: string } | null,
+  _prev: { error?: string } | { success: true } | null,
   formData: FormData,
-): Promise<{ error?: string } | null> {
+): Promise<{ error?: string } | { success: true }> {
   const raw = {
     name: String(formData.get("name") ?? ""),
     internalTitle: String(formData.get("internalTitle") ?? ""),
@@ -145,7 +166,6 @@ export async function updateProject(
     endDate: String(formData.get("endDate") ?? ""),
     status:
       formData.get("status") === "archived" ? "archived" : ("active" as const),
-    notes: String(formData.get("notes") ?? ""),
     agencyId: String(formData.get("agencyId") ?? ""),
     customerId: String(formData.get("customerId") ?? ""),
   };
@@ -156,6 +176,9 @@ export async function updateProject(
   }
 
   const d = parsed.data;
+  const { flags } = await requireProjectAccess(id);
+  assertPermission(flags, "canEditProjectInfo");
+
   await prisma.project.update({
     where: { id },
     data: {
@@ -164,7 +187,6 @@ export async function updateProject(
       startDate: parseOptionalDate(d.startDate ?? ""),
       endDate: parseOptionalDate(d.endDate ?? ""),
       status: d.status,
-      notes: d.notes || null,
       agencyId: optionalRelationId(d.agencyId ?? ""),
       customerId: optionalRelationId(d.customerId ?? ""),
     },
@@ -172,17 +194,18 @@ export async function updateProject(
 
   revalidatePath(`/projects/${id}`);
   revalidatePath("/");
-  return null;
+  return { success: true };
 }
 
 export async function deleteProject(projectId: string, _formData?: FormData) {
   void _formData;
+  await requireInternalUser();
   await prisma.project.delete({ where: { id: projectId } });
   revalidatePath("/");
   redirect("/");
 }
 
-export async function addPersonToProject(
+async function linkPersonToProjectCrew(
   projectId: string,
   personId: string,
   opts?: {
@@ -233,6 +256,43 @@ export async function addPersonToProject(
   revalidatePath("/");
 }
 
+export async function addPersonToProject(
+  projectId: string,
+  personId: string,
+  opts?: {
+    roleOverride?: string | null;
+    rateOverride?: number | null;
+    rateTypeOverride?: "day" | "hour" | null;
+  },
+) {
+  const user = await getSessionDashboardUser();
+  if (!user) notFound();
+  const flags = await getProjectAccessForUser(user, projectId);
+  if (!flags) notFound();
+  if (!user.isInternal && !flags.canEditCrew) notFound();
+
+  await linkPersonToProjectCrew(projectId, personId, opts);
+}
+
+/** Etter import fra PDF/tekst — krever egen rettighet, ikke nødvendigvis `canEditCrew`. */
+export async function addPersonToProjectFromImport(
+  projectId: string,
+  personId: string,
+  opts?: {
+    roleOverride?: string | null;
+    rateOverride?: number | null;
+    rateTypeOverride?: "day" | "hour" | null;
+  },
+) {
+  const user = await getSessionDashboardUser();
+  if (!user) notFound();
+  const flags = await getProjectAccessForUser(user, projectId);
+  if (!flags) notFound();
+  if (!user.isInternal && !flags.canImportCrewDatabase) notFound();
+
+  await linkPersonToProjectCrew(projectId, personId, opts);
+}
+
 export async function submitProjectCrewRow(
   projectCrewId: string,
   formData: FormData,
@@ -266,6 +326,9 @@ export async function updateProjectCrew(
     isActive?: boolean;
   },
 ) {
+  const { flags } = await requireProjectAccessByProjectCrewId(projectCrewId);
+  assertPermission(flags, "canEditCrew");
+
   const row = await prisma.projectCrew.update({
     where: { id: projectCrewId },
     data: {
@@ -284,6 +347,9 @@ export async function updateProjectCrew(
 }
 
 export async function deactivateProjectCrew(projectCrewId: string) {
+  const { flags } = await requireProjectAccessByProjectCrewId(projectCrewId);
+  assertPermission(flags, "canEditCrew");
+
   const row = await prisma.projectCrew.update({
     where: { id: projectCrewId },
     data: { isActive: false },
@@ -300,6 +366,9 @@ export async function searchPeopleForProject(
   q: string,
   limit = 12,
 ) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCrew");
+
   const assigned = await prisma.projectCrew.findMany({
     where: { projectId, isActive: true },
     select: { personId: true },

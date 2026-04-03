@@ -9,10 +9,12 @@ import { CrewEditForm } from "@/components/forms/crew-edit-form";
 import { ConfirmDeleteListItem } from "@/components/confirm-delete-list-item";
 import { Badge } from "@/components/ui/badge";
 import { serializePersonForClient } from "@/lib/serialize";
+import { requireInternalUser } from "@/lib/project-access";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function CrewDetailPage({ params }: PageProps) {
+  await requireInternalUser();
   const { id } = await params;
   const person = await getPersonById(id);
   if (!person) notFound();

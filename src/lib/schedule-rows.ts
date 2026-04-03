@@ -1,5 +1,8 @@
 export type ScheduleRowKind = "anchor" | "sequential" | "free";
 
+/** Lagret i `interiorExterior` — company move-rad (bil-ikon i I/E). */
+export const SCHEDULE_INTERIOR_EXTERIOR_TRUCK = "truck";
+
 export type ScheduleRow = {
   id: string;
   rowKind: ScheduleRowKind;
@@ -12,6 +15,10 @@ export type ScheduleRow = {
   sceneSetting: string;
   info: string;
   actorNumbers: string;
+  /** Storyboard / referansebilde (én per rad). */
+  shotImageUrl: string;
+  /** Bakgrunnsfarge for raden (#RRGGBB), tom = standard. */
+  rowBgColor: string;
 };
 
 /** Parse "HH:mm" to minutes from midnight (local semantics). */
@@ -25,6 +32,37 @@ export function parseTimeToMinutes(s: string): number | null {
   if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
   if (h < 0 || h > 23 || min < 0 || min > 59) return null;
   return h * 60 + min;
+}
+
+function formatMinutesAsHHmm(m: number): string {
+  const h = Math.floor(m / 60) % 24;
+  const min = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/**
+ * Minste starttid og største sluttid på tvers av timeplanrader (gyldige fra–til).
+ * Brukes til «Arbeid fra / til» på dagsplan.
+ */
+export function inferWorkHoursFromScheduleRows(
+  rows: ScheduleRow[],
+): { workStartTime: string; workEndTime: string } {
+  let minStart: number | null = null;
+  let maxEnd: number | null = null;
+  for (const r of rows) {
+    const startM = parseTimeToMinutes(r.startTime);
+    const endM = parseTimeToMinutes(r.endTime);
+    if (startM != null) {
+      minStart = minStart == null ? startM : Math.min(minStart, startM);
+    }
+    if (endM != null) {
+      maxEnd = maxEnd == null ? endM : Math.max(maxEnd, endM);
+    }
+  }
+  return {
+    workStartTime: minStart != null ? formatMinutesAsHHmm(minStart) : "",
+    workEndTime: maxEnd != null ? formatMinutesAsHHmm(maxEnd) : "",
+  };
 }
 
 /** Add minutes to an "HH:mm" time string (handles day rollover in Date). */
@@ -84,7 +122,7 @@ export function normalizeScheduleRowKinds(rows: ScheduleRow[]): ScheduleRow[] {
  */
 export function recalculateScheduleRows(rows: ScheduleRow[]): ScheduleRow[] {
   if (rows.length === 0) return [];
-  const base = normalizeScheduleRowKinds(rows);
+  const base = ensureAnchorRowAfterCallTime(normalizeScheduleRowKinds(rows));
   const out = base.map((r) => ({ ...r }));
   let cur: string | null = null;
   /** Sluttid fra siste anker/sekvens før et frifelt — for «auto» rett etter fri rad. */
@@ -110,6 +148,28 @@ export function recalculateScheduleRows(rows: ScheduleRow[]): ScheduleRow[] {
         cur = null;
         continue;
       }
+      /** Call time (rad 0): kun oppmøtetid — ingen varighet, slutt = start for kjede. */
+      if (isScheduleCallTimeRow(row) && i === 0) {
+        out[i] = {
+          ...row,
+          startTime: start,
+          endTime: start,
+          durationMinutes: 0,
+        };
+        cur = start;
+        continue;
+      }
+      /** Wrap (anker): kun fra-tid — markør, ingen varighet. */
+      if (isScheduleWrapRow(row)) {
+        out[i] = {
+          ...row,
+          startTime: start,
+          endTime: start,
+          durationMinutes: 0,
+        };
+        cur = start;
+        continue;
+      }
       const dur = Math.max(0, Math.floor(row.durationMinutes ?? 0));
       const end = addMinutesToTimeString(start, dur);
       out[i] = { ...row, startTime: start, endTime: end };
@@ -129,12 +189,32 @@ export function recalculateScheduleRows(rows: ScheduleRow[]): ScheduleRow[] {
           cur = null;
           continue;
         }
+        if (isScheduleWrapRow(row)) {
+          out[i] = {
+            ...row,
+            rowKind: "anchor",
+            startTime: start,
+            endTime: start,
+            durationMinutes: 0,
+          };
+          cur = start;
+          continue;
+        }
         const dur = Math.max(0, Math.floor(row.durationMinutes ?? 0));
         const end = addMinutesToTimeString(start, dur);
         out[i] = { ...row, rowKind: "anchor", startTime: start, endTime: end };
         cur = end;
         continue;
       }
+    }
+    if (isScheduleWrapRow(row)) {
+      out[i] = {
+        ...row,
+        startTime: cur,
+        endTime: cur,
+        durationMinutes: 0,
+      };
+      continue;
     }
     const dur = Math.max(0, Math.floor(row.durationMinutes ?? 0));
     const end = addMinutesToTimeString(cur, dur);
@@ -213,6 +293,8 @@ export function emptyScheduleRow(
     sceneSetting: "",
     info: "",
     actorNumbers: "",
+    shotImageUrl: "",
+    rowBgColor: "",
   };
 }
 
@@ -226,10 +308,57 @@ export function isScheduleLunchRow(row: {
   return row.sceneSetting?.trim().toLowerCase() === "lunsj";
 }
 
+/** Info «Call time» — kun tillatt som øverste rad (normaliseres bort andre steder). */
+export const SCHEDULE_CALL_TIME_INFO = "Call time";
+
+export function isScheduleCallTimeRow(row: { info?: string | null }): boolean {
+  return row.info?.trim() === SCHEDULE_CALL_TIME_INFO;
+}
+
+/** Info «Wrap» — kun starttid (markør), samme kjede-logikk som call time uten posisjonskrav. */
+export const SCHEDULE_WRAP_INFO = "Wrap";
+
+export function isScheduleWrapRow(row: { info?: string | null }): boolean {
+  return row.info?.trim() === SCHEDULE_WRAP_INFO;
+}
+
+/** Etter «Call time» (rad 0) skal neste rad alltid være anker med samme fra-tid. */
+function ensureAnchorRowAfterCallTime(rows: ScheduleRow[]): ScheduleRow[] {
+  if (rows.length < 2) return rows;
+  if (!isScheduleCallTimeRow(rows[0])) return rows;
+  const t = rows[0].startTime?.trim() ?? "";
+  const out = rows.map((r) => ({ ...r }));
+  out[1] = {
+    ...out[1],
+    rowKind: "anchor",
+    startTime: t,
+  };
+  return out;
+}
+
+export function scheduleHasCallTimeFirstRow(rows: ScheduleRow[]): boolean {
+  return rows.length > 0 && isScheduleCallTimeRow(rows[0]);
+}
+
+/** Fjerner «Call time» fra rader som ikke er først (etter dra eller duplikat). */
+export function normalizeCallTimeOnlyOnFirst(rows: ScheduleRow[]): ScheduleRow[] {
+  let changed = false;
+  const out = rows.map((r, i) => {
+    if (i > 0 && isScheduleCallTimeRow(r)) {
+      changed = true;
+      return { ...r, info: "" };
+    }
+    return r;
+  });
+  return changed ? out : rows;
+}
+
 /** Velg kind for ny «+ Rad» ut fra siste rad. */
 export function rowKindForNewSequentialRow(last: ScheduleRow | undefined): "anchor" | "sequential" {
   if (!last) return "anchor";
   if (last.rowKind === "free") return "anchor";
+  /** Første rad etter «Call time» skal være anker med samme fra-tid. */
+  if (isScheduleCallTimeRow(last)) return "anchor";
   return "sequential";
 }
 
@@ -256,6 +385,8 @@ export function hasChainBeforeFreeBlock(
 export function canDemoteAnchorRow(rows: ScheduleRow[], index: number): boolean {
   if (index <= 0) return false;
   if (rows[index]?.rowKind !== "anchor") return false;
+  /** Rad rett etter «Call time» skal forbli anker (synkes automatisk). */
+  if (index === 1 && isScheduleCallTimeRow(rows[0])) return false;
   if (rows[index - 1]?.rowKind === "free") {
     return hasChainBeforeFreeBlock(rows, index);
   }

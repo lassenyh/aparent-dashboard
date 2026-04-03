@@ -3,8 +3,10 @@ import { getCustomerOptions } from "@/actions/customers";
 import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { ProjectNewForm } from "@/components/forms/project-new-form";
+import { requireInternalUser } from "@/lib/project-access";
 
 export default async function NewProjectPage() {
+  await requireInternalUser();
   const [agencies, customers] = await Promise.all([
     getAgencyOptions(),
     getCustomerOptions(),

@@ -4,10 +4,12 @@ import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { CustomerEditForm } from "@/components/forms/customer-edit-form";
 import { Button } from "@/components/ui/button";
+import { requireInternalUser } from "@/lib/project-access";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function CustomerDetailPage({ params }: PageProps) {
+  await requireInternalUser();
   const { id } = await params;
   const customer = await getCustomerById(id);
   if (!customer) notFound();

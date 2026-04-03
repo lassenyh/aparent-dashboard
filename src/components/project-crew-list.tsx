@@ -60,9 +60,20 @@ export function ProjectCrewList({ rows }: Props) {
                     {meta}
                   </p>
                 </div>
-                <span className="shrink-0 tabular-nums text-sm text-foreground">
-                  {row.effectiveRateLabel}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-0 text-right">
+                  <span className="tabular-nums text-sm text-foreground">
+                    {row.effectiveRateLabel}
+                  </span>
+                  {row.effectiveRateSource === "person" ? (
+                    <span className="text-[10px] leading-tight text-muted-foreground">
+                      fra crew-profil
+                    </span>
+                  ) : row.effectiveRateSource === "project" ? (
+                    <span className="text-[10px] leading-tight text-muted-foreground">
+                      prosjektoverride
+                    </span>
+                  ) : null}
+                </div>
                 <ChevronDown
                   className={cn(
                     "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
@@ -94,15 +105,21 @@ export function ProjectCrewList({ rows }: Props) {
                 className="mb-2 ml-2 border-l-2 border-border pl-4"
               >
                 <div className="rounded-md bg-muted/25 px-4 py-3">
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    <Link
-                      href={`/crew/${row.person.id}`}
-                      className="inline-flex items-center gap-1 hover:text-foreground"
-                    >
-                      Åpne profil
-                      <ExternalLink className="h-3 w-3" />
-                    </Link>
-                  </p>
+                  <div className="mb-3 space-y-1.5 text-xs text-muted-foreground">
+                    <p>
+                      <Link
+                        href={`/crew/${row.person.id}`}
+                        className="inline-flex items-center gap-1 hover:text-foreground"
+                      >
+                        Åpne profil
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </p>
+                    <p>
+                      Sats i listen kommer fra «Standard sats pr dag» på
+                      crew-profilen eller fra feltene under — ikke fra navnet.
+                    </p>
+                  </div>
                   <div className="grid max-w-lg gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">

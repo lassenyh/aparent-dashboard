@@ -28,7 +28,8 @@ export type LogoEntity =
   | "agency"
   | "dagsplanAgency"
   | "dagsplanClient"
-  | "dagsplanParking";
+  | "dagsplanParking"
+  | "dagsplanScheduleShot";
 
 /** Lokale opplastinger under /uploads/ eller Vercel Blob-URLer. */
 export function isPublicUploadPath(url: string | null | undefined): boolean {
@@ -100,7 +101,9 @@ export async function saveUploadedLogo(
           ? (["dagsplan", "agency"] as const)
           : entity === "dagsplanClient"
             ? (["dagsplan", "client"] as const)
-            : (["dagsplan", "parking"] as const);
+            : entity === "dagsplanScheduleShot"
+              ? (["dagsplan", "schedule-shot"] as const)
+              : (["dagsplan", "parking"] as const);
   const name = `${entityId}-${randomBytes(8).toString("hex")}.${ext}`;
   const urlSub = subParts.join("/");
 

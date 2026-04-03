@@ -1,8 +1,10 @@
 import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { CrewNewForm } from "@/components/forms/crew-new-form";
+import { requireInternalUser } from "@/lib/project-access";
 
-export default function NewCrewPage() {
+export default async function NewCrewPage() {
+  await requireInternalUser();
   return (
     <>
       <div className="mb-6">

@@ -1,8 +1,10 @@
 import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { CustomerNewForm } from "@/components/forms/customer-new-form";
+import { requireInternalUser } from "@/lib/project-access";
 
-export default function NewCustomerPage() {
+export default async function NewCustomerPage() {
+  await requireInternalUser();
   return (
     <>
       <div className="mb-6">

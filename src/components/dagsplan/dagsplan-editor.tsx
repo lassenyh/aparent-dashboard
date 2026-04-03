@@ -27,9 +27,18 @@ import { DagsplanWeatherCard } from "@/components/dagsplan/dagsplan-weather-card
 import { WEATHER_ICON_OPTIONS } from "@/lib/weather-icon";
 import { APARENT_LOGO_PUBLIC_PATH } from "@/lib/dagsplan-defaults";
 import {
+  SCHEDULE_CALL_TIME_DEFAULT_ROW_BG,
+  SCHEDULE_WRAP_DEFAULT_ROW_BG,
+} from "@/lib/schedule-row-colors";
+import {
   emptyScheduleRow,
+  inferWorkHoursFromScheduleRows,
   recalculateScheduleRows,
   rowKindForNewSequentialRow,
+  SCHEDULE_CALL_TIME_INFO,
+  SCHEDULE_INTERIOR_EXTERIOR_TRUCK,
+  SCHEDULE_WRAP_INFO,
+  scheduleHasCallTimeFirstRow,
 } from "@/lib/schedule-rows";
 import { buildGoogleMapsSearchUrl } from "@/lib/google-maps-url";
 import { sortDagsplanCrewRowsByDepartmentOrder } from "@/lib/crew-department-order";
@@ -57,7 +66,18 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import {
+  getDagsplanEditorStrings,
+  getDagsplanLocationStrings,
+  translateCrewDepartmentTitle,
+  type DagsplanLocale,
+} from "@/lib/dagsplan-i18n";
 
 export type CrewSuggestion = {
   projectCrewId: string;
@@ -85,8 +105,6 @@ export type DagsplanEditorInitial = {
   projectName: string;
   title: string;
   shootDate: string;
-  workStartTime: string;
-  workEndTime: string;
   agencyLogoUrl: string;
   clientLogoUrl: string;
   locationRows: DagsplanLocationRowState[];
@@ -100,6 +118,9 @@ export type DagsplanEditorInitial = {
   /** false = ekskludert fra utskrift (ikke vis tabell på utskrift). */
   printIncludeActors: boolean;
   printIncludeDepartmentInfo: boolean;
+  /** Tom = automatisk Oslo på opptaksdato; ellers manuell tid (HH:mm). */
+  sunriseTimeOverride: string;
+  sunsetTimeOverride: string;
   crewRows: Array<{
     departmentTitle: string;
     personName: string;
@@ -122,6 +143,10 @@ export type DagsplanEditorInitial = {
     departmentName: string;
     info: string;
   }>;
+  /** Kolonne «Shot» (bilde) mellom varighet og scene — skjules som standard. */
+  showShotColumn: boolean;
+  /** UI og print: norsk eller engelsk. */
+  displayLocale: DagsplanLocale;
   /** Fallback for visning når dagsplan-felt er tomt */
   projectAgencyLogoUrl: string | null;
   projectClientLogoUrl: string | null;
@@ -154,6 +179,7 @@ function DagsplanLocationBlock({
   index,
   total,
   row,
+  loc,
   onChange,
   onMoveUp,
   onMoveDown,
@@ -168,6 +194,7 @@ function DagsplanLocationBlock({
   index: number;
   total: number;
   row: DagsplanLocationRowState;
+  loc: ReturnType<typeof getDagsplanLocationStrings>;
   onChange: (patch: Partial<DagsplanLocationRowState>) => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -197,12 +224,12 @@ function DagsplanLocationBlock({
   const fields = (
     <div className="grid max-w-3xl gap-4">
       <div className="space-y-2">
-        <Label htmlFor={`${baseId}-locationName`}>Navn på location</Label>
+        <Label htmlFor={`${baseId}-locationName`}>{loc.locationName}</Label>
         <Input
           id={`${baseId}-locationName`}
           value={row.locationName}
           onChange={(e) => onChange({ locationName: e.target.value })}
-          placeholder="F.eks. Studio, hovedlokasjon"
+          placeholder={loc.locationNamePh}
         />
       </div>
       <div className="space-y-2">
@@ -211,7 +238,7 @@ function DagsplanLocationBlock({
             htmlFor={`${baseId}-locationText`}
             className="shrink-0 leading-none"
           >
-            Adresse
+            {loc.address}
           </Label>
           {mapsSearchHref ? (
             <Button
@@ -225,12 +252,12 @@ function DagsplanLocationBlock({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Open in Google Maps
+                {loc.openInMaps}
               </a>
             </Button>
           ) : (
             <span className="min-w-0 truncate text-right text-xs text-muted-foreground">
-              Fyll inn adresse for å søke i Maps
+              {loc.fillAddressForMaps}
             </span>
           )}
         </div>
@@ -239,43 +266,43 @@ function DagsplanLocationBlock({
           rows={1}
           value={row.locationText}
           onChange={(e) => onChange({ locationText: e.target.value })}
-          placeholder="Adresse eller sted (brukes til Google Maps-søk)"
+          placeholder={loc.addressPlaceholder}
           className={DAGSPLAN_TEXTAREA_AUTO}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`${baseId}-locationMapsUrl`}>Google Maps link</Label>
+        <Label htmlFor={`${baseId}-locationMapsUrl`}>{loc.mapsLink}</Label>
         <Input
           id={`${baseId}-locationMapsUrl`}
           value={row.locationMapsUrl}
           onChange={(e) => onChange({ locationMapsUrl: e.target.value })}
-          placeholder="https://maps.google.com/…"
+          placeholder={loc.mapsLinkPh}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`${baseId}-parkingText`}>Parking / transport</Label>
+        <Label htmlFor={`${baseId}-parkingText`}>{loc.parkingTransport}</Label>
         <Textarea
           id={`${baseId}-parkingText`}
           rows={1}
           value={row.parkingText}
           onChange={(e) => onChange({ parkingText: e.target.value })}
-          placeholder="Directions, gate codes, shuttle…"
+          placeholder={loc.parkingTransportPh}
           className={DAGSPLAN_TEXTAREA_AUTO}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`${baseId}-parkingMapsUrl`}>Parking maps link</Label>
+        <Label htmlFor={`${baseId}-parkingMapsUrl`}>{loc.parkingMapsLink}</Label>
         <Input
           id={`${baseId}-parkingMapsUrl`}
           value={row.parkingMapsUrl}
           onChange={(e) => onChange({ parkingMapsUrl: e.target.value })}
-          placeholder="https://…"
+          placeholder={loc.parkingMapsLinkPh}
         />
       </div>
       <div className="space-y-2 border-t border-border/60 pt-4">
-        <Label>Parking image (print attachment)</Label>
+        <Label>{loc.parkingImage}</Label>
         <p className="text-xs text-muted-foreground">
-          Map, sketch or photo. Prints as a separate page when filled.
+          {loc.parkingImageHint}
         </p>
         <ParkingImageDropzone
           locationId={row.id}
@@ -290,7 +317,7 @@ function DagsplanLocationBlock({
           disabled={locationSaveDisabled}
           onClick={() => void onSaveLocations()}
         >
-          Lagre
+          {loc.save}
         </Button>
       </div>
     </div>
@@ -348,13 +375,26 @@ export function DagsplanEditor({
     ...initial,
     printIncludeActors: initial.printIncludeActors ?? true,
     printIncludeDepartmentInfo: initial.printIncludeDepartmentInfo ?? true,
+    showShotColumn: initial.showShotColumn ?? false,
+    displayLocale: initial.displayLocale ?? "no",
   }));
+
+  const t = useMemo(
+    () => getDagsplanEditorStrings(state.displayLocale),
+    [state.displayLocale],
+  );
+  const locStrings = useMemo(
+    () => getDagsplanLocationStrings(state.displayLocale),
+    [state.displayLocale],
+  );
   const [saveState, setSaveState] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState<"agency" | "client" | null>(null);
   const [locationSavePending, setLocationSavePending] = useState(false);
   /** Hvilken location-rad som er utvidet. `null` = alle lukket (standard ved åpning av siden). */
   const [openLocationId, setOpenLocationId] = useState<string | null>(null);
+  const [companyMoveOpen, setCompanyMoveOpen] = useState(false);
+  const [companyMoveManualText, setCompanyMoveManualText] = useState("");
 
   useEffect(() => {
     if (
@@ -403,6 +443,33 @@ export function DagsplanEditor({
     [crewDatabaseOptions, usedPersonIds],
   );
 
+  const workHoursFromSchedule = useMemo(
+    () => inferWorkHoursFromScheduleRows(state.scheduleRows),
+    [state.scheduleRows],
+  );
+
+  function appendCompanyMoveRow(address: string) {
+    setCompanyMoveOpen(false);
+    setCompanyMoveManualText("");
+    setState((s) => {
+      const id = crypto.randomUUID();
+      const kind = rowKindForNewSequentialRow(
+        s.scheduleRows[s.scheduleRows.length - 1],
+      );
+      const row = {
+        ...emptyScheduleRow(id, kind),
+        info: "Company move",
+        interiorExterior: SCHEDULE_INTERIOR_EXTERIOR_TRUCK,
+        sceneSetting: address.trim(),
+        durationMinutes: 30,
+      };
+      return {
+        ...s,
+        scheduleRows: recalculateScheduleRows([...s.scheduleRows, row]),
+      };
+    });
+  }
+
   const payload = useMemo(() => {
     const crewRows = state.crewRows.map((r, i) => ({
       ...r,
@@ -415,6 +482,7 @@ export function DagsplanEditor({
       sortOrder: i,
     }));
     const scheduleRows = state.scheduleRows.map((r, i) => ({
+      id: r.id,
       startTime: r.startTime,
       endTime: r.endTime,
       durationMinutes: r.durationMinutes,
@@ -424,6 +492,8 @@ export function DagsplanEditor({
       sceneSetting: r.sceneSetting,
       info: r.info,
       actorNumbers: r.actorNumbers,
+      shotImageUrl: r.shotImageUrl?.trim() || null,
+      rowBgColor: r.rowBgColor?.trim() || null,
       sortOrder: i,
     }));
     const departmentRows = state.departmentRows.map((r, i) => ({
@@ -434,8 +504,8 @@ export function DagsplanEditor({
       id: state.id,
       title: state.title,
       shootDate: state.shootDate,
-      workStartTime: state.workStartTime || null,
-      workEndTime: state.workEndTime || null,
+      workStartTime: workHoursFromSchedule.workStartTime || null,
+      workEndTime: workHoursFromSchedule.workEndTime || null,
       agencyLogoUrl: state.agencyLogoUrl || null,
       clientLogoUrl: state.clientLogoUrl || null,
       locationRows: state.locationRows.map((r, i) => ({
@@ -457,6 +527,10 @@ export function DagsplanEditor({
       radioChannelsText: state.radioChannelsText || null,
       printIncludeActors: state.printIncludeActors,
       printIncludeDepartmentInfo: state.printIncludeDepartmentInfo,
+      showShotColumn: state.showShotColumn,
+      displayLocale: state.displayLocale,
+      sunriseTimeOverride: state.sunriseTimeOverride.trim() || null,
+      sunsetTimeOverride: state.sunsetTimeOverride.trim() || null,
       crewRows,
       actorRows,
       scheduleRows,
@@ -472,11 +546,11 @@ export function DagsplanEditor({
         toast.error(res.error);
         setSaveState(res.error);
       } else {
-        toast.success("Lagret");
+        toast.success(t.toastSaved);
         router.refresh();
       }
     });
-  }, [payload, router]);
+  }, [payload, router, t]);
 
   const saveLocations = useCallback(async () => {
     setLocationSavePending(true);
@@ -498,14 +572,14 @@ export function DagsplanEditor({
         toast.error(res.error);
         return;
       }
-      toast.success("Lagret");
+      toast.success(t.toastLocationSaved);
       flushSync(() => {
         setOpenLocationId(null);
       });
     } finally {
       setLocationSavePending(false);
     }
-  }, [state.id, state.locationRows]);
+  }, [state.id, state.locationRows, t]);
 
   async function handleLogoUpload(
     which: "agency" | "client",
@@ -519,7 +593,7 @@ export function DagsplanEditor({
         return;
       }
       else {
-        toast.success("Logo lastet opp");
+        toast.success(t.toastLogoUploaded);
         router.refresh();
       }
     } finally {
@@ -543,7 +617,7 @@ export function DagsplanEditor({
         },
       ],
     }));
-    toast.success("Rad lagt til");
+    toast.success(t.toastCrewRowAdded);
   }
 
   function addFromCrewDatabase(opt: CrewDatabasePersonOption) {
@@ -565,7 +639,7 @@ export function DagsplanEditor({
         ]),
       };
     });
-    toast.success("Rad lagt til fra crew-database");
+    toast.success(t.toastCrewRowFromDb);
   }
 
   return (
@@ -583,19 +657,50 @@ export function DagsplanEditor({
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{state.shootDate}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className="flex flex-wrap items-center gap-1 rounded-md border border-border bg-muted/30 px-2 py-1"
+            role="group"
+            aria-label={t.language}
+          >
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              {t.language}
+            </span>
+            <Button
+              type="button"
+              variant={state.displayLocale === "no" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() =>
+                setState((s) => ({ ...s, displayLocale: "no" }))
+              }
+            >
+              {t.langNo}
+            </Button>
+            <Button
+              type="button"
+              variant={state.displayLocale === "en" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() =>
+                setState((s) => ({ ...s, displayLocale: "en" }))
+              }
+            >
+              {t.langEn}
+            </Button>
+          </div>
           <Button variant="outline" asChild>
             <Link href={`/dagsplaner/${state.id}/print`} target="_blank">
-              Forhåndsvisning / print
+              {t.previewPrint}
             </Link>
           </Button>
           <form action={duplicateDagsplan.bind(null, state.id)}>
             <Button type="submit" variant="secondary" disabled={pending}>
-              Dupliser
+              {t.duplicate}
             </Button>
           </form>
           <Button type="button" disabled={pending} onClick={save}>
-            {pending ? "Lagrer…" : "Lagre alle endringer"}
+            {pending ? t.saving : t.saveAll}
           </Button>
         </div>
       </header>
@@ -606,7 +711,7 @@ export function DagsplanEditor({
 
       <div className="space-y-10">
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <SectionHeading className="mb-4">Branding</SectionHeading>
+          <SectionHeading className="mb-4">{t.branding}</SectionHeading>
           <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 sm:gap-6">
             <div className="flex min-h-[56px] items-center justify-center">
               {displayAgencyLogo ? (
@@ -617,7 +722,9 @@ export function DagsplanEditor({
                   className="max-h-14 max-w-full object-contain"
                 />
               ) : (
-                <span className="text-xs text-muted-foreground">Byrålogo</span>
+                <span className="text-xs text-muted-foreground">
+                  {t.agencyLogo}
+                </span>
               )}
             </div>
             <div className="flex shrink-0 items-center justify-center">
@@ -637,7 +744,9 @@ export function DagsplanEditor({
                   className="max-h-14 max-w-full object-contain"
                 />
               ) : (
-                <span className="text-xs text-muted-foreground">Kundelogo</span>
+                <span className="text-xs text-muted-foreground">
+                  {t.clientLogo}
+                </span>
               )}
             </div>
           </div>
@@ -654,7 +763,7 @@ export function DagsplanEditor({
               }}
             >
               <div className="space-y-1">
-                <Label className="text-xs">Last opp byrålogo</Label>
+                <Label className="text-xs">{t.uploadAgencyLogo}</Label>
                 <Input
                   name="logoFile"
                   type="file"
@@ -668,7 +777,7 @@ export function DagsplanEditor({
                 variant="secondary"
                 disabled={uploading !== null}
               >
-                {uploading === "agency" ? "…" : "Last opp"}
+                {uploading === "agency" ? t.uploadEllipsis : t.upload}
               </Button>
             </form>
             <form
@@ -683,7 +792,7 @@ export function DagsplanEditor({
               }}
             >
               <div className="space-y-1">
-                <Label className="text-xs">Last opp kundelogo</Label>
+                <Label className="text-xs">{t.uploadClientLogo}</Label>
                 <Input
                   name="logoFile"
                   type="file"
@@ -697,16 +806,16 @@ export function DagsplanEditor({
                 variant="secondary"
                 disabled={uploading !== null}
               >
-                {uploading === "client" ? "…" : "Last opp"}
+                {uploading === "client" ? t.uploadEllipsis : t.upload}
               </Button>
             </form>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Tom visning bruker prosjektets byrå-/kundelogo som forslag.
+            {t.emptyLogoHint}
           </p>
           <div className="mt-6 grid max-w-xl gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="title">Tittel</Label>
+              <Label htmlFor="title">{t.title}</Label>
               <Input
                 id="title"
                 value={state.title}
@@ -716,7 +825,7 @@ export function DagsplanEditor({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="shootDate">Innspillingsdato</Label>
+              <Label htmlFor="shootDate">{t.shootDate}</Label>
               <Input
                 id="shootDate"
                 type="date"
@@ -726,34 +835,39 @@ export function DagsplanEditor({
                 }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="workStart">Arbeid fra</Label>
-              <Input
-                id="workStart"
-                type="time"
-                value={state.workStartTime}
-                onChange={(e) =>
-                  setState((s) => ({ ...s, workStartTime: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="workEnd">Arbeid til</Label>
-              <Input
-                id="workEnd"
-                type="time"
-                value={state.workEndTime}
-                onChange={(e) =>
-                  setState((s) => ({ ...s, workEndTime: e.target.value }))
-                }
-              />
+            <div className="space-y-2 sm:col-span-2">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="workStart">{t.workFrom}</Label>
+                  <Input
+                    id="workStart"
+                    type="time"
+                    readOnly
+                    tabIndex={-1}
+                    value={workHoursFromSchedule.workStartTime}
+                    className="bg-muted/40"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="workEnd">{t.workTo}</Label>
+                  <Input
+                    id="workEnd"
+                    type="time"
+                    readOnly
+                    tabIndex={-1}
+                    value={workHoursFromSchedule.workEndTime}
+                    className="bg-muted/40"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{t.workHoursAuto}</p>
             </div>
           </div>
         </section>
 
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <SectionHeading className="mb-0">Locations</SectionHeading>
+            <SectionHeading className="mb-0">{t.locations}</SectionHeading>
             <Button
               type="button"
               variant="outline"
@@ -783,19 +897,18 @@ export function DagsplanEditor({
                         },
                       ],
                     }));
-                    toast.success("Location lagt til");
+                    toast.success(t.toastLocationAdded);
                   }
                 });
               }}
             >
-              + Ny location
+              {t.newLocation}
             </Button>
           </div>
           <div className="space-y-6">
             {state.locationRows.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Ingen locations ennå. Bruk «Ny location» for å legge til adresse,
-                kart, parkering og parkeringsbilde.
+                {t.noLocationsHint}
               </p>
             ) : null}
             {state.locationRows.map((row, i) => (
@@ -804,6 +917,7 @@ export function DagsplanEditor({
                 index={i}
                 total={state.locationRows.length}
                 row={row}
+                loc={locStrings}
                 onChange={(patch) =>
                   setState((s) => {
                     const locationRows = [...s.locationRows];
@@ -834,7 +948,7 @@ export function DagsplanEditor({
                       ...s,
                       locationRows: s.locationRows.filter((_, j) => j !== i),
                     }));
-                    toast.success("Location fjernet");
+                    toast.success(t.toastLocationRemoved);
                   });
                 }}
                 disableUp={i === 0}
@@ -851,10 +965,10 @@ export function DagsplanEditor({
         </section>
 
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <SectionHeading className="mb-4">Info og vær</SectionHeading>
+          <SectionHeading className="mb-4">{t.infoWeather}</SectionHeading>
           <div className="grid max-w-3xl gap-4">
             <div className="space-y-2">
-              <Label htmlFor="infoText">Generell info</Label>
+              <Label htmlFor="infoText">{t.generalInfo}</Label>
               <Textarea
                 id="infoText"
                 rows={1}
@@ -866,7 +980,7 @@ export function DagsplanEditor({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="weatherIcon">Vær (ikon)</Label>
+              <Label htmlFor="weatherIcon">{t.weatherIcon}</Label>
               <Select
                 value={state.weatherIcon}
                 onValueChange={(v) =>
@@ -877,7 +991,7 @@ export function DagsplanEditor({
                 }
               >
                 <SelectTrigger id="weatherIcon" className="max-w-md">
-                  <SelectValue placeholder="Velg ikon" />
+                  <SelectValue placeholder={t.pickIcon} />
                 </SelectTrigger>
                 <SelectContent>
                   {WEATHER_ICON_OPTIONS.map((o) => (
@@ -890,7 +1004,7 @@ export function DagsplanEditor({
             </div>
             <div className="grid max-w-md grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="weatherTempMin">Min temp (°C)</Label>
+                <Label htmlFor="weatherTempMin">{t.minTemp}</Label>
                 <Input
                   id="weatherTempMin"
                   inputMode="numeric"
@@ -905,7 +1019,7 @@ export function DagsplanEditor({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="weatherTempMax">Max temp (°C)</Label>
+                <Label htmlFor="weatherTempMax">{t.maxTemp}</Label>
                 <Input
                   id="weatherTempMax"
                   inputMode="numeric"
@@ -921,7 +1035,7 @@ export function DagsplanEditor({
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="weatherText">Vær / merknader (fritekst)</Label>
+              <Label htmlFor="weatherText">{t.weatherNotes}</Label>
               <Textarea
                 id="weatherText"
                 rows={1}
@@ -938,7 +1052,7 @@ export function DagsplanEditor({
             state.weatherText.trim() ? (
               <div className="space-y-2">
                 <p className="text-xs text-muted-foreground">
-                  Forhåndsvisning (som på print)
+                  {t.weatherPreviewHint}
                 </p>
                 <DagsplanWeatherCard
                   weatherIcon={state.weatherIcon}
@@ -953,17 +1067,15 @@ export function DagsplanEditor({
 
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
           <div className="mb-4 flex flex-col gap-3">
-            <SectionHeading className="mb-0">Oppmøtetid</SectionHeading>
+            <SectionHeading className="mb-0">{t.crewMeet}</SectionHeading>
             <p className="text-xs text-muted-foreground">
-              Stabsliste: funksjon, navn, mobil og e-post (som ved import). Velg
-              fra crew-database eller fra prosjektcrew — eller fyll inn for
-              hånd.
+              {t.crewMeetIntro}
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
               {availableCrewDatabase.length > 0 ? (
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-[min(100%,360px)]">
                   <span className="text-xs text-muted-foreground">
-                    Legg til fra crew-database
+                    {t.addFromCrewDb}
                   </span>
                   <Select
                     key={`db-${availableCrewDatabase.length}-${state.crewRows.length}`}
@@ -973,7 +1085,7 @@ export function DagsplanEditor({
                     }}
                   >
                     <SelectTrigger className="w-full bg-background">
-                      <SelectValue placeholder="Velg person…" />
+                      <SelectValue placeholder={t.pickPerson} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableCrewDatabase.map((c) => (
@@ -991,7 +1103,7 @@ export function DagsplanEditor({
               {availableProjectCrew.length > 0 ? (
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-[min(100%,360px)]">
                   <span className="text-xs text-muted-foreground">
-                    Legg til fra prosjektcrew
+                    {t.addFromProjectCrew}
                   </span>
                   <Select
                     key={`pc-${availableProjectCrew.length}-${state.crewRows.length}`}
@@ -1001,7 +1113,7 @@ export function DagsplanEditor({
                     }}
                   >
                     <SelectTrigger className="w-full bg-background">
-                      <SelectValue placeholder="Velg…" />
+                      <SelectValue placeholder={t.pick} />
                     </SelectTrigger>
                     <SelectContent>
                       {availableProjectCrew.map((c) => (
@@ -1019,11 +1131,11 @@ export function DagsplanEditor({
             <table className="w-full min-w-[800px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="pb-1.5 pr-2 font-medium">Funksjon</th>
-                  <th className="pb-1.5 pr-2 font-medium">Navn</th>
-                  <th className="pb-1.5 pr-2 font-medium">Mobil</th>
-                  <th className="pb-1.5 pr-2 font-medium">E-post</th>
-                  <th className="pb-1.5 pr-2 font-medium">På sett</th>
+                  <th className="pb-1.5 pr-2 font-medium">{t.crewFunction}</th>
+                  <th className="pb-1.5 pr-2 font-medium">{t.crewName}</th>
+                  <th className="pb-1.5 pr-2 font-medium">{t.crewMobile}</th>
+                  <th className="pb-1.5 pr-2 font-medium">{t.crewEmail}</th>
+                  <th className="pb-1.5 pr-2 font-medium">{t.crewOnSet}</th>
                   <th className="w-20 pb-1.5" />
                 </tr>
               </thead>
@@ -1034,6 +1146,14 @@ export function DagsplanEditor({
                       <Input
                         className={DAGSPLAN_TABLE_INPUT}
                         value={row.departmentTitle}
+                        title={
+                          state.displayLocale === "en"
+                            ? translateCrewDepartmentTitle(
+                                row.departmentTitle,
+                                "en",
+                              )
+                            : undefined
+                        }
                         onChange={(e) =>
                           setState((s) => {
                             const crewRows = [...s.crewRows];
@@ -1160,36 +1280,26 @@ export function DagsplanEditor({
               }))
             }
           >
-            + Rad
+            {t.crewRow}
           </Button>
         </section>
 
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <SectionHeading className="mb-0">Aktører</SectionHeading>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <Checkbox
-                checked={state.printIncludeActors === false}
-                onCheckedChange={(v) =>
-                  setState((s) => ({
-                    ...s,
-                    printIncludeActors: v !== true,
-                  }))
-                }
-              />
-              <span>Ekskluder fra utskrift</span>
-            </label>
+          <div className="mb-4">
+            <SectionHeading className="mb-0">{t.actors}</SectionHeading>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="pb-1.5 pr-1 font-medium">Nr</th>
-                  <th className="pb-1.5 pr-1 font-medium">Navn</th>
-                  <th className="pb-1.5 pr-1 font-medium">Tlf</th>
-                  <th className="pb-1.5 pr-1 font-medium">Film</th>
-                  <th className="pb-1.5 pr-1 font-medium">Oppmøte</th>
-                  <th className="pb-1.5 pr-1 font-medium">Klar på sett</th>
+                  <th className="pb-1.5 pr-1 font-medium">{t.actorNr}</th>
+                  <th className="pb-1.5 pr-1 font-medium">{t.actorName}</th>
+                  <th className="pb-1.5 pr-1 font-medium">{t.actorPhone}</th>
+                  <th className="pb-1.5 pr-1 font-medium">{t.actorFilm}</th>
+                  <th className="pb-1.5 pr-1 font-medium">{t.actorMeet}</th>
+                  <th className="pb-1.5 pr-1 font-medium">
+                    {t.actorReadyOnSet}
+                  </th>
                   <th className="w-20 pb-1.5" />
                 </tr>
               </thead>
@@ -1258,41 +1368,99 @@ export function DagsplanEditor({
               </tbody>
             </table>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() =>
-              setState((s) => ({
-                ...s,
-                actorRows: [
-                  ...s.actorRows,
-                  {
-                    actorNumber: "",
-                    actorName: "",
-                    phone: "",
-                    film: "",
-                    meetTime: "",
-                    readyOnSetTime: "",
-                  },
-                ],
-              }))
-            }
-          >
-            + Rad
-          </Button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setState((s) => ({
+                  ...s,
+                  actorRows: [
+                    ...s.actorRows,
+                    {
+                      actorNumber: "",
+                      actorName: "",
+                      phone: "",
+                      film: "",
+                      meetTime: "",
+                      readyOnSetTime: "",
+                    },
+                  ],
+                }))
+              }
+            >
+              {t.crewRow}
+            </Button>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={state.printIncludeActors === false}
+                onCheckedChange={(v) =>
+                  setState((s) => ({
+                    ...s,
+                    printIncludeActors: v !== true,
+                  }))
+                }
+              />
+              <span>{t.excludeFromPrint}</span>
+            </label>
+          </div>
         </section>
 
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <SectionHeading className="mb-4">Timeplan</SectionHeading>
+          <div className="mb-4">
+            <SectionHeading className="mb-0">{t.schedule}</SectionHeading>
+          </div>
           <DagsplanScheduleTable
+            shootDateIso={state.shootDate}
+            sunriseTimeOverride={state.sunriseTimeOverride}
+            onSunriseTimeOverrideChange={(v) =>
+              setState((s) => ({ ...s, sunriseTimeOverride: v }))
+            }
+            sunsetTimeOverride={state.sunsetTimeOverride}
+            onSunsetTimeOverrideChange={(v) =>
+              setState((s) => ({ ...s, sunsetTimeOverride: v }))
+            }
+            showShotColumn={state.showShotColumn}
+            locale={state.displayLocale}
             rows={state.scheduleRows}
             onRowsChange={(scheduleRows) =>
               setState((s) => ({ ...s, scheduleRows }))
             }
           />
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {!scheduleHasCallTimeFirstRow(state.scheduleRows) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setState((s) => {
+                    const id = crypto.randomUUID();
+                    const callRow = {
+                      ...emptyScheduleRow(id, "anchor"),
+                      info: SCHEDULE_CALL_TIME_INFO,
+                      durationMinutes: 0,
+                      rowBgColor: SCHEDULE_CALL_TIME_DEFAULT_ROW_BG,
+                    };
+                    const rest = s.scheduleRows.map((r, i) => {
+                      if (i !== 0) return r;
+                      if (r.rowKind === "free") return r;
+                      if (r.rowKind === "anchor") {
+                        return { ...r, rowKind: "sequential" as const };
+                      }
+                      return r;
+                    });
+                    return {
+                      ...s,
+                      scheduleRows: recalculateScheduleRows([callRow, ...rest]),
+                    };
+                  })
+                }
+              >
+                {t.addCallTime}
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -1313,23 +1481,7 @@ export function DagsplanEditor({
                 })
               }
             >
-              + Rad
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setState((s) => ({
-                  ...s,
-                  scheduleRows: recalculateScheduleRows([
-                    ...s.scheduleRows,
-                    emptyScheduleRow(crypto.randomUUID(), "free"),
-                  ]),
-                }))
-              }
-            >
-              + Fri rad
+              {t.addRow}
             </Button>
             <Button
               type="button"
@@ -1357,33 +1509,142 @@ export function DagsplanEditor({
                 })
               }
             >
-              + Lunsj
+              {t.addLunch}
             </Button>
+            <Popover
+              open={companyMoveOpen}
+              onOpenChange={(open) => {
+                setCompanyMoveOpen(open);
+                if (!open) setCompanyMoveManualText("");
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button type="button" variant="outline" size="sm">
+                  {t.addCompanyMove}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-1" align="start">
+                {state.locationRows.length > 0 ? (
+                  <>
+                    <p className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                      {t.locations}
+                    </p>
+                    <ul className="max-h-64 overflow-y-auto">
+                      {state.locationRows.map((loc) => {
+                        const addr =
+                          loc.locationText?.trim() ||
+                          loc.locationName?.trim() ||
+                          "";
+                        const primary =
+                          loc.locationName?.trim() || addr || "—";
+                        return (
+                          <li key={loc.id}>
+                            <button
+                              type="button"
+                              className="w-full rounded-sm px-2 py-2 text-left text-sm transition-colors hover:bg-muted"
+                              onClick={() => appendCompanyMoveRow(addr)}
+                            >
+                              <span className="font-medium text-foreground">
+                                {primary}
+                              </span>
+                              {loc.locationText?.trim() &&
+                              loc.locationName?.trim() &&
+                              loc.locationText.trim() !==
+                                loc.locationName.trim() ? (
+                                <span className="mt-0.5 block text-xs text-muted-foreground">
+                                  {loc.locationText.trim()}
+                                </span>
+                              ) : null}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                ) : null}
+                <div className="space-y-2 border-border p-2 pt-3 [&:not(:first-child)]:border-t">
+                  <p className="text-[11px] text-muted-foreground">
+                    {state.locationRows.length > 0
+                      ? t.companyMoveManualOr
+                      : t.companyMoveManualHint}
+                  </p>
+                  <Input
+                    className="h-9 text-sm"
+                    placeholder={t.companyMoveManualPlaceholder}
+                    value={companyMoveManualText}
+                    onChange={(e) => setCompanyMoveManualText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        appendCompanyMoveRow(companyMoveManualText);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => appendCompanyMoveRow(companyMoveManualText)}
+                  >
+                    {t.addCompanyMove}
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setState((s) => {
+                  const id = crypto.randomUUID();
+                  const kind = rowKindForNewSequentialRow(
+                    s.scheduleRows[s.scheduleRows.length - 1],
+                  );
+                  const row = {
+                    ...emptyScheduleRow(id, kind),
+                    info: SCHEDULE_WRAP_INFO,
+                    durationMinutes: 0,
+                    rowBgColor: SCHEDULE_WRAP_DEFAULT_ROW_BG,
+                  };
+                  return {
+                    ...s,
+                    scheduleRows: recalculateScheduleRows([
+                      ...s.scheduleRows,
+                      row,
+                    ]),
+                  };
+                })
+              }
+            >
+              {t.addWrap}
+            </Button>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={state.showShotColumn}
+                onCheckedChange={(v) =>
+                  setState((s) => ({
+                    ...s,
+                    showShotColumn: v === true,
+                  }))
+                }
+              />
+              <span>{t.showShotColumn}</span>
+            </label>
           </div>
         </section>
 
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <SectionHeading className="mb-0">Avdelingsinfo</SectionHeading>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <Checkbox
-                checked={state.printIncludeDepartmentInfo === false}
-                onCheckedChange={(v) =>
-                  setState((s) => ({
-                    ...s,
-                    printIncludeDepartmentInfo: v !== true,
-                  }))
-                }
-              />
-              <span>Ekskluder fra utskrift</span>
-            </label>
+          <div className="mb-4">
+            <SectionHeading className="mb-0">{t.deptInfo}</SectionHeading>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="pb-1.5 pr-2 font-medium">Avdeling</th>
-                  <th className="pb-1.5 pr-2 font-medium">Info</th>
+                  <th className="pb-1.5 pr-2 font-medium">{t.deptName}</th>
+                  <th className="pb-1.5 pr-2 font-medium">{t.deptInfoCol}</th>
                   <th className="w-20 pb-1.5" />
                 </tr>
               </thead>
@@ -1454,30 +1715,43 @@ export function DagsplanEditor({
               </tbody>
             </table>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() =>
-              setState((s) => ({
-                ...s,
-                departmentRows: [
-                  ...s.departmentRows,
-                  { departmentName: "", info: "" },
-                ],
-              }))
-            }
-          >
-            + Rad
-          </Button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setState((s) => ({
+                  ...s,
+                  departmentRows: [
+                    ...s.departmentRows,
+                    { departmentName: "", info: "" },
+                  ],
+                }))
+              }
+            >
+              {t.crewRow}
+            </Button>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={state.printIncludeDepartmentInfo === false}
+                onCheckedChange={(v) =>
+                  setState((s) => ({
+                    ...s,
+                    printIncludeDepartmentInfo: v !== true,
+                  }))
+                }
+              />
+              <span>{t.excludeFromPrint}</span>
+            </label>
+          </div>
         </section>
 
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <SectionHeading className="mb-4">Nødnummer og radio</SectionHeading>
+          <SectionHeading className="mb-4">{t.emergencyRadio}</SectionHeading>
           <div className="grid max-w-3xl gap-4">
             <div className="space-y-2">
-              <Label htmlFor="emergency">Nødnummer</Label>
+              <Label htmlFor="emergency">{t.emergency}</Label>
               <Textarea
                 id="emergency"
                 rows={1}
@@ -1492,7 +1766,7 @@ export function DagsplanEditor({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="radio">Radiokanaler</Label>
+              <Label htmlFor="radio">{t.radio}</Label>
               <Textarea
                 id="radio"
                 rows={1}
@@ -1509,11 +1783,11 @@ export function DagsplanEditor({
         <div className="flex flex-wrap gap-3 border-t border-border pt-8">
           <Button variant="outline" asChild>
             <Link href={`/dagsplaner/${state.id}/print`} target="_blank">
-              Forhåndsvisning / print
+              {t.previewPrint}
             </Link>
           </Button>
           <Button type="button" disabled={pending} onClick={save}>
-            {pending ? "Lagrer…" : "Lagre alle endringer"}
+            {pending ? t.saving : t.saveAll}
           </Button>
           <Button
             type="button"
@@ -1523,7 +1797,7 @@ export function DagsplanEditor({
             onClick={() => {
               if (
                 typeof window !== "undefined" &&
-                !window.confirm("Slette denne dagsplanen?")
+                !window.confirm(t.confirmDeletePlan)
               )
                 return;
               startTransition(async () => {
@@ -1531,7 +1805,7 @@ export function DagsplanEditor({
               });
             }}
           >
-            Slett dagsplan
+            {t.deletePlan}
           </Button>
         </div>
       </div>

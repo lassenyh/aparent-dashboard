@@ -1,9 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { getSessionDashboardUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import {
+  assertPermission,
+  getProjectAccessForUser,
+  requireProjectAccess,
+} from "@/lib/project-access";
 import { touchPersonLastUsed } from "@/actions/crew";
 import { ensureProjectCrewList } from "@/actions/project-crew-list";
 import { buildCallSheetSnapshotData } from "@/lib/snapshot";
@@ -86,6 +92,9 @@ export async function getAvailableProjectCrewForCallSheet(callSheetId: string) {
   });
   if (!sheet) return [];
 
+  const { flags } = await requireProjectAccess(sheet.projectId);
+  assertPermission(flags, "canEditCallSheets");
+
   const onSheet = await prisma.callSheetCrew.findMany({
     where: { callSheetId },
     select: { personId: true },
@@ -102,6 +111,17 @@ export async function getAvailableProjectCrewForCallSheet(callSheetId: string) {
 }
 
 export async function getCallSheetById(id: string) {
+  const sessionUser = await getSessionDashboardUser();
+  if (!sessionUser) notFound();
+
+  const sheet = await prisma.callSheet.findUnique({
+    where: { id },
+    select: { projectId: true },
+  });
+  if (!sheet) return null;
+  const flags = await getProjectAccessForUser(sessionUser, sheet.projectId);
+  if (!flags?.canViewCallSheets) notFound();
+
   return prisma.callSheet.findUnique({
     where: { id },
     include: {
@@ -139,6 +159,10 @@ export async function createCallSheet(
   }
 
   const d = parsed.data;
+
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCallSheets");
+
   const sheet = await prisma.callSheet.create({
     data: {
       projectId,
@@ -165,6 +189,9 @@ export async function updateCallSheet(
 ): Promise<{ error?: string } | null> {
   const existing = await prisma.callSheet.findUnique({ where: { id } });
   if (!existing) return { error: "Call sheet ikke funnet" };
+
+  const { flags } = await requireProjectAccess(existing.projectId);
+  assertPermission(flags, "canEditCallSheets");
 
   const raw = {
     name: String(formData.get("name") ?? ""),
@@ -206,6 +233,10 @@ export async function deleteCallSheet(id: string, _formData?: FormData) {
     select: { projectId: true },
   });
   if (!sheet) return;
+
+  const { flags } = await requireProjectAccess(sheet.projectId);
+  assertPermission(flags, "canEditCallSheets");
+
   await prisma.callSheet.delete({ where: { id } });
   revalidatePath(`/projects/${sheet.projectId}`);
   revalidatePath("/");
@@ -220,6 +251,9 @@ export async function addProjectCrewToCallSheet(
     where: { id: callSheetId },
   });
   if (!sheet) throw new Error("Call sheet ikke funnet");
+
+  const { flags } = await requireProjectAccess(sheet.projectId);
+  assertPermission(flags, "canEditCallSheets");
 
   const pc = await prisma.projectCrew.findFirst({
     where: {
@@ -268,6 +302,14 @@ export async function updateCallSheetCrewRow(
     roleSnapshot?: string;
   },
 ) {
+  const existing = await prisma.callSheetCrew.findUnique({
+    where: { id: rowId },
+    include: { callSheet: { select: { projectId: true } } },
+  });
+  if (!existing) return { ok: false as const };
+  const { flags } = await requireProjectAccess(existing.callSheet.projectId);
+  assertPermission(flags, "canEditCallSheets");
+
   const row = await prisma.callSheetCrew.update({
     where: { id: rowId },
     data: {
@@ -296,6 +338,10 @@ export async function removeCallSheetCrewRow(rowId: string) {
     include: { callSheet: { select: { projectId: true } } },
   });
   if (!row) return;
+
+  const { flags } = await requireProjectAccess(row.callSheet.projectId);
+  assertPermission(flags, "canEditCallSheets");
+
   await prisma.callSheetCrew.delete({ where: { id: rowId } });
   revalidatePath(`/callsheets/${row.callSheetId}`);
   revalidatePath(`/projects/${row.callSheet.projectId}`);
@@ -305,6 +351,14 @@ export async function reorderCallSheetCrew(
   callSheetId: string,
   orderedIds: string[],
 ) {
+  const sheet = await prisma.callSheet.findUnique({
+    where: { id: callSheetId },
+    select: { projectId: true },
+  });
+  if (!sheet) return;
+  const { flags } = await requireProjectAccess(sheet.projectId);
+  assertPermission(flags, "canEditCallSheets");
+
   await prisma.$transaction(
     orderedIds.map((id, index) =>
       prisma.callSheetCrew.update({
@@ -324,6 +378,9 @@ export async function duplicateCallSheet(callSheetId: string) {
     },
   });
   if (!original) throw new Error("Call sheet ikke funnet");
+
+  const { flags } = await requireProjectAccess(original.projectId);
+  assertPermission(flags, "canEditCallSheets");
 
   const newName = `${original.name} Copy`;
 

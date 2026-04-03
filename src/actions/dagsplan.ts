@@ -1,10 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { WeatherIconKind } from "@prisma/client";
 import { z } from "zod";
+import { getSessionDashboardUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import {
+  assertPermission,
+  getProjectAccessForUser,
+  requireProjectAccess,
+} from "@/lib/project-access";
 import {
   DEFAULT_DAGSPLAN_EMERGENCY,
   DEFAULT_DAGSPLAN_RADIO,
@@ -14,7 +20,11 @@ import {
   removePublicUploadFile,
   saveUploadedLogo,
 } from "@/lib/logo-upload";
-import { MAX_PARKING_IMAGE_BYTES } from "@/lib/upload-limits";
+import {
+  MAX_PARKING_IMAGE_BYTES,
+  MAX_SCHEDULE_SHOT_IMAGE_BYTES,
+} from "@/lib/upload-limits";
+import { normalizeScheduleRowBgColor } from "@/lib/schedule-row-colors";
 import { sortProjectCrewByDepartmentOrder } from "@/lib/crew-department-order";
 import { primaryRole } from "@/lib/person";
 import { resolveRoleForProject } from "@/lib/snapshot";
@@ -47,6 +57,7 @@ const actorRowSchema = z.object({
 });
 
 const scheduleRowSchema = z.object({
+  id: z.string().min(1),
   startTime: z.string().optional().default(""),
   endTime: z.string().optional().default(""),
   durationMinutes: z.number().int().min(0).max(24 * 60).optional().default(30),
@@ -59,6 +70,8 @@ const scheduleRowSchema = z.object({
   sceneSetting: z.string().optional().default(""),
   info: z.string().optional().default(""),
   actorNumbers: z.string().optional().default(""),
+  shotImageUrl: z.string().nullable().optional(),
+  rowBgColor: z.string().nullable().optional(),
   sortOrder: z.number(),
 });
 
@@ -97,6 +110,11 @@ const dagsplanSaveSchema = z.object({
   radioChannelsText: z.string().nullable().optional(),
   printIncludeActors: z.boolean().optional().default(true),
   printIncludeDepartmentInfo: z.boolean().optional().default(true),
+  showShotColumn: z.boolean().optional().default(false),
+  displayLocale: z.enum(["no", "en"]).optional().default("no"),
+  /** Tom = automatisk Oslo på opptaksdato */
+  sunriseTimeOverride: z.string().nullable().optional(),
+  sunsetTimeOverride: z.string().nullable().optional(),
   crewRows: z.array(crewRowSchema),
   actorRows: z.array(actorRowSchema),
   scheduleRows: z.array(scheduleRowSchema),
@@ -104,7 +122,10 @@ const dagsplanSaveSchema = z.object({
 });
 
 export async function getDagsplanById(id: string) {
-  return prisma.dagsplan.findUnique({
+  const sessionUser = await getSessionDashboardUser();
+  if (!sessionUser) notFound();
+
+  const row = await prisma.dagsplan.findUnique({
     where: { id },
     include: {
       project: {
@@ -120,9 +141,18 @@ export async function getDagsplanById(id: string) {
       departmentInfos: { orderBy: { sortOrder: "asc" } },
     },
   });
+  if (!row) return null;
+  const flags = await getProjectAccessForUser(sessionUser, row.projectId);
+  if (!flags?.canViewDagsplan) notFound();
+  return row;
 }
 
 export async function getProjectCrewForDagsplan(projectId: string) {
+  const sessionUser = await getSessionDashboardUser();
+  if (!sessionUser) notFound();
+  const flags = await getProjectAccessForUser(sessionUser, projectId);
+  if (!flags?.canViewDagsplan) notFound();
+
   const rows = await prisma.projectCrew.findMany({
     where: { projectId, isActive: true },
     include: { person: true },
@@ -148,9 +178,14 @@ export type CrewDatabasePersonOption = {
 };
 
 /** Aktive personer i crew-databasen — til «Oppmøtetid» (stabsliste-lignende felt). */
-export async function getCrewDatabaseForDagsplan(): Promise<
-  CrewDatabasePersonOption[]
-> {
+export async function getCrewDatabaseForDagsplan(
+  projectId: string,
+): Promise<CrewDatabasePersonOption[]> {
+  const { flags } = await requireProjectAccess(projectId);
+  if (!flags.canEditDagsplan) {
+    return [];
+  }
+
   const people = await prisma.person.findMany({
     where: { isActive: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { id: "asc" }],
@@ -181,6 +216,9 @@ export async function createDagsplan(
   } catch {
     return { error: "Ugyldig dato" };
   }
+
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditDagsplan");
 
   const project = await prisma.project.findUnique({
     where: { id: projectId },
@@ -254,6 +292,9 @@ export async function saveDagsplan(
   });
   if (!existing) return { error: "Dagsplan ikke funnet" };
 
+  const { flags } = await requireProjectAccess(existing.projectId);
+  assertPermission(flags, "canEditDagsplan");
+
   await prisma.$transaction(async (tx) => {
     await tx.dagsplan.update({
       where: { id: d.id },
@@ -273,6 +314,10 @@ export async function saveDagsplan(
         radioChannelsText: d.radioChannelsText?.trim() || null,
         printIncludeActors: d.printIncludeActors,
         printIncludeDepartmentInfo: d.printIncludeDepartmentInfo,
+        showShotColumn: d.showShotColumn,
+        displayLocale: d.displayLocale,
+        sunriseTimeOverride: d.sunriseTimeOverride?.trim() || null,
+        sunsetTimeOverride: d.sunsetTimeOverride?.trim() || null,
       },
     });
 
@@ -340,6 +385,7 @@ export async function saveDagsplan(
     if (d.scheduleRows.length) {
       await tx.dagsplanScheduleEntry.createMany({
         data: d.scheduleRows.map((r) => ({
+          id: r.id,
           dagsplanId: d.id,
           startTime: r.startTime || null,
           endTime: r.endTime || null,
@@ -350,6 +396,8 @@ export async function saveDagsplan(
           sceneSetting: r.sceneSetting || null,
           info: r.info || null,
           actorNumbers: r.actorNumbers || null,
+          shotImageUrl: r.shotImageUrl?.trim() || null,
+          rowBgColor: normalizeScheduleRowBgColor(r.rowBgColor ?? "") || null,
           sortOrder: r.sortOrder,
         })),
       });
@@ -405,6 +453,10 @@ export async function duplicateDagsplan(id: string, _formData?: FormData) {
         radioChannelsText: src.radioChannelsText,
         printIncludeActors: src.printIncludeActors,
         printIncludeDepartmentInfo: src.printIncludeDepartmentInfo,
+        showShotColumn: src.showShotColumn,
+        displayLocale: src.displayLocale,
+        sunriseTimeOverride: src.sunriseTimeOverride,
+        sunsetTimeOverride: src.sunsetTimeOverride,
       },
     });
 
@@ -465,6 +517,8 @@ export async function duplicateDagsplan(id: string, _formData?: FormData) {
           sceneSetting: r.sceneSetting,
           info: r.info,
           actorNumbers: r.actorNumbers,
+          shotImageUrl: r.shotImageUrl,
+          rowBgColor: r.rowBgColor,
           sortOrder: r.sortOrder,
         })),
       });
@@ -499,6 +553,10 @@ export async function deleteDagsplan(id: string, _formData?: FormData) {
     },
   });
   if (!row) return;
+
+  const { flags } = await requireProjectAccess(row.projectId);
+  assertPermission(flags, "canEditDagsplan");
+
   if (isPublicUploadPath(row.agencyLogoUrl)) {
     await removePublicUploadFile(row.agencyLogoUrl);
   }
@@ -529,6 +587,9 @@ export async function uploadDagsplanLogo(
     select: { id: true, agencyLogoUrl: true, clientLogoUrl: true, projectId: true },
   });
   if (!d) return { error: "Ikke funnet" };
+
+  const { flags } = await requireProjectAccess(d.projectId);
+  assertPermission(flags, "canEditDagsplan");
 
   const entity = which === "agency" ? "dagsplanAgency" : "dagsplanClient";
   const saved = await saveUploadedLogo(file, entity, d.id);
@@ -570,6 +631,9 @@ export async function uploadDagsplanLocationParkingImage(
   });
   if (!loc) return { error: "Ikke funnet" };
 
+  const { flags } = await requireProjectAccess(loc.dagsplan.projectId);
+  assertPermission(flags, "canEditDagsplan");
+
   const saved = await saveUploadedLogo(file, "dagsplanParking", loc.id, {
     maxBytes: MAX_PARKING_IMAGE_BYTES,
   });
@@ -606,6 +670,10 @@ export async function removeDagsplanLocationParkingImage(locationId: string) {
     },
   });
   if (!loc) return { error: "Ikke funnet" };
+
+  const { flags } = await requireProjectAccess(loc.dagsplan.projectId);
+  assertPermission(flags, "canEditDagsplan");
+
   if (isPublicUploadPath(loc.parkingImageUrl)) {
     await removePublicUploadFile(loc.parkingImageUrl);
   }
@@ -622,6 +690,87 @@ export async function removeDagsplanLocationParkingImage(locationId: string) {
   revalidatePath(`/dagsplaner/${loc.dagsplanId}`);
   revalidatePath(`/dagsplaner/${loc.dagsplanId}/print`);
   revalidatePath(`/projects/${loc.dagsplan.projectId}`);
+  return { ok: true as const };
+}
+
+export async function uploadDagsplanScheduleShot(
+  scheduleEntryId: string,
+  formData: FormData,
+) {
+  const file = formData.get("shotImage");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Velg en fil" };
+  }
+  const row = await prisma.dagsplanScheduleEntry.findUnique({
+    where: { id: scheduleEntryId },
+    select: {
+      id: true,
+      shotImageUrl: true,
+      dagsplanId: true,
+      dagsplan: { select: { projectId: true } },
+    },
+  });
+  if (!row) return { error: "Ikke funnet" };
+
+  const { flags } = await requireProjectAccess(row.dagsplan.projectId);
+  assertPermission(flags, "canEditDagsplan");
+
+  const saved = await saveUploadedLogo(file, "dagsplanScheduleShot", row.id, {
+    maxBytes: MAX_SCHEDULE_SHOT_IMAGE_BYTES,
+  });
+  if (!saved.ok) return { error: saved.error };
+
+  if (isPublicUploadPath(row.shotImageUrl)) {
+    await removePublicUploadFile(row.shotImageUrl);
+  }
+
+  await prisma.$transaction([
+    prisma.dagsplanScheduleEntry.update({
+      where: { id: scheduleEntryId },
+      data: { shotImageUrl: saved.publicPath },
+    }),
+    prisma.dagsplan.update({
+      where: { id: row.dagsplanId },
+      data: { updatedAt: new Date() },
+    }),
+  ]);
+
+  revalidatePath(`/dagsplaner/${row.dagsplanId}`);
+  revalidatePath(`/dagsplaner/${row.dagsplanId}/print`);
+  revalidatePath(`/projects/${row.dagsplan.projectId}`);
+  return { ok: true as const, publicPath: saved.publicPath };
+}
+
+export async function removeDagsplanScheduleShot(scheduleEntryId: string) {
+  const row = await prisma.dagsplanScheduleEntry.findUnique({
+    where: { id: scheduleEntryId },
+    select: {
+      shotImageUrl: true,
+      dagsplanId: true,
+      dagsplan: { select: { projectId: true } },
+    },
+  });
+  if (!row) return { error: "Ikke funnet" };
+
+  const { flags } = await requireProjectAccess(row.dagsplan.projectId);
+  assertPermission(flags, "canEditDagsplan");
+
+  if (isPublicUploadPath(row.shotImageUrl)) {
+    await removePublicUploadFile(row.shotImageUrl);
+  }
+  await prisma.$transaction([
+    prisma.dagsplanScheduleEntry.update({
+      where: { id: scheduleEntryId },
+      data: { shotImageUrl: null },
+    }),
+    prisma.dagsplan.update({
+      where: { id: row.dagsplanId },
+      data: { updatedAt: new Date() },
+    }),
+  ]);
+  revalidatePath(`/dagsplaner/${row.dagsplanId}`);
+  revalidatePath(`/dagsplaner/${row.dagsplanId}/print`);
+  revalidatePath(`/projects/${row.dagsplan.projectId}`);
   return { ok: true as const };
 }
 
@@ -645,6 +794,9 @@ export async function saveDagsplanLocations(
     select: { id: true, projectId: true },
   });
   if (!dp) return { error: "Dagsplan ikke funnet" };
+
+  const { flags } = await requireProjectAccess(dp.projectId);
+  assertPermission(flags, "canEditDagsplan");
 
   const allowedLocationIds = new Set(
     (
@@ -695,6 +847,10 @@ export async function addDagsplanLocation(dagsplanId: string) {
     select: { id: true, projectId: true },
   });
   if (!dp) return { error: "Ikke funnet" as const };
+
+  const { flags } = await requireProjectAccess(dp.projectId);
+  assertPermission(flags, "canEditDagsplan");
+
   const agg = await prisma.dagsplanLocation.aggregate({
     where: { dagsplanId },
     _max: { sortOrder: true },
@@ -726,6 +882,10 @@ export async function removeDagsplanLocation(locationId: string) {
     },
   });
   if (!loc) return { error: "Ikke funnet" as const };
+
+  const { flags } = await requireProjectAccess(loc.dagsplan.projectId);
+  assertPermission(flags, "canEditDagsplan");
+
   if (isPublicUploadPath(loc.parkingImageUrl)) {
     await removePublicUploadFile(loc.parkingImageUrl);
   }

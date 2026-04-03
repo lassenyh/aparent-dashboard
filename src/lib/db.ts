@@ -23,7 +23,7 @@ if (!SCHEDULE_ENTRY_HAS_DURATION) {
 type GlobalPrisma = typeof globalThis & {
   prisma?: PrismaClient;
   /** Én gang i dev: bytt ut gammel singleton etter `prisma generate` uten omstart. */
-  __prismaPayrollReloaded?: boolean;
+  __prismaClientReloaded?: boolean;
 };
 
 const globalForPrisma = globalThis as GlobalPrisma;
@@ -40,16 +40,20 @@ function getPrisma(): PrismaClient {
     globalForPrisma.prisma = createPrismaClient();
   }
 
-  const c = globalForPrisma.prisma as { payrollList?: { upsert: unknown } };
-  const hasPayroll =
-    typeof c.payrollList?.upsert === "function";
+  const c = globalForPrisma.prisma as {
+    payrollList?: { upsert: unknown };
+    dashboardUser?: { findFirst: unknown };
+  };
+  const hasPayroll = typeof c.payrollList?.upsert === "function";
+  const hasDashboardUser =
+    typeof c.dashboardUser?.findFirst === "function";
 
   if (
     process.env.NODE_ENV !== "production" &&
-    !hasPayroll &&
-    !globalForPrisma.__prismaPayrollReloaded
+    (!hasPayroll || !hasDashboardUser) &&
+    !globalForPrisma.__prismaClientReloaded
   ) {
-    globalForPrisma.__prismaPayrollReloaded = true;
+    globalForPrisma.__prismaClientReloaded = true;
     void globalForPrisma.prisma.$disconnect();
     globalForPrisma.prisma = createPrismaClient();
   }
@@ -58,6 +62,12 @@ function getPrisma(): PrismaClient {
 }
 
 export const prisma = getPrisma();
+
+if (typeof prisma.dashboardUser?.findFirst !== "function") {
+  throw new Error(
+    "[Prisma] Generert klient mangler dashboardUser (tilgangsbrukere). Kjør: npx prisma generate — deretter slett .next og start next dev på nytt.",
+  );
+}
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;

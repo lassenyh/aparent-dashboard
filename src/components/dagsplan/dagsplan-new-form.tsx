@@ -45,7 +45,7 @@ export function DagsplanNewForm({ projectId }: { projectId: string }) {
       </div>
 
       <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="sidebar" disabled={pending}>
           {pending ? "Oppretter…" : "Opprett og rediger"}
         </Button>
         <Button type="button" variant="outline" asChild>

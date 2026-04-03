@@ -2,8 +2,10 @@ import Link from "next/link";
 import { getAgenciesList } from "@/actions/agencies";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { requireInternalUser } from "@/lib/project-access";
 
 export default async function AgenciesPage() {
+  await requireInternalUser();
   const agencies = await getAgenciesList();
 
   return (
@@ -11,7 +13,7 @@ export default async function AgenciesPage() {
       <PageHeader
         title="Byrå"
         actions={
-          <Button asChild>
+          <Button variant="sidebar" asChild>
             <Link href="/byra/new">Nytt byrå</Link>
           </Button>
         }

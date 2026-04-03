@@ -26,10 +26,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
-export function CrewListImportClient() {
+type Props = {
+  /** Når satt: nye personer legges også inn på dette prosjektet (krever rettighet på server). */
+  projectId?: string | null;
+};
+
+export function CrewListImportClient({ projectId = null }: Props) {
   const router = useRouter();
+  const pid = projectId ?? null;
   const [parseState, parseAction, parsePending] = useActionState(
-    parseCrewListPdf,
+    parseCrewListPdf.bind(null, pid),
     null,
   );
   const [pasteText, setPasteText] = useState("");
@@ -73,7 +79,7 @@ export function CrewListImportClient() {
 
   const runPasteParse = useCallback(() => {
     startPasteTransition(async () => {
-      const r = await parseCrewListPastedText(pasteText);
+      const r = await parseCrewListPastedText(pid, pasteText);
       if (r.ok) {
         setRows(r.rows);
         setTextPreview(r.textPreview);
@@ -84,7 +90,7 @@ export function CrewListImportClient() {
         toast.error(r.error);
       }
     });
-  }, [pasteText]);
+  }, [pasteText, pid]);
 
   const updateRow = useCallback(
     (id: string, patch: Partial<CrewImportDraftRow>) => {
@@ -111,7 +117,7 @@ export function CrewListImportClient() {
         roles: r.roles ?? "",
         selected: Boolean(r.selected),
       }));
-      const res = await batchImportCrewListRows(payload);
+      const res = await batchImportCrewListRows(pid, payload);
       if (res.errors.length) {
         for (const e of res.errors.slice(0, 5)) toast.error(e);
         if (res.errors.length > 5) {
@@ -120,12 +126,13 @@ export function CrewListImportClient() {
       }
       if (res.created > 0) {
         toast.success(
-          `Opprettet ${res.created} person${res.created === 1 ? "" : "er"}.` +
+          `Opprettet ${res.created} person${res.created === 1 ? "" : "er"} i crew-databasen.` +
+            (pid ? " Nye ble også lagt til på prosjektet." : "") +
             (res.skippedDuplicates
               ? ` Hoppet over ${res.skippedDuplicates} duplikat(er).`
               : ""),
         );
-        router.push("/crew");
+        router.push(pid ? `/projects/${pid}` : "/crew");
         router.refresh();
       } else if (!res.errors.length) {
         toast.message(
@@ -135,7 +142,7 @@ export function CrewListImportClient() {
         );
       }
     });
-  }, [rows, router]);
+  }, [rows, router, pid]);
 
   const tableShell =
     "w-full min-w-[640px] border-collapse border border-border text-sm";

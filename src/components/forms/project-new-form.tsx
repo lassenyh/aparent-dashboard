@@ -6,7 +6,6 @@ import { createProject } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { nativeSelectClassName } from "@/lib/form-classes";
 
 type Opt = { id: string; name: string };
@@ -100,13 +99,8 @@ export function ProjectNewForm({
         </select>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="notes">Notater</Label>
-        <Textarea id="notes" name="notes" rows={4} />
-      </div>
-
       <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" variant="sidebar" disabled={pending}>
           {pending ? "Oppretter…" : "Opprett prosjekt"}
         </Button>
         <Button type="button" variant="outline" asChild>

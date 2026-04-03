@@ -6,8 +6,21 @@ import { PrintToolbar } from "@/components/print-toolbar";
 import { APARENT_LOGO_PUBLIC_PATH } from "@/lib/dagsplan-defaults";
 import {
   inferDurationMinutes,
+  isScheduleCallTimeRow,
   isScheduleLunchRow,
+  isScheduleWrapRow,
 } from "@/lib/schedule-rows";
+import { normalizeScheduleRowBgColor } from "@/lib/schedule-row-colors";
+import {
+  crewFunctionForPrint,
+  getDagsplanPrintStrings,
+  parseDagsplanLocale,
+} from "@/lib/dagsplan-i18n";
+import {
+  effectiveSunriseDisplay,
+  effectiveSunsetDisplay,
+} from "@/lib/sunrise-oslo";
+import { Truck } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 
 type PageProps = { params: Promise<{ id: string }> };
@@ -24,7 +37,9 @@ function fmtScheduleDurationMinutes(r: {
   rowKind?: string | null;
   startTime?: string | null;
   endTime?: string | null;
+  info?: string | null;
 }): string {
+  if (isScheduleCallTimeRow(r) || isScheduleWrapRow(r)) return "";
   if (r.rowKind === "free") {
     const a = r.startTime?.trim();
     const b = r.endTime?.trim();
@@ -41,14 +56,9 @@ function cellText(s: string | number | null | undefined): string {
   return t;
 }
 
-/** Korte titler på utskrift (full tekst i redigeringsvisning). */
-function abbreviateCrewFunctionForPrint(raw: string | null | undefined): string {
-  const t = cellText(raw);
-  if (!t) return "";
-  const norm = t.toLowerCase().replace(/[-\s]+/g, "");
-  if (norm === "produksjonsassistent") return "Prodass";
-  if (norm === "produksjonsleder") return "Prodleder";
-  return t;
+/** I/E: company move lagres som «truck» — samme Lucide-ikon som i editoren (monokrom). */
+function isInteriorTruck(s: string | null | undefined): boolean {
+  return (s ?? "").trim().toLowerCase() === "truck";
 }
 
 const CREW_MEET_MAX_ROWS_PER_TABLE = 7;
@@ -113,9 +123,11 @@ const locationBodyClass =
 function LocationTextWithMapsLink({
   locationText,
   mapsUrl,
+  googleMapsLabel,
 }: {
   locationText: string | null | undefined;
   mapsUrl: string | null | undefined;
+  googleMapsLabel: string;
 }) {
   const text = cellText(locationText);
   const href = mapsHref(mapsUrl?.trim() ? mapsUrl : null);
@@ -135,7 +147,7 @@ function LocationTextWithMapsLink({
             >
               {text}
             </a>
-            <span className="text-neutral-600"> (Google Maps)</span>
+            <span className="text-neutral-600"> {googleMapsLabel}</span>
           </>
         ) : (
           <a
@@ -144,7 +156,7 @@ function LocationTextWithMapsLink({
             rel="noopener noreferrer"
             className={linkClass}
           >
-            (Google Maps)
+            {googleMapsLabel.trim()}
           </a>
         )}
       </p>
@@ -186,8 +198,8 @@ const meetTd = cn(
   "px-1.5 py-1 text-[9px] leading-tight print:px-1.5 print:py-0.5 print:text-[8px]",
 );
 
-/** Fast bredde så kolonnen ikke suger restbredde (table-fixed + %). */
-const meetOnSetCol = "w-[2.75rem] min-w-0 max-w-[2.75rem]";
+/** Fast bredde: «PÅ SET» på én linje + HH:mm (tabular). */
+const meetOnSetCol = "w-[2.875rem] min-w-0 max-w-[2.875rem]";
 
 const meetThOnSet = cn(
   meetTh,
@@ -200,6 +212,12 @@ const meetTdOnSet = cn(
   meetOnSetCol,
   "shrink-0 overflow-hidden px-0.5 text-right tabular-nums print:px-0.5",
 );
+
+/** Mobil: unngå linjeskift for internasjonale numre (f.eks. +46 70-825 23 03). */
+const meetTdMobile = cn(meetTd, "whitespace-nowrap tabular-nums");
+
+/** Funksjon: litt ekstra rom til lange titler (f.eks. «Innspillingsleder»). */
+const meetTdFunction = cn(meetTd, "min-w-0 break-words");
 
 const tableShell =
   "w-full table-fixed border-collapse border border-neutral-300 text-neutral-900";
@@ -225,6 +243,10 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
 
   const crewMeetChunks =
     d.crewEntries.length > 0 ? chunkCrewMeetForPrint(d.crewEntries) : [];
+  const showShotColumn = d.showShotColumn === true;
+  const printLocale = parseDagsplanLocale(d.displayLocale);
+  const pt = getDagsplanPrintStrings(printLocale);
+  const onSetPrint = pt.onSet.replace(/\s+/g, "\u00A0");
 
   return (
     <div className="dagsplan-print mx-auto max-w-[210mm] px-6 py-10 text-[11px] leading-relaxed text-neutral-900 antialiased print:max-w-none print:px-0 print:py-0 print:text-[10px]">
@@ -285,7 +307,8 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                 ·
               </span>
               <span className="shrink-0">
-                Arbeidstid: {fmtTime(d.workStartTime)} – {fmtTime(d.workEndTime)}
+                {pt.workHours}: {fmtTime(d.workStartTime)} –{" "}
+                {fmtTime(d.workEndTime)}
               </span>
             </>
           ) : null}
@@ -301,7 +324,8 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                 {d.locations.map((loc, i) => (
                   <div key={loc.id} className="min-w-0">
                     <h2 className={cn(secTitle, "mb-2 print:mb-1.5")}>
-                      Location{d.locations.length > 1 ? ` ${i + 1}` : ""}
+                      {pt.location}
+                      {d.locations.length > 1 ? ` ${i + 1}` : ""}
                     </h2>
                     {cellText(loc.locationName) ? (
                       <p
@@ -316,9 +340,10 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                     <LocationTextWithMapsLink
                       locationText={loc.locationText}
                       mapsUrl={loc.locationMapsUrl}
+                      googleMapsLabel={pt.googleMaps}
                     />
                     <h3 className="mt-[10px] text-[9px] font-semibold uppercase tracking-[0.1em] text-neutral-500 print:mt-[10px] print:text-[8px]">
-                      Parking / transport
+                      {pt.parkingTransport}
                     </h3>
                     <p
                       className={cn(
@@ -329,11 +354,11 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                       {cellText(loc.parkingText)}
                     </p>
                     <div className="mt-1.5 print:mt-1">
-                      <MapsLink label="Parking maps" url={loc.parkingMapsUrl} />
+                      <MapsLink label={pt.parkingMaps} url={loc.parkingMapsUrl} />
                     </div>
                     {loc.parkingImageUrl?.trim() ? (
                       <p className="mt-1.5 text-[10px] font-medium italic leading-snug text-neutral-600 print:mt-1 print:text-[9px] print:leading-tight">
-                        Bildebeskrivelse vedlagt
+                        {pt.parkingImageNote}
                       </p>
                     ) : null}
                   </div>
@@ -341,7 +366,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               </div>
             ) : (
               <div className="space-y-2.5">
-                <h2 className={secTitle}>Location</h2>
+                <h2 className={secTitle}>{pt.location}</h2>
                 <p className="min-h-[1em] text-[11px] print:text-[10px]" />
               </div>
             )}
@@ -349,7 +374,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
         </section>
 
         <section className={cn("min-w-0", printSectionPadY)}>
-          <h2 className={secTitle}>Oppmøtetid</h2>
+          <h2 className={secTitle}>{pt.callTime}</h2>
           <div
             className={cn(
               "grid min-w-0 grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2 sm:gap-x-5 print:grid-cols-2 print:gap-x-4 print:gap-y-4",
@@ -362,25 +387,25 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                   className={cn(tableShell, "min-w-0 sm:max-w-full print:max-w-full")}
                 >
                   <colgroup>
-                    <col className="w-[22%]" />
-                    <col className="w-[40%]" />
-                    <col className="w-[20%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[32%]" />
+                    <col className="w-[30%]" />
                     <col
                       className={meetOnSetCol}
-                      style={{ width: "2.75rem", maxWidth: "2.75rem" }}
+                      style={{ width: "2.875rem", maxWidth: "2.875rem" }}
                     />
                   </colgroup>
                   <thead>
                     <tr>
-                      <th className={cn(meetTh, "w-[22%]")}>Funksjon</th>
-                      <th className={cn(meetTh, "w-[40%]")}>Navn</th>
-                      <th className={cn(meetTh, "w-[20%]")}>Mobil</th>
-                      <th className={meetThOnSet} aria-label="På sett">
+                      <th className={cn(meetTh, "w-[24%]")}>{pt.function}</th>
+                      <th className={cn(meetTh, "w-[32%]")}>{pt.name}</th>
+                      <th className={cn(meetTh, "w-[30%]")}>{pt.mobile}</th>
+                      <th className={meetThOnSet} aria-label={pt.onSet}>
                         <span
                           className="block whitespace-nowrap text-center leading-tight"
                           aria-hidden
                         >
-                          {"PÅ\u00A0SET"}
+                          {onSetPrint}
                         </span>
                       </th>
                     </tr>
@@ -400,25 +425,25 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                 >
                   <table className={cn(tableShell, "min-w-0")}>
                     <colgroup>
-                      <col className="w-[22%]" />
-                      <col className="w-[40%]" />
-                      <col className="w-[20%]" />
+                      <col className="w-[24%]" />
+                      <col className="w-[32%]" />
+                      <col className="w-[30%]" />
                       <col
                         className={meetOnSetCol}
-                        style={{ width: "2.75rem", maxWidth: "2.75rem" }}
+                        style={{ width: "2.875rem", maxWidth: "2.875rem" }}
                       />
                     </colgroup>
                     <thead>
                       <tr>
-                        <th className={cn(meetTh, "w-[22%]")}>Funksjon</th>
-                        <th className={cn(meetTh, "w-[40%]")}>Navn</th>
-                        <th className={cn(meetTh, "w-[20%]")}>Mobil</th>
-                        <th className={meetThOnSet} aria-label="På sett">
+                        <th className={cn(meetTh, "w-[24%]")}>{pt.function}</th>
+                        <th className={cn(meetTh, "w-[32%]")}>{pt.name}</th>
+                        <th className={cn(meetTh, "w-[30%]")}>{pt.mobile}</th>
+                        <th className={meetThOnSet} aria-label={pt.onSet}>
                           <span
                             className="block whitespace-nowrap text-center leading-tight"
                             aria-hidden
                           >
-                            {"PÅ\u00A0SET"}
+                            {onSetPrint}
                           </span>
                         </th>
                       </tr>
@@ -426,11 +451,14 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                     <tbody>
                       {chunk.map((r) => (
                         <tr key={r.id}>
-                          <td className={meetTd}>
-                            {abbreviateCrewFunctionForPrint(r.departmentTitle)}
+                          <td className={meetTdFunction}>
+                            {crewFunctionForPrint(
+                              r.departmentTitle,
+                              printLocale,
+                            )}
                           </td>
                           <td className={meetTd}>{cellText(r.personName)}</td>
-                          <td className={meetTd}>{cellText(r.mobile)}</td>
+                          <td className={meetTdMobile}>{cellText(r.mobile)}</td>
                           <td className={meetTdOnSet}>
                             {fmtTime(r.onSetTime)}
                           </td>
@@ -446,16 +474,16 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
 
         {d.printIncludeActors ? (
           <section className={printSectionPadY}>
-            <h2 className={secTitle}>Aktører</h2>
+            <h2 className={secTitle}>{pt.cast}</h2>
             <table className={tableShell}>
               <thead>
                 <tr>
-                  <th className={cn(thNum, "w-[7%]")}>Nr</th>
-                  <th className={cn(thBase, "w-[22%]")}>Navn</th>
-                  <th className={cn(thBase, "w-[18%]")}>Tlf</th>
-                  <th className={cn(thBase, "w-[14%]")}>Film</th>
-                  <th className={thNum}>Oppmøte</th>
-                  <th className={thNum}>Klar på sett</th>
+                  <th className={cn(thNum, "w-[7%]")}>{pt.nr}</th>
+                  <th className={cn(thBase, "w-[22%]")}>{pt.name}</th>
+                  <th className={cn(thBase, "w-[18%]")}>{pt.phone}</th>
+                  <th className={cn(thBase, "w-[14%]")}>{pt.film}</th>
+                  <th className={thNum}>{pt.meet}</th>
+                  <th className={thNum}>{pt.readyOnSet}</th>
                 </tr>
               </thead>
               <tbody>
@@ -481,7 +509,24 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
         ) : null}
 
         <section className={printSectionPadY}>
-          <h2 className={secTitle}>Timeplan</h2>
+          <h2 className={secTitle}>{pt.schedule}</h2>
+          <p className="mb-2 text-[11px] leading-snug text-neutral-700 print:text-[10px]">
+            <span className="font-semibold">{pt.sunrise}:</span>{" "}
+            <span className="tabular-nums">
+              {effectiveSunriseDisplay(
+                d.shootDate.toISOString().slice(0, 10),
+                d.sunriseTimeOverride,
+              )}
+            </span>
+            <span className="mx-2 text-neutral-400">·</span>
+            <span className="font-semibold">{pt.sunset}:</span>{" "}
+            <span className="tabular-nums">
+              {effectiveSunsetDisplay(
+                d.shootDate.toISOString().slice(0, 10),
+                d.sunsetTimeOverride,
+              )}
+            </span>
+          </p>
           <table className={tableShell}>
             <colgroup>
               <col className="w-[7%]" />
@@ -490,27 +535,38 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               <col className="w-[6%]" />
               <col className="w-[16%]" />
               <col className="w-[11%]" />
-              <col className="w-[37%]" />
+              {/* Shot: bred nok kolonne — ellers skaleres bildet ned av smal celle (object-contain). */}
+              {showShotColumn ? <col className="w-[20%]" /> : null}
+              <col className={showShotColumn ? "w-[17%]" : "w-[37%]"} />
               <col className="w-[10%]" />
             </colgroup>
             <thead>
               <tr>
-                <th className={thTime}>Fra</th>
-                <th className={thTime}>Til</th>
+                <th className={thTime}>{pt.from}</th>
+                <th className={thTime}>{pt.to}</th>
                 <th className={thBase}>I/E</th>
                 <th className={thBase}>D/N</th>
-                <th className={thBase}>Info</th>
-                <th className={thNum}>Varighet</th>
-                <th className={thBase}>Scene / setting</th>
-                <th className={cn(thNum, "whitespace-nowrap")}>Aktør(er)</th>
+                <th className={thBase}>{pt.info}</th>
+                <th className={thNum}>{pt.duration}</th>
+                {showShotColumn ? (
+                  <th className={cn(thBase, "text-center")}>{pt.shot}</th>
+                ) : null}
+                <th className={thBase}>{pt.sceneSetting}</th>
+                <th className={cn(thNum, "whitespace-nowrap")}>{pt.actors}</th>
               </tr>
             </thead>
             <tbody>
               {d.scheduleEntries.length ? (
                 d.scheduleEntries.map((r) => {
                   const lunch = isScheduleLunchRow(r);
+                  const rowBg = normalizeScheduleRowBgColor(r.rowBgColor ?? "");
                   return (
-                    <tr key={r.id}>
+                    <tr
+                      key={r.id}
+                      style={
+                        rowBg ? { backgroundColor: rowBg } : undefined
+                      }
+                    >
                       <td
                         className={cn(
                           tdTime,
@@ -527,10 +583,26 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                           lunch && lunchPrintTimeBg,
                         )}
                       >
-                        {fmtTime(r.endTime)}
+                        {isScheduleCallTimeRow(r) || isScheduleWrapRow(r)
+                          ? ""
+                          : fmtTime(r.endTime)}
                       </td>
-                      <td className={cn(tdBase, lunch && lunchPrintText)}>
-                        {cellText(r.interiorExterior)}
+                      <td
+                        className={cn(
+                          tdBase,
+                          lunch && lunchPrintText,
+                          isInteriorTruck(r.interiorExterior) && "text-center",
+                        )}
+                      >
+                        {isInteriorTruck(r.interiorExterior) ? (
+                          <Truck
+                            className="mx-auto inline-block h-3.5 w-3.5 text-foreground print:text-black"
+                            strokeWidth={2}
+                            aria-hidden
+                          />
+                        ) : (
+                          cellText(r.interiorExterior)
+                        )}
                       </td>
                       <td className={cn(tdBase, lunch && lunchPrintText)}>
                         {cellText(r.dayNight)}
@@ -547,6 +619,24 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                       >
                         {fmtScheduleDurationMinutes(r)}
                       </td>
+                      {showShotColumn ? (
+                        <td
+                          className={cn(
+                            tdBase,
+                            "p-1.5 align-middle text-center print:p-1.5",
+                            lunch && lunchPrintText,
+                          )}
+                        >
+                          {r.shotImageUrl?.trim() ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={r.shotImageUrl.trim()}
+                              alt=""
+                              className="mx-auto block h-auto w-full max-h-80 object-contain object-center"
+                            />
+                          ) : null}
+                        </td>
+                      ) : null}
                       <td className={cn(tdBase, lunch && lunchPrintText)}>
                         {cellText(r.sceneSetting)}
                       </td>
@@ -558,7 +648,10 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className={tdBase} />
+                  <td
+                    colSpan={showShotColumn ? 9 : 8}
+                    className={tdBase}
+                  />
                 </tr>
               )}
             </tbody>
@@ -568,7 +661,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
         {/* Info / vær — under timeplan */}
         <section className={printSectionPadY}>
           <div className="min-w-0 max-w-none space-y-2.5">
-            <h2 className={secTitle}>Info / vær</h2>
+            <h2 className={secTitle}>{pt.infoWeather}</h2>
             <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-800 print:text-[10px]">
               {cellText(d.infoText)}
             </p>
@@ -585,12 +678,12 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
 
         {d.printIncludeDepartmentInfo ? (
           <section className={printSectionPadY}>
-            <h2 className={secTitle}>Avdelingsinfo</h2>
+            <h2 className={secTitle}>{pt.deptInfo}</h2>
             <table className={tableShell}>
               <thead>
                 <tr>
-                  <th className={cn(thBase, "w-[30%]")}>Avdeling</th>
-                  <th className={thBase}>Info</th>
+                  <th className={cn(thBase, "w-[30%]")}>{pt.department}</th>
+                  <th className={thBase}>{pt.info}</th>
                 </tr>
               </thead>
               <tbody>
@@ -620,7 +713,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
         <div className="grid gap-10 sm:grid-cols-2 sm:gap-12 print:grid-cols-2 print:gap-10">
           <div className="space-y-2">
             <h3 className="text-[9px] font-semibold uppercase tracking-[0.14em] text-neutral-500 print:text-[8px]">
-              Nødnummer
+              {pt.emergencyNumbers}
             </h3>
             <p className="whitespace-pre-wrap text-[10px] leading-relaxed text-neutral-800 print:text-[9px]">
               {cellText(d.emergencyNumbersText)}
@@ -628,7 +721,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
           </div>
           <div className="space-y-2">
             <h3 className="text-[9px] font-semibold uppercase tracking-[0.14em] text-neutral-500 print:text-[8px]">
-              Radiokanaler
+              {pt.radioChannels}
             </h3>
             <p className="whitespace-pre-wrap text-[10px] leading-relaxed text-neutral-800 print:text-[9px]">
               {cellText(d.radioChannelsText)}
@@ -644,15 +737,21 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
             className="dagsplan-print-parking-attachment mx-auto max-w-[210mm] px-6 py-10 print:max-w-none print:px-0 print:py-0"
             aria-label={
               d.locations.length > 1
-                ? `Parking — location ${i + 1}`
-                : "Parking — attachment"
+                ? pt.parkingAttachmentAriaLocationTemplate.replace(
+                    "{n}",
+                    String(i + 1),
+                  )
+                : pt.parkingAttachmentAria
             }
           >
             <div className="flex min-h-[calc(100vh-24mm)] flex-col print:min-h-[calc(297mm-24mm)]">
               <h2 className="mb-1 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-neutral-500 print:mb-1 print:text-[9px]">
                 {d.locations.length > 1
-                  ? `Parking / sketch — location ${i + 1}`
-                  : "Parking / sketch"}
+                  ? pt.parkingSketchLocationTemplate.replace(
+                      "{n}",
+                      String(i + 1),
+                    )
+                  : pt.parkingSketch}
               </h2>
               <div className="flex w-full justify-center">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -26,6 +26,14 @@ enum ProjectStatus {
   archived
 }
 
+/** Tilgang til prosjekt (én rad per bruker per prosjekt). */
+enum ProjectMembershipRole {
+  owner
+  admin
+  editor
+  viewer
+}
+
 enum CallSheetStatus {
   draft
   final
@@ -134,10 +142,63 @@ model Project {
   crewListShare ProjectCrewListShare?
   /** Lønningslister til regnskapsfører (flere per prosjekt mulig). */
   payrollLists PayrollList[]
+  memberships ProjectMembership[]
 
   @@index([status])
   @@index([agencyId])
   @@index([customerId])
+}
+
+/** Innloggingsbruker for dashboard (ikke `Person` / crew-register). */
+model DashboardUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  fullName     String?
+  email        String?
+  company      String?
+  isActive     Boolean  @default(true)
+  /** Aparent-internt: full tilgang til alle prosjekter og globale moduler. */
+  isInternal   Boolean  @default(false)
+  /** Migrering fra Supabase `project_logins.id` (UUID). */
+  legacySupabaseLoginId String? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships ProjectMembership[]
+
+  @@map("dashboard_users")
+}
+
+model ProjectMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  user      DashboardUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role      ProjectMembershipRole @default(viewer)
+
+  canViewProjectInfo Boolean @default(true)
+  canViewCrew        Boolean @default(false)
+  canEditCrew        Boolean @default(false)
+  canViewDagsplan    Boolean @default(false)
+  canEditDagsplan    Boolean @default(false)
+  canViewCallSheets  Boolean @default(false)
+  canEditCallSheets  Boolean @default(false)
+  canViewSensitiveData Boolean @default(false)
+  /** Lønningslister / honorar (sensitive). */
+  canViewPayroll     Boolean @default(false)
+  canEditPayroll     Boolean @default(false)
+  /** Importere crew til crew-databasen (PDF/tekst) og koble til dette prosjektet. */
+  canImportCrewDatabase Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_memberships")
 }
 
 model ProjectCrew {
@@ -323,6 +384,14 @@ model Dagsplan {
   printIncludeActors          Boolean @default(true)
   /** true = med på utskrift (standard). false = ekskludert fra utskrift. */
   printIncludeDepartmentInfo  Boolean @default(true)
+  /** Vis «Shot»-kolonne i timeplan (storyboard / referansebilde per rad). */
+  showShotColumn          Boolean @default(false)
+  /** Manuell soloppgang (f.eks. annen lokasjon enn Oslo). Tom = bruk automatisk Oslo på opptaksdato. */
+  sunriseTimeOverride String?
+  /** Manuell solnedgang. Tom = bruk automatisk Oslo på opptaksdato. */
+  sunsetTimeOverride  String?
+  /** no = norsk UI/print, en = engelsk (inkl. rolleoversettelser der det finnes treff). */
+  displayLocale        String   @default("no")
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -406,6 +475,10 @@ model DagsplanScheduleEntry {
   sceneSetting       String?
   info               String?
   actorNumbers       String?
+  /** Storyboard / referansebilde (én per rad). */
+  shotImageUrl       String?
+  /** Valgfri bakgrunnsfarge for hele raden (hex, f.eks. #ffedd5). */
+  rowBgColor         String?
   sortOrder          Int      @default(0)
 
   @@index([dagsplanId])

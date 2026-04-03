@@ -18,11 +18,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  /** Ikke redirect /login → / kun fordi cookie finnes (kan være utdatert/ugyldig id). Gyldig sesjon sjekkes i `app/login/page.tsx`. */
   if (pathname.startsWith("/login")) {
-    const session = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-    if (session) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
     return NextResponse.next();
   }
 

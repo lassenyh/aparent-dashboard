@@ -1,11 +1,13 @@
 import { AppShell } from "@/components/app-shell";
+import { requireSessionDashboardUser } from "@/lib/auth-session";
 
 export const dynamic = "force-dynamic";
 
-export default function AppLayout({
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <AppShell>{children}</AppShell>;
+  const user = await requireSessionDashboardUser();
+  return <AppShell isInternal={user.isInternal}>{children}</AppShell>;
 }

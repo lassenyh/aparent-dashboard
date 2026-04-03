@@ -5,6 +5,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { addPersonToProject } from "@/actions/projects";
 import { prisma } from "@/lib/db";
+import {
+  assertPermission,
+  requireInternalUser,
+  requireProjectAccess,
+} from "@/lib/project-access";
 import { splitNameParts } from "@/lib/crew-list-import-parse";
 import { computeFullName } from "@/lib/person";
 import { serializePersonForClient } from "@/lib/serialize";
@@ -17,6 +22,7 @@ import { resolveRateForProject, resolveRoleForProject } from "@/lib/snapshot";
 
 /** Dekryptert kontonummer/personnummer fra crew-profil — brukes når rad opprettes fra person. */
 export async function getPayrollSensitiveFieldsFromPerson(personId: string) {
+  await requireInternalUser();
   return getPersonSensitivePlainForServerUse(personId);
 }
 
@@ -63,6 +69,9 @@ export async function createPayrollList(projectId: string, title?: string) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) return { error: "Ukjent prosjekt" as const };
 
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditPayroll");
+
   const count = await prisma.payrollList.count({ where: { projectId } });
   const t = (title?.trim() || `Lønningsliste ${count + 1}`).slice(0, 120);
 
@@ -89,6 +98,9 @@ export async function deletePayrollList(projectId: string, listId: string) {
   });
   if (!list) return;
 
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditPayroll");
+
   await prisma.payrollList.delete({ where: { id: listId } });
   revalidatePayrollPaths(projectId);
 }
@@ -99,6 +111,9 @@ export async function getPayrollListIndexData(projectId: string) {
     select: { id: true, name: true },
   });
   if (!project) return null;
+
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canViewPayroll");
 
   const lists = await prisma.payrollList.findMany({
     where: { projectId },
@@ -138,6 +153,9 @@ async function loadPayrollPageData(
   listId: string,
   options?: { maskSensitiveForUi?: boolean },
 ) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canViewPayroll");
+
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: {
@@ -271,6 +289,9 @@ export async function savePayrollRows(
     };
   }
 
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditPayroll");
+
   let titlePatch: string | undefined;
   if (options?.title !== undefined) {
     const t = options.title.trim();
@@ -383,6 +404,9 @@ export async function updatePayrollListSubmitted(
     where: { id: listId, projectId },
   });
   if (!list) return { error: "Listen finnes ikke" as const };
+
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditPayroll");
   if (list.submitted) {
     return {
       error:
@@ -408,6 +432,9 @@ export async function duplicatePayrollList(projectId: string, listId: string) {
   if (!list) {
     redirect(`/projects/${projectId}/lonningsliste`);
   }
+
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditPayroll");
 
   const base = list.title
     .replace(/\s*\(kopi\)\s*$/i, "")
@@ -471,6 +498,8 @@ export async function createPersonForPayrollList(
     honorar: number | null;
   },
 ): Promise<{ ok: true; personId: string } | { ok: false; error: string }> {
+  await requireInternalUser();
+
   const list = await prisma.payrollList.findFirst({
     where: { id: listId, projectId },
     select: { id: true, submitted: true },
@@ -601,6 +630,8 @@ export async function searchPeopleForPayroll(
   q: string,
   limit = 12,
 ) {
+  await requireInternalUser();
+
   const list = await prisma.payrollList.findFirst({
     where: { id: listId, projectId },
     select: { id: true },

@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { requireSessionDashboardUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
+import { requireInternalUser } from "@/lib/project-access";
 import {
   isPublicUploadPath,
   removePublicUploadFile,
@@ -22,6 +24,7 @@ function getLogoFile(formData: FormData): File | null {
 }
 
 export async function getCustomersList() {
+  await requireInternalUser();
   return prisma.customer.findMany({
     orderBy: { name: "asc" },
     include: {
@@ -31,6 +34,7 @@ export async function getCustomersList() {
 }
 
 export async function getCustomerById(id: string) {
+  await requireInternalUser();
   return prisma.customer.findUnique({
     where: { id },
     include: {
@@ -40,6 +44,7 @@ export async function getCustomerById(id: string) {
 }
 
 export async function getCustomerOptions() {
+  await requireSessionDashboardUser();
   return prisma.customer.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true },
@@ -50,6 +55,7 @@ export async function createCustomer(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string }> {
+  await requireInternalUser();
   const raw = {
     name: String(formData.get("name") ?? ""),
     logoUrl: String(formData.get("logoUrl") ?? ""),
@@ -97,6 +103,7 @@ export async function updateCustomer(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
+  await requireInternalUser();
   const raw = {
     name: String(formData.get("name") ?? ""),
     logoUrl: String(formData.get("logoUrl") ?? ""),
@@ -150,6 +157,7 @@ export async function updateCustomer(
 }
 
 export async function deleteCustomer(id: string) {
+  await requireInternalUser();
   const row = await prisma.customer.findUnique({ where: { id } });
   if (row?.logoUrl) await removePublicUploadFile(row.logoUrl);
   await prisma.customer.delete({ where: { id } });

@@ -7,6 +7,7 @@ import type {
 } from "@prisma/client";
 import { primaryRole } from "@/lib/person";
 import {
+  effectiveRateSourceForProject,
   resolveRateForProject,
   resolveRateTypeForProject,
   resolveRoleForProject,
@@ -59,7 +60,6 @@ export type ProjectFormClient = {
   startDate: Date | null;
   endDate: Date | null;
   status: Project["status"];
-  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -77,7 +77,6 @@ export function projectScalarsForClient(
     startDate: project.startDate,
     endDate: project.endDate,
     status: project.status,
-    notes: project.notes,
     createdAt: project.createdAt,
     updatedAt: project.updatedAt,
   };
@@ -137,6 +136,8 @@ export type ProjectCrewRowClient = {
   effectiveRole: string;
   /** Formatted rate for overview (right column) */
   effectiveRateLabel: string;
+  /** Hvor satsen i listen kommer fra (navn ≠ sats — se crew-profil) */
+  effectiveRateSource: "project" | "person" | "none";
   /** Default role placeholder from person */
   suggestedRolePrimary: string;
 };
@@ -156,6 +157,7 @@ export function serializeProjectCrewRowForClient(
     person,
     effectiveRole: resolveRoleForProject(pc),
     effectiveRateLabel: formatRate(effectiveRate, effectiveType),
+    effectiveRateSource: effectiveRateSourceForProject(pc),
     suggestedRolePrimary: primaryRole(pc.person),
   };
 }

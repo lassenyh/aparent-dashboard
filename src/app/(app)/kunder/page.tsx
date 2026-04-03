@@ -2,8 +2,10 @@ import Link from "next/link";
 import { getCustomersList } from "@/actions/customers";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { requireInternalUser } from "@/lib/project-access";
 
 export default async function CustomersPage() {
+  await requireInternalUser();
   const customers = await getCustomersList();
 
   return (
@@ -12,7 +14,7 @@ export default async function CustomersPage() {
         title="Kunder"
         description="Kundenavn og logo på prosjekter og call sheet PDF."
         actions={
-          <Button asChild>
+          <Button variant="sidebar" asChild>
             <Link href="/kunder/new">Ny kunde</Link>
           </Button>
         }

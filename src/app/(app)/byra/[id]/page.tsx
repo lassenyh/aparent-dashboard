@@ -4,10 +4,12 @@ import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { AgencyEditForm } from "@/components/forms/agency-edit-form";
 import { Button } from "@/components/ui/button";
+import { requireInternalUser } from "@/lib/project-access";
 
 type PageProps = { params: Promise<{ id: string }> };
 
 export default async function AgencyDetailPage({ params }: PageProps) {
+  await requireInternalUser();
   const { id } = await params;
   const agency = await getAgencyById(id);
   if (!agency) notFound();

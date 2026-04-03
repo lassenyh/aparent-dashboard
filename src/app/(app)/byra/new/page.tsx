@@ -1,8 +1,10 @@
 import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { AgencyNewForm } from "@/components/forms/agency-new-form";
+import { requireInternalUser } from "@/lib/project-access";
 
-export default function NewAgencyPage() {
+export default async function NewAgencyPage() {
+  await requireInternalUser();
   return (
     <>
       <div className="mb-6">

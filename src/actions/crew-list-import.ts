@@ -1,8 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { notFound } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { getSessionDashboardUser } from "@/lib/auth-session";
+import { addPersonToProjectFromImport } from "@/actions/projects";
+import {
+  assertPermission,
+  getProjectAccessForUser,
+} from "@/lib/project-access";
 import { parseCrewListPlainText } from "@/lib/crew-list-import-parse";
 import type { CrewImportDraftRow } from "@/lib/crew-list-import-parse";
 import { computeFullName } from "@/lib/person";
@@ -11,6 +18,17 @@ import { extractTextFromPdfBuffer } from "@/lib/pdf-text";
 const MAX_PDF_BYTES = 5 * 1024 * 1024;
 const MAX_PASTE_CHARS = 600_000;
 const MAX_BATCH_ROWS = 300;
+
+/** Global import: kun intern. Prosjekt: intern eller `canImportCrewDatabase`. */
+async function requireCrewListImportAccess(projectId: string | null) {
+  const user = await getSessionDashboardUser();
+  if (!user) notFound();
+  if (user.isInternal) return;
+  if (!projectId) notFound();
+  const flags = await getProjectAccessForUser(user, projectId);
+  if (!flags) notFound();
+  assertPermission(flags, "canImportCrewDatabase");
+}
 
 /** Tillater tomme navn i payload (uvalgte/uferdige rader); validering skjer ved import av valgte rader. */
 function strOrEmpty(v: unknown): string {
@@ -57,12 +75,14 @@ async function findExistingPerson(
 
 /** Leser PDF og returnerer utkast-rader (samme parser som limt tekst). */
 export async function parseCrewListPdf(
+  projectId: string | null,
   _prev: unknown,
   formData: FormData,
 ): Promise<
   | { ok: true; rows: CrewImportDraftRow[]; textPreview: string }
   | { ok: false; error: string }
 > {
+  await requireCrewListImportAccess(projectId);
   const file = formData.get("pdf");
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: "Velg en PDF-fil." };
@@ -109,11 +129,13 @@ export async function parseCrewListPdf(
 
 /** Parser limt tekst uten PDF. */
 export async function parseCrewListPastedText(
+  projectId: string | null,
   raw: string,
 ): Promise<
   | { ok: true; rows: CrewImportDraftRow[]; textPreview: string }
   | { ok: false; error: string }
 > {
+  await requireCrewListImportAccess(projectId);
   if (raw.length > MAX_PASTE_CHARS) {
     return { ok: false, error: "Teksten er for lang." };
   }
@@ -137,8 +159,10 @@ export async function parseCrewListPastedText(
 }
 
 export async function batchImportCrewListRows(
+  projectId: string | null,
   rows: unknown,
 ): Promise<CrewListImportBatchResult> {
+  await requireCrewListImportAccess(projectId);
   const parsed = z.array(batchRowSchema).safeParse(rows);
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -192,7 +216,7 @@ export async function batchImportCrewListRows(
       .filter(Boolean);
 
     try {
-      await prisma.person.create({
+      const person = await prisma.person.create({
         data: {
           firstName,
           lastName,
@@ -208,6 +232,12 @@ export async function batchImportCrewListRows(
           isActive: true,
         },
       });
+      if (projectId) {
+        const roleOverride = roles[0]?.trim() || null;
+        await addPersonToProjectFromImport(projectId, person.id, {
+          roleOverride,
+        });
+      }
       created += 1;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Ukjent feil";
@@ -217,6 +247,9 @@ export async function batchImportCrewListRows(
 
   if (created > 0) {
     revalidatePath("/crew");
+    if (projectId) {
+      revalidatePath(`/projects/${projectId}`);
+    }
   }
 
   return {

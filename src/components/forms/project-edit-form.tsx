@@ -1,13 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import Link from "next/link";
 import { updateProject } from "@/actions/projects";
 import type { ProjectFormClient } from "@/lib/serialize";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { nativeSelectClassName } from "@/lib/form-classes";
 
 function toDateInput(d: Date | null): string {
@@ -22,19 +21,29 @@ export function ProjectEditForm({
   project,
   agencies,
   customers,
+  onSuccess,
+  onCancel,
 }: {
   project: ProjectFormClient;
   agencies: Opt[];
   customers: Opt[];
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }) {
   const [state, action, pending] = useActionState(
     updateProject.bind(null, project.id),
-    null,
+    null as { error?: string } | { success: true } | null,
   );
+
+  useEffect(() => {
+    if (state && "success" in state && state.success) {
+      onSuccess?.();
+    }
+  }, [state, onSuccess]);
 
   return (
     <form action={action} className="space-y-6">
-      {state?.error ? (
+      {state && "error" in state && state.error ? (
         <p className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {state.error}
         </p>
@@ -123,23 +132,19 @@ export function ProjectEditForm({
         </select>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="notes">Notater</Label>
-        <Textarea
-          id="notes"
-          name="notes"
-          rows={4}
-          defaultValue={project.notes ?? ""}
-        />
-      </div>
-
-      <div className="flex gap-3 pt-2">
+      <div className="flex flex-wrap gap-3 pt-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Lagrer…" : "Lagre prosjekt"}
         </Button>
-        <Button type="button" variant="outline" asChild>
-          <Link href="/">Tilbake</Link>
-        </Button>
+        {onCancel ? (
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Avbryt
+          </Button>
+        ) : (
+          <Button type="button" variant="outline" asChild>
+            <Link href="/">Tilbake</Link>
+          </Button>
+        )}
       </div>
     </form>
   );

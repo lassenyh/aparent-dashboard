@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { requireInternalUser } from "@/lib/project-access";
 import { computeFullName } from "@/lib/person";
 
 const personSchema = z.object({
@@ -38,6 +39,7 @@ export type CrewListParams = {
 };
 
 export async function getCrewFilterOptions() {
+  await requireInternalUser();
   const people = await prisma.person.findMany({
     select: { city: true, roles: true },
   });
@@ -56,6 +58,7 @@ export async function getCrewFilterOptions() {
 }
 
 export async function getCrewList(params: CrewListParams = {}) {
+  await requireInternalUser();
   const where: Prisma.PersonWhereInput = {};
   if (params.active === "active") where.isActive = true;
   if (params.active === "inactive") where.isActive = false;
@@ -99,6 +102,7 @@ export async function getCrewList(params: CrewListParams = {}) {
 }
 
 export async function getPersonById(id: string) {
+  await requireInternalUser();
   return prisma.person.findUnique({
     where: { id },
     include: {
@@ -117,6 +121,7 @@ export async function createPerson(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string }> {
+  await requireInternalUser();
   const raw = {
     firstName: String(formData.get("firstName") ?? ""),
     lastName: String(formData.get("lastName") ?? ""),
@@ -180,6 +185,7 @@ export async function updatePerson(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string } | null> {
+  await requireInternalUser();
   const raw = {
     firstName: String(formData.get("firstName") ?? ""),
     lastName: String(formData.get("lastName") ?? ""),
@@ -255,6 +261,16 @@ export async function updatePerson(
 
   revalidatePath("/crew");
   revalidatePath(`/crew/${id}`);
+
+  const projectLinks = await prisma.projectCrew.findMany({
+    where: { personId: id, isActive: true },
+    select: { projectId: true },
+    distinct: ["projectId"],
+  });
+  for (const { projectId } of projectLinks) {
+    revalidatePath(`/projects/${projectId}`);
+  }
+
   return null;
 }
 
@@ -267,6 +283,7 @@ export async function touchPersonLastUsed(personId: string) {
 
 /** Sletter personen fra databasen. Call sheet-rader med denne personen fjernes (Restrict-FK). */
 export async function deletePerson(personId: string, formData?: FormData) {
+  await requireInternalUser();
   const exists = await prisma.person.findUnique({
     where: { id: personId },
     select: { id: true },

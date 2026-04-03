@@ -12,6 +12,7 @@ import {
   parseScheduleRowKind,
   recalculateScheduleRows,
 } from "@/lib/schedule-rows";
+import { parseDagsplanLocale } from "@/lib/dagsplan-i18n";
 
 type PageProps = { params: Promise<{ id: string }> };
 
@@ -35,8 +36,6 @@ function mapToInitial(d: DagsplanLoaded): DagsplanEditorInitial {
     projectName: d.project.name,
     title: d.title,
     shootDate: d.shootDate.toISOString().slice(0, 10),
-    workStartTime: d.workStartTime ?? "",
-    workEndTime: d.workEndTime ?? "",
     agencyLogoUrl: d.agencyLogoUrl ?? "",
     clientLogoUrl: d.clientLogoUrl ?? "",
     locationRows: d.locations.map((loc) => ({
@@ -59,6 +58,10 @@ function mapToInitial(d: DagsplanLoaded): DagsplanEditorInitial {
     radioChannelsText: d.radioChannelsText ?? "",
     printIncludeActors: d.printIncludeActors ?? true,
     printIncludeDepartmentInfo: d.printIncludeDepartmentInfo ?? true,
+    showShotColumn: d.showShotColumn ?? false,
+    displayLocale: parseDagsplanLocale(d.displayLocale),
+    sunriseTimeOverride: d.sunriseTimeOverride ?? "",
+    sunsetTimeOverride: d.sunsetTimeOverride ?? "",
     crewRows: d.crewEntries.map((r: DagsplanLoaded["crewEntries"][number]) => ({
       departmentTitle: r.departmentTitle,
       personName: r.personName,
@@ -100,6 +103,8 @@ function mapToInitial(d: DagsplanLoaded): DagsplanEditorInitial {
           sceneSetting: r.sceneSetting ?? "",
           info: r.info ?? "",
           actorNumbers: r.actorNumbers ?? "",
+          shotImageUrl: r.shotImageUrl ?? "",
+          rowBgColor: r.rowBgColor ?? "",
         };
       }),
     ),
@@ -119,7 +124,7 @@ export default async function DagsplanEditorPage({ params }: PageProps) {
 
   const [crewSuggestions, crewDatabaseOptions] = await Promise.all([
     getProjectCrewForDagsplan(d.projectId),
-    getCrewDatabaseForDagsplan(),
+    getCrewDatabaseForDagsplan(d.projectId),
   ]);
   const initial = mapToInitial(d);
 
