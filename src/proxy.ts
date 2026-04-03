@@ -42,6 +42,14 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  /**
+   * Same-origin proxy for Vercel Blob-logoer (kun tillatte hosts i route).
+   * Må være offentlig: ellers redirect til /login gir HTML i <img> og Safari-feil.
+   */
+  if (pathname === "/api/public-image" || pathname.startsWith("/api/public-image/")) {
+    return NextResponse.next();
+  }
+
   const session = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   if (!session) {
     const loginUrl = new URL("/login", request.url);

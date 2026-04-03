@@ -1,9 +1,6 @@
-import { sanitizePublicImageUrl } from "@/lib/img-url";
+import { resolvePublicImageSrcForImgTag } from "@/lib/img-url";
 
-/** Eksterne logo-URL-er (Blob, CDN): Safari kan sende en annen Referer enn Chrome; full URL hjelper der host sjekker referrer/hotlink. */
-const ABSOLUTE_HTTP_URL = /^https?:\/\//i;
-
-/** Kunde-/byrålogoer: samme visning for alle brukere; HTTPS + referrer for Safari/Chrome-paritet. */
+/** Kunde-/byrålogoer: Vercel Blob lastes via /api/public-image i Safari (direkte blob-URL blir ofte blokkert). */
 export function PublicLogoImg({
   src,
   alt,
@@ -13,17 +10,10 @@ export function PublicLogoImg({
   alt: string;
   className?: string;
 }) {
-  const safe = sanitizePublicImageUrl(src);
-  if (!safe) return null;
-  const isRemote = ABSOLUTE_HTTP_URL.test(safe);
+  const imgSrc = resolvePublicImageSrcForImgTag(src);
+  if (!imgSrc) return null;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- dynamiske logo-URL-er fra DB/Blob
-    <img
-      src={safe}
-      alt={alt}
-      className={className}
-      loading="eager"
-      referrerPolicy={isRemote ? "unsafe-url" : undefined}
-    />
+    <img src={imgSrc} alt={alt} className={className} loading="eager" />
   );
 }
