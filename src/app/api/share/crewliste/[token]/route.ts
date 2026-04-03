@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import {
-  getProjectCrewListPageData,
-  getProjectIdByCrewListShareToken,
-} from "@/actions/project-crew-list";
+import { getProjectCrewListPageDataForShareToken } from "@/actions/project-crew-list";
 import { toCrewListSharePayload } from "@/lib/crew-list-share-payload";
 
 export const dynamic = "force-dynamic";
@@ -16,12 +13,7 @@ export async function GET(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
-  const projectId = await getProjectIdByCrewListShareToken(token);
-  if (!projectId) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-
-  const data = await getProjectCrewListPageData(projectId);
+  const data = await getProjectCrewListPageDataForShareToken(token);
   if (!data) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }

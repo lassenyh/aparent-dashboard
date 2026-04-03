@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import {
-  getProjectCrewListPageData,
-  getProjectIdByCrewListShareToken,
-} from "@/actions/project-crew-list";
+import { getProjectCrewListPageDataForShareToken } from "@/actions/project-crew-list";
 import { toCrewListSharePayload } from "@/lib/crew-list-share-payload";
 import { CrewListShareLive } from "@/components/crew/crew-list-share-live";
 
@@ -20,10 +17,7 @@ export default async function CrewListSharePage({ params }: PageProps) {
   const { token } = await params;
   if (!token?.trim()) notFound();
 
-  const projectId = await getProjectIdByCrewListShareToken(token);
-  if (!projectId) notFound();
-
-  const data = await getProjectCrewListPageData(projectId);
+  const data = await getProjectCrewListPageDataForShareToken(token);
   if (!data) notFound();
 
   const initial = toCrewListSharePayload(data);

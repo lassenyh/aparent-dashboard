@@ -75,10 +75,8 @@ export async function syncMissingProjectCrewIntoDefaultList(projectId: string) {
   // Neste forespørsel får oppdatert data uansett; revalidatePath hører til server actions.
 }
 
-export async function getProjectCrewListPageData(projectId: string) {
-  const { flags } = await requireProjectAccess(projectId);
-  assertPermission(flags, "canViewCrew");
-
+/** Datalasting uten auth — bruk kun etter gyldig crewliste-share-token eller etter tilgangssjekk. */
+async function loadProjectCrewListPageDataCore(projectId: string) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { id: true, name: true, internalTitle: true },
@@ -115,6 +113,25 @@ export async function getProjectCrewListPageData(projectId: string) {
     members: list.members,
     availableToAdd,
   };
+}
+
+export async function getProjectCrewListPageData(projectId: string) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canViewCrew");
+  return loadProjectCrewListPageDataCore(projectId);
+}
+
+/**
+ * Offentlig delt crewliste: last data når token er gyldig, uten innlogging.
+ */
+export async function getProjectCrewListPageDataForShareToken(
+  token: string,
+): Promise<Awaited<ReturnType<typeof loadProjectCrewListPageDataCore>>> {
+  const t = token.trim();
+  if (!t) return null;
+  const projectId = await getProjectIdByCrewListShareToken(t);
+  if (!projectId) return null;
+  return loadProjectCrewListPageDataCore(projectId);
 }
 
 export async function getProjectIdByCrewListShareToken(
