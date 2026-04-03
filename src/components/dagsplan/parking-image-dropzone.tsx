@@ -7,6 +7,7 @@ import {
   removeDagsplanLocationParkingImage,
   uploadDagsplanLocationParkingImage,
 } from "@/actions/dagsplan";
+import { PublicLogoImg } from "@/components/public-logo-img";
 import { Button } from "@/components/ui/button";
 import { MAX_PARKING_IMAGE_BYTES } from "@/lib/upload-limits";
 import { cn } from "@/lib/utils";
@@ -97,8 +98,7 @@ export function ParkingImageDropzone({
       />
       {hasImage ? (
         <div className="space-y-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <PublicLogoImg
             src={imageUrl}
             alt="Parking"
             className="max-h-56 w-auto max-w-full rounded-md border border-border object-contain"

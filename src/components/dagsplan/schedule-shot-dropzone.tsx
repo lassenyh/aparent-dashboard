@@ -6,6 +6,7 @@ import {
   removeDagsplanScheduleShot,
   uploadDagsplanScheduleShot,
 } from "@/actions/dagsplan";
+import { PublicLogoImg } from "@/components/public-logo-img";
 import { Button } from "@/components/ui/button";
 import { MAX_SCHEDULE_SHOT_IMAGE_BYTES } from "@/lib/upload-limits";
 import {
@@ -113,12 +114,7 @@ export function ScheduleShotDropzone({
       />
       {hasImage ? (
         <div className="flex min-w-0 flex-col items-center gap-1">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt=""
-            className={PREVIEW_IMG}
-          />
+          <PublicLogoImg src={imageUrl} alt="" className={PREVIEW_IMG} />
           <div className="flex w-full flex-wrap justify-center gap-0.5">
             <Button
               type="button"
