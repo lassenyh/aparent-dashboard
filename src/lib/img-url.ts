@@ -1,13 +1,16 @@
 /**
  * Normaliserer bilde-URL for <img src> på HTTPS-sider.
- * Safari (og andre) blokkerer ofte «mixed content»: http-URL på https-side.
- * Oppgraderer http → https for absolutte URL-er (typisk eldre data / Blob).
+ * Safari (WebKit) blokkerer ofte «mixed content»: http-URL på https-side.
+ * Oppgraderer http → https og gjør protokoll-relative URL-er (`//host/...`) eksplisitt til https.
  */
 export function sanitizePublicImageUrl(
   url: string | null | undefined,
 ): string | null {
-  const t = url?.trim();
+  let t = url?.trim();
   if (!t) return null;
+  if (t.startsWith("//")) {
+    t = `https:${t}`;
+  }
   if (t.startsWith("http://")) {
     return `https://${t.slice("http://".length)}`;
   }
