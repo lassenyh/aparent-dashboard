@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { addPersonToProject } from "@/actions/projects";
 import { prisma } from "@/lib/db";
@@ -20,9 +20,24 @@ import { validatePayrollRowsForSave } from "@/lib/payroll-row-validation";
 import { formatPayrollProjectLabel } from "@/lib/utils";
 import { resolveRateForProject, resolveRoleForProject } from "@/lib/snapshot";
 
-/** Dekryptert kontonummer/personnummer fra crew-profil — brukes når rad opprettes fra person. */
-export async function getPayrollSensitiveFieldsFromPerson(personId: string) {
-  await requireInternalUser();
+/**
+ * Dekryptert kontonummer/personnummer fra crew-profil — brukes når rad opprettes fra person.
+ * Samme tilgang som lagring: prosjektmedlem med redigering av lønningsliste (ikke kun «intern»).
+ */
+export async function getPayrollSensitiveFieldsFromPerson(
+  projectId: string,
+  listId: string,
+  personId: string,
+) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditPayroll");
+
+  const list = await prisma.payrollList.findFirst({
+    where: { id: listId, projectId },
+    select: { id: true },
+  });
+  if (!list) notFound();
+
   return getPersonSensitivePlainForServerUse(personId);
 }
 
@@ -630,7 +645,8 @@ export async function searchPeopleForPayroll(
   q: string,
   limit = 12,
 ) {
-  await requireInternalUser();
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditPayroll");
 
   const list = await prisma.payrollList.findFirst({
     where: { id: listId, projectId },

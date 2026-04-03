@@ -359,34 +359,70 @@ export function PayrollListEditor({
     const setPicker =
       segment === "crew" ? setPickerOpenCrew : setPickerOpenCast;
     startSensitiveFetch(async () => {
-      const { bankAccount, nationalId } =
-        await getPayrollSensitiveFieldsFromPerson(c.personId);
-      setter((prev) => [
-        ...prev,
-        {
-          key: crypto.randomUUID(),
-          isSectionHeader: false,
-          sectionTitle: null,
-          personId: c.personId,
-          fullName: c.fullName,
-          projectLabel: defaultProjectLabel,
-          addressLine: c.addressLine,
-          postalCode: c.postalCode,
-          city: c.city,
-          country: c.country,
-          honorar: honorarNorm,
-          includesHolidayPay: false,
-          nationalId,
-          bankAccount,
-          mobile: mob,
-          email: emailNorm,
-          sensitiveFieldsMaskInUi: true,
-          segment,
-          dietaryPreference: c.dietaryPreference,
-        },
-      ]);
-      setPicker(false);
-      toast.success(`${c.fullName} lagt til`);
+      try {
+        const { bankAccount, nationalId } =
+          await getPayrollSensitiveFieldsFromPerson(
+            projectId,
+            listId,
+            c.personId,
+          );
+        setter((prev) => [
+          ...prev,
+          {
+            key: crypto.randomUUID(),
+            isSectionHeader: false,
+            sectionTitle: null,
+            personId: c.personId,
+            fullName: c.fullName,
+            projectLabel: defaultProjectLabel,
+            addressLine: c.addressLine,
+            postalCode: c.postalCode,
+            city: c.city,
+            country: c.country,
+            honorar: honorarNorm,
+            includesHolidayPay: false,
+            nationalId,
+            bankAccount,
+            mobile: mob,
+            email: emailNorm,
+            sensitiveFieldsMaskInUi: true,
+            segment,
+            dietaryPreference: c.dietaryPreference,
+          },
+        ]);
+        setPicker(false);
+        toast.success(`${c.fullName} lagt til`);
+      } catch (e) {
+        console.error("[payroll] addFromCrew sensitive fetch failed", e);
+        setter((prev) => [
+          ...prev,
+          {
+            key: crypto.randomUUID(),
+            isSectionHeader: false,
+            sectionTitle: null,
+            personId: c.personId,
+            fullName: c.fullName,
+            projectLabel: defaultProjectLabel,
+            addressLine: c.addressLine,
+            postalCode: c.postalCode,
+            city: c.city,
+            country: c.country,
+            honorar: honorarNorm,
+            includesHolidayPay: false,
+            nationalId: null,
+            bankAccount: null,
+            mobile: mob,
+            email: emailNorm,
+            sensitiveFieldsMaskInUi: false,
+            segment,
+            dietaryPreference: c.dietaryPreference,
+          },
+        ]);
+        setPicker(false);
+        toast.message(
+          `${c.fullName} lagt til — kontonr./personnr. må fylles inn manuelt (automatisk henting feilet).`,
+        );
+      }
     });
   }
 
@@ -408,38 +444,74 @@ export function PayrollListEditor({
     const setDbPicker =
       segment === "crew" ? setDbPickerOpenCrew : setDbPickerOpenCast;
     startSensitiveFetch(async () => {
-      const { bankAccount, nationalId } =
-        await getPayrollSensitiveFieldsFromPerson(p.id);
-      setter((prev) => [
-        ...prev,
-        {
-          key: crypto.randomUUID(),
-          isSectionHeader: false,
-          sectionTitle: null,
-          personId: p.id,
-          fullName: p.fullName,
-          projectLabel: defaultProjectLabel,
-          addressLine: p.addressLine ?? null,
-          postalCode: p.postalCode ?? null,
-          city: p.city ?? null,
-          country: p.country ?? null,
-          honorar:
-            p.defaultRate != null && !Number.isNaN(p.defaultRate)
-              ? p.defaultRate
-              : null,
-          includesHolidayPay: false,
-          nationalId,
-          bankAccount,
-          mobile: mob,
-          email: emailNorm,
-          sensitiveFieldsMaskInUi: true,
-          segment,
-          dietaryPreference: p.dietaryPreference ?? null,
-        },
-      ]);
-      setDbPicker(false);
-      setDbQuery("");
-      toast.success(`${p.fullName} lagt til`);
+      try {
+        const { bankAccount, nationalId } =
+          await getPayrollSensitiveFieldsFromPerson(projectId, listId, p.id);
+        setter((prev) => [
+          ...prev,
+          {
+            key: crypto.randomUUID(),
+            isSectionHeader: false,
+            sectionTitle: null,
+            personId: p.id,
+            fullName: p.fullName,
+            projectLabel: defaultProjectLabel,
+            addressLine: p.addressLine ?? null,
+            postalCode: p.postalCode ?? null,
+            city: p.city ?? null,
+            country: p.country ?? null,
+            honorar:
+              p.defaultRate != null && !Number.isNaN(p.defaultRate)
+                ? p.defaultRate
+                : null,
+            includesHolidayPay: false,
+            nationalId,
+            bankAccount,
+            mobile: mob,
+            email: emailNorm,
+            sensitiveFieldsMaskInUi: true,
+            segment,
+            dietaryPreference: p.dietaryPreference ?? null,
+          },
+        ]);
+        setDbPicker(false);
+        setDbQuery("");
+        toast.success(`${p.fullName} lagt til`);
+      } catch (e) {
+        console.error("[payroll] addFromDatabase sensitive fetch failed", e);
+        setter((prev) => [
+          ...prev,
+          {
+            key: crypto.randomUUID(),
+            isSectionHeader: false,
+            sectionTitle: null,
+            personId: p.id,
+            fullName: p.fullName,
+            projectLabel: defaultProjectLabel,
+            addressLine: p.addressLine ?? null,
+            postalCode: p.postalCode ?? null,
+            city: p.city ?? null,
+            country: p.country ?? null,
+            honorar:
+              p.defaultRate != null && !Number.isNaN(p.defaultRate)
+                ? p.defaultRate
+                : null,
+            includesHolidayPay: false,
+            nationalId: null,
+            bankAccount: null,
+            mobile: mob,
+            email: emailNorm,
+            sensitiveFieldsMaskInUi: false,
+            segment,
+            dietaryPreference: p.dietaryPreference ?? null,
+          },
+        ]);
+        setDbPicker(false);
+        setDbQuery("");
+        toast.message(
+          `${p.fullName} lagt til — kontonr./personnr. må fylles inn manuelt (automatisk henting feilet).`,
+        );
+      }
     });
   }
 
