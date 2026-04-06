@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   removeDagsplanLocationParkingImage,
@@ -24,6 +24,17 @@ export function ParkingImageDropzone({
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  /** router.refresh() kan være sen; skjul miniatyr straks fjerning er OK på server. */
+  const [clearedUntilRefresh, setClearedUntilRefresh] = useState(false);
+  /** Ny URL fra server action før props oppdateres etter refresh. */
+  const [pendingUploadUrl, setPendingUploadUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setClearedUntilRefresh(false);
+    setPendingUploadUrl(null);
+  }, [imageUrl, locationId]);
+
+  const displayUrl = (pendingUploadUrl ?? imageUrl).trim();
 
   const uploadFile = useCallback(
     async (file: File) => {
@@ -43,6 +54,10 @@ export function ParkingImageDropzone({
         if ("error" in r && r.error) {
           toast.error(r.error);
           return;
+        }
+        setClearedUntilRefresh(false);
+        if ("publicPath" in r && r.publicPath) {
+          setPendingUploadUrl(r.publicPath);
         }
         toast.success("Bilde lastet opp");
         router.refresh();
@@ -75,6 +90,8 @@ export function ParkingImageDropzone({
         toast.error(r.error);
         return;
       }
+      setClearedUntilRefresh(true);
+      setPendingUploadUrl(null);
       toast.success("Bilde fjernet");
       router.refresh();
     } finally {
@@ -82,7 +99,8 @@ export function ParkingImageDropzone({
     }
   };
 
-  const hasImage = Boolean(imageUrl.trim());
+  const hasImage =
+    !clearedUntilRefresh && Boolean(displayUrl.trim());
 
   return (
     <div className="space-y-2">
@@ -99,7 +117,7 @@ export function ParkingImageDropzone({
       {hasImage ? (
         <div className="space-y-2">
           <PublicLogoImg
-            src={imageUrl}
+            src={displayUrl}
             alt="Parking"
             className="max-h-56 w-auto max-w-full rounded-md border border-border object-contain"
           />

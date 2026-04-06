@@ -1,20 +1,23 @@
 import type { Person, ProjectCrew } from "@prisma/client";
 import { resolveRoleForProject } from "@/lib/snapshot";
 
-/** Tvungen avdelingsrekkefølge ved import fra prosjektcrew; ukjente titler sist. */
+/**
+ * Standard rekkefølge for funksjoner (visningsnavn på norsk).
+ * Engelske rolletitler håndteres i `departmentOrderRank` (samme prioritering når UI er på engelsk).
+ */
 export const CREW_DEPARTMENT_ORDER_LABELS = [
   "Produsent",
   "Regissør",
-  "Regi-assistent",
+  "Produksjonsleder",
   "Innspillingsleder",
-  "Fotograf",
+  "Foto",
   "B-foto",
   "Kamera-assistent",
   "Lysmester",
   "Lys-assistent",
   "MUA",
-  "Makeup-artist",
-  "MUA-assistent",
+  "Kostyme",
+  "Rekvisitør",
   "Produksjonsassistent",
   "Lyd",
   "Kunde",
@@ -42,34 +45,19 @@ export function departmentOrderRank(title: string): number {
 
   if (t.includes("produsent") || /\bproducer\b/.test(t)) return 0;
 
-  if (
-    t.includes("regi-assistent") ||
-    t.includes("regi assistent") ||
-    t.includes("regiassistent")
-  ) {
-    return 2;
-  }
-
-  if (
-    t.includes("innspillingsleder") ||
-    t.includes("1st ad") ||
-    t.includes("1. ad") ||
-    t.includes("1 ad") ||
-    /\b1st\b.*\bad\b/.test(t)
-  ) {
-    return 3;
-  }
-
+  /* B-foto før generell «foto» / DOP */
   if (
     t.includes("b-foto") ||
     t.includes("b-fotograf") ||
     t.includes("b foto") ||
-    t.includes("bfoto") ||
     /\bb\s*foto\b/.test(t)
   ) {
     return 5;
   }
+
+  /* Foto / DOP / DP (inkl. «Fotograf», director of photography) */
   if (
+    t === "foto" ||
     t.includes("fotograf") ||
     /\bdp\b/.test(t) ||
     /\bdop\b/.test(t) ||
@@ -79,6 +67,7 @@ export function departmentOrderRank(title: string): number {
     return 4;
   }
 
+  /* Regissør / Director — ikke photography (over) */
   if (
     t.includes("regissor") ||
     (/\bdirector\b/.test(t) && !t.includes("photography"))
@@ -87,21 +76,58 @@ export function departmentOrderRank(title: string): number {
   }
 
   if (
+    t.includes("produksjonsleder") ||
+    /\bproduction manager\b/.test(t) ||
+    /\bprod\.?\s*manager\b/.test(t)
+  ) {
+    return 2;
+  }
+
+  if (
+    t.includes("innspillingsleder") ||
+    /\b1st\s*ad\b/.test(t) ||
+    /\bfirst\s*ad\b/.test(t) ||
+    /\b1\.?\s*ad\b/.test(t) ||
+    (/\b1\s*ad\b/.test(t) && !t.includes("kamera"))
+  ) {
+    return 3;
+  }
+
+  /* Ofte synonym med B-foto-linjen */
+  if (/\b1st\s*ac\b/.test(t) || /\bfirst\s*ac\b/.test(t)) return 5;
+
+  if (
     t.includes("kamera-assistent") ||
     t.includes("kamera assistent") ||
     t.includes("kameraassistent") ||
-    /\b1st ac\b/.test(t) ||
-    /\b2nd ac\b/.test(t) ||
+    /\b2nd\s*ac\b/.test(t) ||
+    /\bsecond\s*ac\b/.test(t) ||
     (/\bac\b/.test(t) && !t.includes("regi"))
   ) {
     return 6;
   }
 
-  if (t.includes("lysmester") || t.includes("gaffer")) return 7;
+  if (t.includes("lysmester") || /\bgaffer\b/.test(t)) return 7;
 
-  if (t.includes("lys-assistent") || t.includes("lys assistent")) return 8;
+  if (
+    t.includes("lys-assistent") ||
+    t.includes("lys assistent") ||
+    /\bbest\s*boy\b/.test(t) ||
+    t.includes("best-boy") ||
+    t.includes("bestboy")
+  ) {
+    return 8;
+  }
 
-  if (t.includes("mua-assistent") || t.includes("mua assistent")) return 11;
+  if (
+    t.includes("mua-assistent") ||
+    t.includes("mua assistent") ||
+    t.includes("makeup-artist")
+  ) {
+    return 17;
+  }
+
+  if (t === "mua" || /\bmua\b/.test(t)) return 9;
 
   if (
     t.includes("makeup") ||
@@ -111,10 +137,18 @@ export function departmentOrderRank(title: string): number {
     t.includes("hair") ||
     t.includes("sminke")
   ) {
-    return 10;
+    return 9;
   }
 
-  if (t === "mua" || /\bmua\b/.test(t)) return 9;
+  if (t.includes("kostyme") || t.includes("costume")) return 10;
+
+  if (
+    t.includes("rekvisit") ||
+    t.includes("props master") ||
+    (/\bprops\b/.test(t) && !t.includes("byra"))
+  ) {
+    return 11;
+  }
 
   if (
     t.includes("produksjonsassistent") ||
@@ -123,6 +157,14 @@ export function departmentOrderRank(title: string): number {
     t.includes("production assistant")
   ) {
     return 12;
+  }
+
+  if (
+    t.includes("regi-assistent") ||
+    t.includes("regi assistent") ||
+    t.includes("regiassistent")
+  ) {
+    return 16;
   }
 
   if (

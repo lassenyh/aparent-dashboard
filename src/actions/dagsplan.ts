@@ -60,7 +60,13 @@ const scheduleRowSchema = z.object({
   id: z.string().min(1),
   startTime: z.string().optional().default(""),
   endTime: z.string().optional().default(""),
-  durationMinutes: z.number().int().min(0).max(24 * 60).optional().default(30),
+  durationMinutes: z
+    .union([
+      z.number().int().min(0).max(24 * 60),
+      z.null(),
+    ])
+    .optional()
+    .default(30),
   rowKind: z
     .enum(["anchor", "sequential", "free"])
     .optional()
@@ -389,7 +395,7 @@ export async function saveDagsplan(
           dagsplanId: d.id,
           startTime: r.startTime || null,
           endTime: r.endTime || null,
-          durationMinutes: r.durationMinutes ?? 30,
+          durationMinutes: r.durationMinutes == null ? 0 : r.durationMinutes,
           rowKind: r.rowKind ?? "sequential",
           interiorExterior: r.interiorExterior || null,
           dayNight: r.dayNight || null,
@@ -657,7 +663,7 @@ export async function uploadDagsplanLocationParkingImage(
   revalidatePath(`/dagsplaner/${loc.dagsplanId}`);
   revalidatePath(`/dagsplaner/${loc.dagsplanId}/print`);
   revalidatePath(`/projects/${loc.dagsplan.projectId}`);
-  return { ok: true as const };
+  return { ok: true as const, publicPath: saved.publicPath };
 }
 
 export async function removeDagsplanLocationParkingImage(locationId: string) {

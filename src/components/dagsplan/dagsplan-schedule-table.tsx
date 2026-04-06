@@ -467,17 +467,27 @@ function SortableScheduleRow({
         ) : editableDuration ? (
           <Input
             className={cn(
-              `w-[72px] ${SCHEDULE_TABLE_INPUT}`,
+              `w-[72px] ${SCHEDULE_TABLE_INPUT} tabular-nums`,
               isLunch && "text-destructive",
             )}
-            type="number"
-            min={0}
-            step={5}
-            value={Number.isFinite(row.durationMinutes) ? row.durationMinutes : 0}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={
+              row.durationMinutes == null
+                ? ""
+                : String(Math.max(0, Math.floor(row.durationMinutes)))
+            }
             onChange={(e) => {
-              const n = Number(e.target.value);
+              const s = e.target.value.trim();
+              if (s === "") {
+                onPatch(row.id, { durationMinutes: null });
+                return;
+              }
+              const n = Number(s);
+              if (!Number.isFinite(n)) return;
               onPatch(row.id, {
-                durationMinutes: Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0,
+                durationMinutes: Math.max(0, Math.floor(n)),
               });
             }}
             aria-label={`${st.durationMin} (min)`}
@@ -485,13 +495,17 @@ function SortableScheduleRow({
         ) : (
           <Input
             className={cn(
-              `w-[72px] ${SCHEDULE_TABLE_INPUT} bg-muted/40`,
+              `w-[72px] ${SCHEDULE_TABLE_INPUT} bg-muted/40 tabular-nums`,
               isLunch ? "text-destructive" : "text-muted-foreground",
             )}
-            type="number"
+            type="text"
             readOnly
             tabIndex={-1}
-            value={Number.isFinite(row.durationMinutes) ? row.durationMinutes : 0}
+            value={
+              row.durationMinutes == null
+                ? ""
+                : String(Math.max(0, Math.floor(row.durationMinutes)))
+            }
             aria-label={`${st.durationMin} (${st.from}–${st.to})`}
           />
         )}

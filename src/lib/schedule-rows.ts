@@ -8,8 +8,8 @@ export type ScheduleRow = {
   rowKind: ScheduleRowKind;
   startTime: string;
   endTime: string;
-  /** Internt planleggingsfelt — vises ikke på print. For fri rad: kan speile varighet. */
-  durationMinutes: number;
+  /** Internt planleggingsfelt — vises ikke på print. `null` = tom celle under redigering (lagres som 0). */
+  durationMinutes: number | null;
   interiorExterior: string;
   dayNight: string;
   sceneSetting: string;

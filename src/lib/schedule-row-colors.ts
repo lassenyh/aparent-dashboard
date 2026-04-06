@@ -13,6 +13,9 @@ export const SCHEDULE_CALL_TIME_DEFAULT_ROW_BG = "#ffedd5";
 /** Standard radfarge for «Wrap» i timeplan (RGB 178, 123, 123). */
 export const SCHEDULE_WRAP_DEFAULT_ROW_BG = "#b27b7b";
 
+/** Standard radfarge for «Company move» i timeplan (RGB 229, 231, 235). */
+export const SCHEDULE_COMPANY_MOVE_DEFAULT_ROW_BG = "#e5e7eb";
+
 /** Raske valg inspirert av typisk dagsplan / referanse (call sheet). */
 export const SCHEDULE_ROW_COLOR_PRESETS: ReadonlyArray<{
   label: string;

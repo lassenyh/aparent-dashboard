@@ -28,6 +28,7 @@ import { WEATHER_ICON_OPTIONS } from "@/lib/weather-icon";
 import { APARENT_LOGO_PUBLIC_PATH } from "@/lib/dagsplan-defaults";
 import {
   SCHEDULE_CALL_TIME_DEFAULT_ROW_BG,
+  SCHEDULE_COMPANY_MOVE_DEFAULT_ROW_BG,
   SCHEDULE_WRAP_DEFAULT_ROW_BG,
 } from "@/lib/schedule-row-colors";
 import {
@@ -326,12 +327,7 @@ function DagsplanLocationBlock({
   );
 
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-border bg-muted/20 shadow-sm",
-        total > 1 ? "p-2" : "p-4",
-      )}
-    >
+    <div className="rounded-lg border border-border bg-muted/20 p-2 shadow-sm">
       <Collapsible
         open={collapsibleOpen}
         onOpenChange={onCollapsibleOpenChange}
@@ -347,7 +343,7 @@ function DagsplanLocationBlock({
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
           </CollapsibleTrigger>
           <RowActions
-            inline={total > 1}
+            inline
             onMoveUp={onMoveUp}
             onMoveDown={onMoveDown}
             onRemove={onRemove}
@@ -464,6 +460,7 @@ export function DagsplanEditor({
         interiorExterior: SCHEDULE_INTERIOR_EXTERIOR_TRUCK,
         sceneSetting: address.trim(),
         durationMinutes: 30,
+        rowBgColor: SCHEDULE_COMPANY_MOVE_DEFAULT_ROW_BG,
       };
       return {
         ...s,

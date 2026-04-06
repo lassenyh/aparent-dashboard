@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getDagsplanById } from "@/actions/dagsplan";
 import { DagsplanWeatherCard } from "@/components/dagsplan/dagsplan-weather-card";
 import { PrintToolbar } from "@/components/print-toolbar";
+import { hasDagsplanWeatherContent } from "@/lib/dagsplan-weather";
 import { APARENT_LOGO_PUBLIC_PATH } from "@/lib/dagsplan-defaults";
 import {
   inferDurationMinutes,
@@ -249,12 +250,18 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
   const printLocale = parseDagsplanLocale(d.displayLocale);
   const pt = getDagsplanPrintStrings(printLocale);
   const onSetPrint = pt.onSet.replace(/\s+/g, "\u00A0");
+  const showWeather = hasDagsplanWeatherContent({
+    weatherIcon: d.weatherIcon,
+    weatherTempMin: d.weatherTempMin,
+    weatherTempMax: d.weatherTempMax,
+    weatherText: d.weatherText,
+  });
 
   return (
     <div className="dagsplan-print mx-auto max-w-[210mm] px-6 py-10 text-[11px] leading-relaxed text-neutral-900 antialiased print:max-w-none print:px-0 print:py-0 print:text-[10px]">
       <PrintToolbar backHref={`/dagsplaner/${d.id}`} />
 
-      {/* Rad 1: alle tre logoer på samme linje. Rad 2: tittel + metadata (hero). */}
+      {/* Rad 1: logoer. Deretter: linje med prosjekt·dagsplan·dato, under det arbeidstid·vær. */}
       <header className="mb-8 border-b border-neutral-200 pb-4 print:mb-6 print:pb-3">
         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-5 print:gap-4">
           <div className="flex items-center justify-start">
@@ -289,28 +296,50 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="mt-[60px] flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-center text-sm leading-snug text-neutral-600 print:mt-[60px] print:flex-nowrap print:gap-x-3 print:text-[11px]">
-          <h1 className="min-w-0 max-w-full text-balance font-bold tracking-tight">
-            <span className="font-normal text-neutral-600">{d.project.name}</span>
-            <span className="font-normal text-neutral-600"> · </span>
-            <span className="text-neutral-950">{d.title}</span>
-          </h1>
-          <span className="shrink-0 text-neutral-300" aria-hidden>
-            ·
-          </span>
-          <span className="shrink-0 tabular-nums">
-            {formatDate(d.shootDate)}
-          </span>
-          {d.workStartTime?.trim() || d.workEndTime?.trim() ? (
-            <>
-              <span className="shrink-0 text-neutral-300" aria-hidden>
-                ·
-              </span>
-              <span className="shrink-0">
-                {pt.workHours}: {fmtTime(d.workStartTime)} –{" "}
-                {fmtTime(d.workEndTime)}
-              </span>
-            </>
+        <div className="mt-[60px] flex flex-col items-center gap-2 text-center text-sm leading-snug text-neutral-600 print:mt-[60px] print:gap-1.5 print:text-[11px]">
+          {/* Linje 1: prosjekt · dagsplan · dato */}
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2.5 gap-y-1 print:gap-x-3">
+            <h1 className="min-w-0 max-w-full text-balance font-bold tracking-tight">
+              <span className="font-normal text-neutral-600">{d.project.name}</span>
+              <span className="font-normal text-neutral-600"> · </span>
+              <span className="text-neutral-950">{d.title}</span>
+            </h1>
+            <span className="shrink-0 text-neutral-300" aria-hidden>
+              ·
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {formatDate(d.shootDate)}
+            </span>
+          </div>
+          {/* Linje 2: arbeidstid · vær */}
+          {d.workStartTime?.trim() ||
+          d.workEndTime?.trim() ||
+          showWeather ? (
+            <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2.5 gap-y-1 print:gap-x-3">
+              {d.workStartTime?.trim() || d.workEndTime?.trim() ? (
+                <span className="shrink-0">
+                  {pt.workHours}: {fmtTime(d.workStartTime)} –{" "}
+                  {fmtTime(d.workEndTime)}
+                </span>
+              ) : null}
+              {showWeather &&
+              (d.workStartTime?.trim() || d.workEndTime?.trim()) ? (
+                <span className="shrink-0 text-neutral-300" aria-hidden>
+                  ·
+                </span>
+              ) : null}
+              {showWeather ? (
+                <span className="inline-flex min-w-0 max-w-full shrink items-center text-neutral-600">
+                  <DagsplanWeatherCard
+                    variant="printInline"
+                    weatherIcon={d.weatherIcon}
+                    weatherTempMin={d.weatherTempMin}
+                    weatherTempMax={d.weatherTempMax}
+                    weatherText={d.weatherText}
+                  />
+                </span>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </header>
@@ -508,6 +537,16 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
           </section>
         ) : null}
 
+        {/* Info — over timeplan (vær står i header ved arbeidstid) */}
+        <section className={printSectionPadY}>
+          <div className="min-w-0 max-w-none">
+            <h2 className={secTitle}>{pt.info}</h2>
+            <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-800 print:text-[10px]">
+              {cellText(d.infoText)}
+            </p>
+          </div>
+        </section>
+
         <section className={printSectionPadY}>
           <h2 className={secTitle}>{pt.schedule}</h2>
           <p className="mb-2 text-[11px] leading-snug text-neutral-700 print:text-[10px]">
@@ -614,7 +653,6 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                         className={cn(
                           tdNum,
                           lunch && lunchPrintText,
-                          lunch && lunchPrintTimeBg,
                         )}
                       >
                         {fmtScheduleDurationMinutes(r)}
@@ -655,24 +693,6 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               )}
             </tbody>
           </table>
-        </section>
-
-        {/* Info / vær — under timeplan */}
-        <section className={printSectionPadY}>
-          <div className="min-w-0 max-w-none space-y-2.5">
-            <h2 className={secTitle}>{pt.infoWeather}</h2>
-            <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-800 print:text-[10px]">
-              {cellText(d.infoText)}
-            </p>
-            <DagsplanWeatherCard
-              variant="print"
-              className="mt-4 max-w-xl"
-              weatherIcon={d.weatherIcon}
-              weatherTempMin={d.weatherTempMin}
-              weatherTempMax={d.weatherTempMax}
-              weatherText={d.weatherText}
-            />
-          </div>
         </section>
 
         {d.printIncludeDepartmentInfo ? (

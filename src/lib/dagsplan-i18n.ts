@@ -478,6 +478,8 @@ export type DagsplanPrintT = {
   cast: string;
   schedule: string;
   infoWeather: string;
+  /** Print: egen overskrift under Info (vær). */
+  weather: string;
   deptInfo: string;
   nr: string;
   phone: string;
@@ -519,6 +521,7 @@ const printNo: DagsplanPrintT = {
   cast: "Aktører",
   schedule: "Timeplan",
   infoWeather: "Info / vær",
+  weather: "Vær",
   deptInfo: "Avdelingsinfo",
   nr: "Nr",
   phone: "Tlf",
@@ -558,6 +561,7 @@ const printEn: DagsplanPrintT = {
   cast: "Cast",
   schedule: "Schedule",
   infoWeather: "Info / weather",
+  weather: "Weather",
   deptInfo: "Department info",
   nr: "No.",
   phone: "Phone",
