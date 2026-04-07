@@ -449,10 +449,9 @@ model DagsplanActorEntry {
   id               String   @id @default(cuid())
   dagsplanId       String
   dagsplan         Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  /** Visningsnr — satt fra tabellrekkefølge ved lagring (1, 2, …). */
   actorNumber      String
   actorName        String
-  phone            String?
-  film             String?
   meetTime         String?
   readyOnSetTime   String?
   sortOrder        Int      @default(0)

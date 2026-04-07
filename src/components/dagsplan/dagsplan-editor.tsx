@@ -134,10 +134,8 @@ export type DagsplanEditorInitial = {
     linkedPersonId: string | null;
   }>;
   actorRows: Array<{
-    actorNumber: string;
+    id: string;
     actorName: string;
-    phone: string;
-    film: string;
     meetTime: string;
     readyOnSetTime: string;
   }>;
@@ -534,7 +532,10 @@ export function DagsplanEditor({
       linkedPersonId: r.linkedPersonId || null,
     }));
     const actorRows = state.actorRows.map((r, i) => ({
-      ...r,
+      actorNumber: String(i + 1),
+      actorName: r.actorName,
+      meetTime: r.meetTime,
+      readyOnSetTime: r.readyOnSetTime,
       sortOrder: i,
     }));
     const scheduleRows = state.scheduleRows.map((r, i) => ({
@@ -1343,13 +1344,11 @@ export function DagsplanEditor({
             <SectionHeading className="mb-0">{t.actors}</SectionHeading>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] border-collapse text-sm">
+            <table className="w-full min-w-[520px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th className="pb-1.5 pr-1 font-medium">{t.actorNr}</th>
+                  <th className="w-12 pb-1.5 pr-1 font-medium">{t.actorNr}</th>
                   <th className="pb-1.5 pr-1 font-medium">{t.actorName}</th>
-                  <th className="pb-1.5 pr-1 font-medium">{t.actorPhone}</th>
-                  <th className="pb-1.5 pr-1 font-medium">{t.actorFilm}</th>
                   <th className="pb-1.5 pr-1 font-medium">{t.actorMeet}</th>
                   <th className="pb-1.5 pr-1 font-medium">
                     {t.actorReadyOnSet}
@@ -1359,39 +1358,37 @@ export function DagsplanEditor({
               </thead>
               <tbody>
                 {state.actorRows.map((row, i) => (
-                  <tr key={i} className="border-b border-border/60">
-                    {(
-                      [
-                        "actorNumber",
-                        "actorName",
-                        "phone",
-                        "film",
-                        "meetTime",
-                        "readyOnSetTime",
-                      ] as const
-                    ).map((field) => (
-                      <td key={field} className="py-0.5 pr-1 align-middle">
-                        <Input
-                          className={DAGSPLAN_TABLE_INPUT}
-                          type={
-                            field === "meetTime" || field === "readyOnSetTime"
-                              ? "time"
-                              : "text"
-                          }
-                          value={row[field]}
-                          onChange={(e) =>
-                            setState((s) => {
-                              const actorRows = [...s.actorRows];
-                              actorRows[i] = {
-                                ...actorRows[i],
-                                [field]: e.target.value,
-                              };
-                              return { ...s, actorRows };
-                            })
-                          }
-                        />
-                      </td>
-                    ))}
+                  <tr key={row.id} className="border-b border-border/60">
+                    <td className="py-0.5 pr-1 align-middle">
+                      <span className="inline-flex h-7 min-w-[1.5rem] items-center px-2 text-xs tabular-nums text-muted-foreground">
+                        {i + 1}
+                      </span>
+                    </td>
+                    {(["actorName", "meetTime", "readyOnSetTime"] as const).map(
+                      (field) => (
+                        <td key={field} className="py-0.5 pr-1 align-middle">
+                          <Input
+                            className={DAGSPLAN_TABLE_INPUT}
+                            type={
+                              field === "meetTime" || field === "readyOnSetTime"
+                                ? "time"
+                                : "text"
+                            }
+                            value={row[field]}
+                            onChange={(e) =>
+                              setState((s) => {
+                                const actorRows = [...s.actorRows];
+                                actorRows[i] = {
+                                  ...actorRows[i],
+                                  [field]: e.target.value,
+                                };
+                                return { ...s, actorRows };
+                              })
+                            }
+                          />
+                        </td>
+                      ),
+                    )}
                     <td className="py-0.5 align-middle">
                       <RowActions
                         inline
@@ -1433,10 +1430,8 @@ export function DagsplanEditor({
                   actorRows: [
                     ...s.actorRows,
                     {
-                      actorNumber: "",
+                      id: crypto.randomUUID(),
                       actorName: "",
-                      phone: "",
-                      film: "",
                       meetTime: "",
                       readyOnSetTime: "",
                     },

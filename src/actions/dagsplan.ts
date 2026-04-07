@@ -47,10 +47,9 @@ const crewRowSchema = z.object({
 });
 
 const actorRowSchema = z.object({
+  /** Settes fra listeindeks ved lagring (1, 2, …). */
   actorNumber: z.string(),
   actorName: z.string(),
-  phone: z.string().optional().default(""),
-  film: z.string().optional().default(""),
   meetTime: z.string().optional().default(""),
   readyOnSetTime: z.string().optional().default(""),
   sortOrder: z.number(),
@@ -380,8 +379,6 @@ export async function saveDagsplan(
           dagsplanId: d.id,
           actorNumber: r.actorNumber,
           actorName: r.actorName,
-          phone: r.phone || null,
-          film: r.film || null,
           meetTime: r.meetTime || null,
           readyOnSetTime: r.readyOnSetTime || null,
           sortOrder: r.sortOrder,
@@ -498,12 +495,10 @@ export async function duplicateDagsplan(id: string, _formData?: FormData) {
     }
     if (src.actorEntries.length) {
       await tx.dagsplanActorEntry.createMany({
-        data: src.actorEntries.map((r) => ({
+        data: src.actorEntries.map((r, i) => ({
           dagsplanId: d.id,
-          actorNumber: r.actorNumber,
+          actorNumber: String(i + 1),
           actorName: r.actorName,
-          phone: r.phone,
-          film: r.film,
           meetTime: r.meetTime,
           readyOnSetTime: r.readyOnSetTime,
           sortOrder: r.sortOrder,

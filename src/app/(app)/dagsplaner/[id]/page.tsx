@@ -72,10 +72,8 @@ function mapToInitial(d: DagsplanLoaded): DagsplanEditorInitial {
       linkedPersonId: r.linkedPersonId,
     })),
     actorRows: d.actorEntries.map((r: DagsplanLoaded["actorEntries"][number]) => ({
-      actorNumber: r.actorNumber,
+      id: r.id,
       actorName: r.actorName,
-      phone: r.phone ?? "",
-      film: r.film ?? "",
       meetTime: r.meetTime ?? "",
       readyOnSetTime: r.readyOnSetTime ?? "",
     })),

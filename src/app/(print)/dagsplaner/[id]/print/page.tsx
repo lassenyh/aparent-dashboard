@@ -508,28 +508,24 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               <thead>
                 <tr>
                   <th className={cn(thNum, "w-[7%]")}>{pt.nr}</th>
-                  <th className={cn(thBase, "w-[22%]")}>{pt.name}</th>
-                  <th className={cn(thBase, "w-[18%]")}>{pt.phone}</th>
-                  <th className={cn(thBase, "w-[14%]")}>{pt.film}</th>
+                  <th className={cn(thBase, "w-[40%]")}>{pt.name}</th>
                   <th className={thNum}>{pt.meet}</th>
                   <th className={thNum}>{pt.readyOnSet}</th>
                 </tr>
               </thead>
               <tbody>
                 {d.actorEntries.length ? (
-                  d.actorEntries.map((r) => (
+                  d.actorEntries.map((r, i) => (
                     <tr key={r.id}>
-                      <td className={tdNum}>{cellText(r.actorNumber)}</td>
+                      <td className={tdNum}>{i + 1}</td>
                       <td className={tdBase}>{cellText(r.actorName)}</td>
-                      <td className={tdBase}>{cellText(r.phone)}</td>
-                      <td className={tdBase}>{cellText(r.film)}</td>
                       <td className={tdNum}>{fmtTime(r.meetTime)}</td>
                       <td className={tdNum}>{fmtTime(r.readyOnSetTime)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className={tdBase} />
+                    <td colSpan={4} className={tdBase} />
                   </tr>
                 )}
               </tbody>
