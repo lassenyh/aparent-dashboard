@@ -403,10 +403,67 @@ export function DagsplanEditor({
     }
   }, [state.locationRows, openLocationId]);
 
+  /**
+   * Opplastede URL-er (logo, parkering, shot) lagres på server ved egen action og `router.refresh()`,
+   * men React state ble kun satt ved mount — «Lagre alle» ville da sende tom streng og slette DB-felt.
+   * Synk kun disse feltene fra `initial` når serverdata endres.
+   */
+  const initialServerAssetKey = useMemo(
+    () =>
+      JSON.stringify({
+        agencyLogoUrl: initial.agencyLogoUrl,
+        clientLogoUrl: initial.clientLogoUrl,
+        locations: initial.locationRows.map((r) => ({
+          id: r.id,
+          parkingImageUrl: r.parkingImageUrl,
+        })),
+        schedule: initial.scheduleRows.map((r) => ({
+          id: r.id,
+          shotImageUrl: r.shotImageUrl,
+        })),
+      }),
+    [
+      initial.agencyLogoUrl,
+      initial.clientLogoUrl,
+      initial.locationRows,
+      initial.scheduleRows,
+    ],
+  );
+
+  useEffect(() => {
+    setState((s) => ({
+      ...s,
+      agencyLogoUrl: initial.agencyLogoUrl,
+      clientLogoUrl: initial.clientLogoUrl,
+      locationRows: s.locationRows.map((row) => {
+        const fresh = initial.locationRows.find((r) => r.id === row.id);
+        if (!fresh) return row;
+        return {
+          ...row,
+          parkingImageUrl: fresh.parkingImageUrl,
+        };
+      }),
+      scheduleRows: s.scheduleRows.map((row) => {
+        const fresh = initial.scheduleRows.find((r) => r.id === row.id);
+        if (!fresh) return row;
+        return {
+          ...row,
+          shotImageUrl: fresh.shotImageUrl,
+        };
+      }),
+    }));
+  }, [initialServerAssetKey]);
+
   const displayAgencyLogo =
-    state.agencyLogoUrl.trim() || initial.projectAgencyLogoUrl || "";
+    state.agencyLogoUrl.trim() ||
+    initial.agencyLogoUrl.trim() ||
+    initial.projectAgencyLogoUrl ||
+    "";
   const displayClientLogo =
-    state.clientLogoUrl.trim() || initial.projectClientLogoUrl || "";
+    state.clientLogoUrl.trim() ||
+    initial.clientLogoUrl.trim() ||
+    initial.projectClientLogoUrl ||
+    "";
 
   const usedProjectCrewIds = useMemo(
     () =>
