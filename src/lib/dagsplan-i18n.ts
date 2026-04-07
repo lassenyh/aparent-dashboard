@@ -107,6 +107,10 @@ export type DagsplanEditorT = {
   crewEmail: string;
   crewOnSet: string;
   crewRow: string;
+  /** Oppmøtetid: åpne e-postklient med alle i listen som mottakere */
+  sendCrewEmail: string;
+  /** Tooltip når ingen har e-post */
+  sendCrewEmailNeedAddresses: string;
   actors: string;
   excludeFromPrint: string;
   actorNr: string;
@@ -195,6 +199,9 @@ const editorNo: DagsplanEditorT = {
   crewEmail: "E-post",
   crewOnSet: "På sett",
   crewRow: "+ Rad",
+  sendCrewEmail: "Send e-post",
+  sendCrewEmailNeedAddresses:
+    "Legg inn minst én e-postadresse i tabellen for å sende til alle.",
   actors: "Aktører",
   excludeFromPrint: "Ekskluder fra utskrift",
   actorNr: "Nr",
@@ -281,6 +288,9 @@ const editorEn: DagsplanEditorT = {
   crewEmail: "Email",
   crewOnSet: "On set",
   crewRow: "+ Row",
+  sendCrewEmail: "Send email",
+  sendCrewEmailNeedAddresses:
+    "Add at least one email in the table to email everyone.",
   actors: "Cast",
   excludeFromPrint: "Exclude from print",
   actorNr: "No.",

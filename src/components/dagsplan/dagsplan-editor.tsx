@@ -501,6 +501,23 @@ export function DagsplanEditor({
     [state.scheduleRows],
   );
 
+  /** mailto: med alle unike e-poster fra oppmøtetid-tabellen (To-felt). */
+  const crewMeetMailtoHref = useMemo(() => {
+    const seen = new Set<string>();
+    const emails: string[] = [];
+    for (const r of state.crewRows) {
+      const e = r.email.trim();
+      if (!e.includes("@")) continue;
+      const key = e.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      emails.push(e);
+    }
+    if (emails.length === 0) return null;
+    const subject = `${state.projectName} · ${state.title}`.trim();
+    return `mailto:${emails.join(",")}?${new URLSearchParams({ subject }).toString()}`;
+  }, [state.crewRows, state.projectName, state.title]);
+
   function appendCompanyMoveRow(address: string) {
     setCompanyMoveOpen(false);
     setCompanyMoveManualText("");
@@ -1312,31 +1329,47 @@ export function DagsplanEditor({
               </tbody>
             </table>
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="mt-3"
-            onClick={() =>
-              setState((s) => ({
-                ...s,
-                crewRows: [
-                  ...s.crewRows,
-                  {
-                    departmentTitle: "",
-                    personName: "",
-                    mobile: "",
-                    email: "",
-                    onSetTime: "",
-                    linkedProjectCrewId: null,
-                    linkedPersonId: null,
-                  },
-                ],
-              }))
-            }
-          >
-            {t.crewRow}
-          </Button>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setState((s) => ({
+                  ...s,
+                  crewRows: [
+                    ...s.crewRows,
+                    {
+                      departmentTitle: "",
+                      personName: "",
+                      mobile: "",
+                      email: "",
+                      onSetTime: "",
+                      linkedProjectCrewId: null,
+                      linkedPersonId: null,
+                    },
+                  ],
+                }))
+              }
+            >
+              {t.crewRow}
+            </Button>
+            {crewMeetMailtoHref ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={crewMeetMailtoHref}>{t.sendCrewEmail}</a>
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled
+                title={t.sendCrewEmailNeedAddresses}
+              >
+                {t.sendCrewEmail}
+              </Button>
+            )}
+          </div>
         </section>
 
         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
