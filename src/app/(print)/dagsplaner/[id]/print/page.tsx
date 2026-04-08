@@ -543,6 +543,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
           </div>
         </section>
 
+        {d.printIncludeSchedule ? (
         <section className={printSectionPadY}>
           <h2 className={secTitle}>{pt.schedule}</h2>
           <p className="mb-2 text-[11px] leading-snug text-neutral-700 print:text-[10px]">
@@ -690,6 +691,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
             </tbody>
           </table>
         </section>
+        ) : null}
 
         {d.printIncludeDepartmentInfo ? (
           <section className={printSectionPadY}>

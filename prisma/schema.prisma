@@ -384,6 +384,8 @@ model Dagsplan {
   printIncludeActors          Boolean @default(true)
   /** true = med på utskrift (standard). false = ekskludert fra utskrift. */
   printIncludeDepartmentInfo  Boolean @default(true)
+  /** true = timeplan-tabell med på utskrift (standard). false = ekskludert. */
+  printIncludeSchedule        Boolean @default(true)
   /** Vis «Shot»-kolonne i timeplan (storyboard / referansebilde per rad). */
   showShotColumn          Boolean @default(false)
   /** Manuell soloppgang (f.eks. annen lokasjon enn Oslo). Tom = bruk automatisk Oslo på opptaksdato. */

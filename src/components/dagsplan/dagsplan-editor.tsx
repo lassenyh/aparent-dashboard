@@ -121,6 +121,8 @@ export type DagsplanEditorInitial = {
   /** false = ekskludert fra utskrift (ikke vis tabell på utskrift). */
   printIncludeActors: boolean;
   printIncludeDepartmentInfo: boolean;
+  /** false = timeplan-tabell ekskludert fra utskrift. */
+  printIncludeSchedule: boolean;
   /** Tom = automatisk Oslo på opptaksdato; ellers manuell tid (HH:mm). */
   sunriseTimeOverride: string;
   sunsetTimeOverride: string;
@@ -371,6 +373,7 @@ export function DagsplanEditor({
     ...initial,
     printIncludeActors: initial.printIncludeActors ?? true,
     printIncludeDepartmentInfo: initial.printIncludeDepartmentInfo ?? true,
+    printIncludeSchedule: initial.printIncludeSchedule ?? true,
     showShotColumn: initial.showShotColumn ?? false,
     displayLocale: initial.displayLocale ?? "no",
   }));
@@ -601,6 +604,7 @@ export function DagsplanEditor({
       radioChannelsText: state.radioChannelsText || null,
       printIncludeActors: state.printIncludeActors,
       printIncludeDepartmentInfo: state.printIncludeDepartmentInfo,
+      printIncludeSchedule: state.printIncludeSchedule,
       showShotColumn: state.showShotColumn,
       displayLocale: state.displayLocale,
       sunriseTimeOverride: state.sunriseTimeOverride.trim() || null,
@@ -1713,6 +1717,18 @@ export function DagsplanEditor({
                 }
               />
               <span>{t.showShotColumn}</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+              <Checkbox
+                checked={state.printIncludeSchedule === false}
+                onCheckedChange={(v) =>
+                  setState((s) => ({
+                    ...s,
+                    printIncludeSchedule: v !== true,
+                  }))
+                }
+              />
+              <span>{t.excludeFromPrint}</span>
             </label>
           </div>
         </section>

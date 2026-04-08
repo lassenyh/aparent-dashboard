@@ -58,6 +58,7 @@ function mapToInitial(d: DagsplanLoaded): DagsplanEditorInitial {
     radioChannelsText: d.radioChannelsText ?? "",
     printIncludeActors: d.printIncludeActors ?? true,
     printIncludeDepartmentInfo: d.printIncludeDepartmentInfo ?? true,
+    printIncludeSchedule: d.printIncludeSchedule ?? true,
     showShotColumn: d.showShotColumn ?? false,
     displayLocale: parseDagsplanLocale(d.displayLocale),
     sunriseTimeOverride: d.sunriseTimeOverride ?? "",

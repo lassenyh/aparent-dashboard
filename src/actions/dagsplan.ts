@@ -115,6 +115,7 @@ const dagsplanSaveSchema = z.object({
   radioChannelsText: z.string().nullable().optional(),
   printIncludeActors: z.boolean().optional().default(true),
   printIncludeDepartmentInfo: z.boolean().optional().default(true),
+  printIncludeSchedule: z.boolean().optional().default(true),
   showShotColumn: z.boolean().optional().default(false),
   displayLocale: z.enum(["no", "en"]).optional().default("no"),
   /** Tom = automatisk Oslo på opptaksdato */
@@ -319,6 +320,7 @@ export async function saveDagsplan(
         radioChannelsText: d.radioChannelsText?.trim() || null,
         printIncludeActors: d.printIncludeActors,
         printIncludeDepartmentInfo: d.printIncludeDepartmentInfo,
+        printIncludeSchedule: d.printIncludeSchedule,
         showShotColumn: d.showShotColumn,
         displayLocale: d.displayLocale,
         sunriseTimeOverride: d.sunriseTimeOverride?.trim() || null,
@@ -456,6 +458,7 @@ export async function duplicateDagsplan(id: string, _formData?: FormData) {
         radioChannelsText: src.radioChannelsText,
         printIncludeActors: src.printIncludeActors,
         printIncludeDepartmentInfo: src.printIncludeDepartmentInfo,
+        printIncludeSchedule: src.printIncludeSchedule,
         showShotColumn: src.showShotColumn,
         displayLocale: src.displayLocale,
         sunriseTimeOverride: src.sunriseTimeOverride,
