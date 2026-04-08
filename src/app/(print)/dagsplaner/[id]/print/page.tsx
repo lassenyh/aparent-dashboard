@@ -259,7 +259,13 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
 
   return (
     <div className="dagsplan-print mx-auto max-w-[210mm] px-6 py-10 text-[11px] leading-relaxed text-neutral-900 antialiased print:max-w-none print:px-0 print:py-0 print:text-[10px]">
-      <PrintToolbar backHref={`/dagsplaner/${d.id}`} />
+      <PrintToolbar
+        backHref={`/dagsplaner/${d.id}`}
+        exportHref={`/api/dagsplan/${d.id}/pdf`}
+        exportLabel={pt.downloadPdf}
+        alwaysShowPrint
+        printHint={pt.printPdfHint}
+      />
 
       {/* Rad 1: logoer. Deretter: linje med prosjekt·dagsplan·dato, under det arbeidstid·vær. */}
       <header className="mb-8 border-b border-neutral-200 pb-4 print:mb-6 print:pb-3">

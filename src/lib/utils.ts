@@ -110,6 +110,15 @@ export function sanitizePayrollPdfFilename(name: string): string {
   );
 }
 
+/** Basenavn uten .pdf for dagsplan-PDF (tittel + dato-slug). */
+export function buildDagsplanPdfBasename(
+  title: string,
+  shootDate: Date,
+): string {
+  const t = title.trim() || "dagsplan";
+  return `${t} - ${formatPayrollPdfDateSlug(shootDate)}`;
+}
+
 /** Sorteringsnøkkel for prosjektliste: prosjektnummer (`internalTitle`), ellers navn. */
 export function projectListSortKey(project: {
   name: string;

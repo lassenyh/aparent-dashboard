@@ -518,6 +518,10 @@ export type DagsplanPrintT = {
   parkingAttachmentAria: string;
   /** Bruk {n} for lokasjonsnummer */
   parkingAttachmentAriaLocationTemplate: string;
+  /** Toolbar: last ned PDF med klikkbare lenker */
+  downloadPdf: string;
+  /** Toolbar: forklaring PDF vs. nettleserens utskrift */
+  printPdfHint: string;
 };
 
 const printNo: DagsplanPrintT = {
@@ -558,6 +562,9 @@ const printNo: DagsplanPrintT = {
   parkingSketchLocationTemplate: "Parkering / skisse — lokasjon {n}",
   parkingAttachmentAria: "Parkering — vedlegg",
   parkingAttachmentAriaLocationTemplate: "Parkering — lokasjon {n}",
+  downloadPdf: "Last ned PDF",
+  printPdfHint:
+    "«Last ned PDF» gir en fil med klikkbare kart- og nettlenker. «Lagre som PDF» fra utskriftsvinduet kan droppe lenker, avhengig av hvilket mål du velger (bruk f.eks. innebygd «Lagre som PDF» i Chrome/Edge i stedet for systemprinter).",
 };
 
 const printEn: DagsplanPrintT = {
@@ -598,6 +605,9 @@ const printEn: DagsplanPrintT = {
   parkingSketchLocationTemplate: "Parking / sketch — location {n}",
   parkingAttachmentAria: "Parking — attachment",
   parkingAttachmentAriaLocationTemplate: "Parking — location {n}",
+  downloadPdf: "Download PDF",
+  printPdfHint:
+    "«Download PDF» gives a file with clickable map and web links. «Save as PDF» from the print dialog may drop links depending on the chosen destination (prefer Chrome/Edge’s built-in Save as PDF).",
 };
 
 export function getDagsplanPrintStrings(locale: DagsplanLocale): DagsplanPrintT {
