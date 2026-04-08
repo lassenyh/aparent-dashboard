@@ -148,7 +148,7 @@ export function recalculateScheduleRows(rows: ScheduleRow[]): ScheduleRow[] {
         cur = null;
         continue;
       }
-      /** Call time (rad 0): kun oppmøtetid — ingen varighet, slutt = start for kjede. */
+      /** Call time (rad 0): kun oppmøtetid — ingen varighet; starter ikke tidskjeden (neste rad har egen anker). */
       if (isScheduleCallTimeRow(row) && i === 0) {
         out[i] = {
           ...row,
@@ -156,7 +156,7 @@ export function recalculateScheduleRows(rows: ScheduleRow[]): ScheduleRow[] {
           endTime: start,
           durationMinutes: 0,
         };
-        cur = start;
+        cur = null;
         continue;
       }
       /** Wrap (anker): kun fra-tid — markør, ingen varighet. */
@@ -322,17 +322,13 @@ export function isScheduleWrapRow(row: { info?: string | null }): boolean {
   return row.info?.trim() === SCHEDULE_WRAP_INFO;
 }
 
-/** Etter «Call time» (rad 0) skal neste rad alltid være anker med samme fra-tid. */
+/** Etter «Call time» (rad 0) skal neste rad være anker med egen fra-tid (ikke kopiert fra call time). */
 function ensureAnchorRowAfterCallTime(rows: ScheduleRow[]): ScheduleRow[] {
   if (rows.length < 2) return rows;
   if (!isScheduleCallTimeRow(rows[0])) return rows;
-  const t = rows[0].startTime?.trim() ?? "";
   const out = rows.map((r) => ({ ...r }));
-  out[1] = {
-    ...out[1],
-    rowKind: "anchor",
-    startTime: t,
-  };
+  if (out[1].rowKind === "free") return out;
+  out[1] = { ...out[1], rowKind: "anchor" };
   return out;
 }
 
@@ -357,7 +353,7 @@ export function normalizeCallTimeOnlyOnFirst(rows: ScheduleRow[]): ScheduleRow[]
 export function rowKindForNewSequentialRow(last: ScheduleRow | undefined): "anchor" | "sequential" {
   if (!last) return "anchor";
   if (last.rowKind === "free") return "anchor";
-  /** Første rad etter «Call time» skal være anker med samme fra-tid. */
+  /** Første rad etter «Call time» er anker med egen starttid. */
   if (isScheduleCallTimeRow(last)) return "anchor";
   return "sequential";
 }
@@ -385,8 +381,6 @@ export function hasChainBeforeFreeBlock(
 export function canDemoteAnchorRow(rows: ScheduleRow[], index: number): boolean {
   if (index <= 0) return false;
   if (rows[index]?.rowKind !== "anchor") return false;
-  /** Rad rett etter «Call time» skal forbli anker (synkes automatisk). */
-  if (index === 1 && isScheduleCallTimeRow(rows[0])) return false;
   if (rows[index - 1]?.rowKind === "free") {
     return hasChainBeforeFreeBlock(rows, index);
   }
