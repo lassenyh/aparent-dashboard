@@ -123,6 +123,9 @@ export type DagsplanEditorInitial = {
   printIncludeDepartmentInfo: boolean;
   /** false = timeplan-tabell ekskludert fra utskrift. */
   printIncludeSchedule: boolean;
+  /** Arbeid fra/til (HH:mm) når timeplan ikke er med på print — ellers utledes fra timeplan ved lagring. */
+  workStartTime: string;
+  workEndTime: string;
   /** Tom = automatisk Oslo på opptaksdato; ellers manuell tid (HH:mm). */
   sunriseTimeOverride: string;
   sunsetTimeOverride: string;
@@ -374,6 +377,8 @@ export function DagsplanEditor({
     printIncludeActors: initial.printIncludeActors ?? true,
     printIncludeDepartmentInfo: initial.printIncludeDepartmentInfo ?? true,
     printIncludeSchedule: initial.printIncludeSchedule ?? true,
+    workStartTime: initial.workStartTime ?? "",
+    workEndTime: initial.workEndTime ?? "",
     showShotColumn: initial.showShotColumn ?? false,
     displayLocale: initial.displayLocale ?? "no",
   }));
@@ -503,6 +508,7 @@ export function DagsplanEditor({
     () => inferWorkHoursFromScheduleRows(state.scheduleRows),
     [state.scheduleRows],
   );
+  const workHoursManual = !state.printIncludeSchedule;
 
   /** mailto: med alle unike e-poster fra oppmøtetid-tabellen (To-felt). */
   const crewMeetMailtoHref = useMemo(() => {
@@ -577,12 +583,19 @@ export function DagsplanEditor({
       ...r,
       sortOrder: i,
     }));
+    const inferredWh = inferWorkHoursFromScheduleRows(state.scheduleRows);
+    const workStartTimeSaved = state.printIncludeSchedule
+      ? inferredWh.workStartTime || null
+      : state.workStartTime.trim() || null;
+    const workEndTimeSaved = state.printIncludeSchedule
+      ? inferredWh.workEndTime || null
+      : state.workEndTime.trim() || null;
     return {
       id: state.id,
       title: state.title,
       shootDate: state.shootDate,
-      workStartTime: workHoursFromSchedule.workStartTime || null,
-      workEndTime: workHoursFromSchedule.workEndTime || null,
+      workStartTime: workStartTimeSaved,
+      workEndTime: workEndTimeSaved,
       agencyLogoUrl: state.agencyLogoUrl || null,
       clientLogoUrl: state.clientLogoUrl || null,
       locationRows: state.locationRows.map((r, i) => ({
@@ -918,10 +931,23 @@ export function DagsplanEditor({
                   <Input
                     id="workStart"
                     type="time"
-                    readOnly
-                    tabIndex={-1}
-                    value={workHoursFromSchedule.workStartTime}
-                    className="bg-muted/40"
+                    readOnly={!workHoursManual}
+                    tabIndex={workHoursManual ? 0 : -1}
+                    value={
+                      workHoursManual
+                        ? state.workStartTime
+                        : workHoursFromSchedule.workStartTime
+                    }
+                    onChange={
+                      workHoursManual
+                        ? (e) =>
+                            setState((s) => ({
+                              ...s,
+                              workStartTime: e.target.value,
+                            }))
+                        : undefined
+                    }
+                    className={workHoursManual ? "" : "bg-muted/40"}
                   />
                 </div>
                 <div className="space-y-2">
@@ -929,14 +955,29 @@ export function DagsplanEditor({
                   <Input
                     id="workEnd"
                     type="time"
-                    readOnly
-                    tabIndex={-1}
-                    value={workHoursFromSchedule.workEndTime}
-                    className="bg-muted/40"
+                    readOnly={!workHoursManual}
+                    tabIndex={workHoursManual ? 0 : -1}
+                    value={
+                      workHoursManual
+                        ? state.workEndTime
+                        : workHoursFromSchedule.workEndTime
+                    }
+                    onChange={
+                      workHoursManual
+                        ? (e) =>
+                            setState((s) => ({
+                              ...s,
+                              workEndTime: e.target.value,
+                            }))
+                        : undefined
+                    }
+                    className={workHoursManual ? "" : "bg-muted/40"}
                   />
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">{t.workHoursAuto}</p>
+              <p className="text-xs text-muted-foreground">
+                {workHoursManual ? t.workHoursManual : t.workHoursAuto}
+              </p>
             </div>
           </div>
         </section>
@@ -1722,10 +1763,20 @@ export function DagsplanEditor({
               <Checkbox
                 checked={state.printIncludeSchedule === false}
                 onCheckedChange={(v) =>
-                  setState((s) => ({
-                    ...s,
-                    printIncludeSchedule: v !== true,
-                  }))
+                  setState((s) => {
+                    const excludeFromPrint = v === true;
+                    if (!excludeFromPrint) {
+                      return { ...s, printIncludeSchedule: true };
+                    }
+                    const inf = inferWorkHoursFromScheduleRows(s.scheduleRows);
+                    return {
+                      ...s,
+                      printIncludeSchedule: false,
+                      workStartTime:
+                        s.workStartTime.trim() || inf.workStartTime,
+                      workEndTime: s.workEndTime.trim() || inf.workEndTime,
+                    };
+                  })
                 }
               />
               <span>{t.excludeFromPrint}</span>

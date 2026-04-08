@@ -51,7 +51,7 @@ export async function GET(
     return NextResponse.json(
       {
         error:
-          "Kunne ikke starte nettlesermotor for PDF. Sett miljøvariabel PUPPETEER_EXECUTABLE_PATH til Chrome/Chromium, eller bruk «Skriv ut» i nettleseren.",
+          "Kunne ikke starte nettlesermotor for PDF. Installer Chrome eller Edge (macOS/Windows), eller sett PUPPETEER_EXECUTABLE_PATH. På Linux uten Chrome: USE_CHROMIUM_PACK=1. Ellers bruk «Skriv ut» i nettleseren.",
       },
       { status: 503 },
     );

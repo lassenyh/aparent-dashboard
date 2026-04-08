@@ -9,6 +9,7 @@ import {
 import { DagsplanEditor, type DagsplanEditorInitial } from "@/components/dagsplan/dagsplan-editor";
 import {
   inferDurationMinutes,
+  inferWorkHoursFromScheduleRows,
   parseScheduleRowKind,
   recalculateScheduleRows,
 } from "@/lib/schedule-rows";
@@ -30,6 +31,40 @@ export async function generateMetadata({
 type DagsplanLoaded = NonNullable<Awaited<ReturnType<typeof getDagsplanById>>>;
 
 function mapToInitial(d: DagsplanLoaded): DagsplanEditorInitial {
+  const scheduleRows = recalculateScheduleRows(
+    d.scheduleEntries.map((r: DagsplanLoaded["scheduleEntries"][number], i) => {
+      const rowKind = parseScheduleRowKind(r.rowKind, i);
+      let durationMinutes = Math.max(0, r.durationMinutes ?? 30);
+      if (rowKind === "free" && r.startTime?.trim() && r.endTime?.trim()) {
+        durationMinutes = inferDurationMinutes(r.startTime, r.endTime);
+      } else if (
+        rowKind !== "free" &&
+        r.startTime?.trim() &&
+        r.endTime?.trim()
+      ) {
+        durationMinutes = inferDurationMinutes(r.startTime, r.endTime);
+      }
+      return {
+        id: r.id,
+        rowKind,
+        startTime: r.startTime ?? "",
+        endTime: r.endTime ?? "",
+        durationMinutes,
+        interiorExterior: r.interiorExterior ?? "",
+        dayNight: r.dayNight ?? "",
+        sceneSetting: r.sceneSetting ?? "",
+        info: r.info ?? "",
+        actorNumbers: r.actorNumbers ?? "",
+        shotImageUrl: r.shotImageUrl ?? "",
+        rowBgColor: r.rowBgColor ?? "",
+      };
+    }),
+  );
+  const inferredWh = inferWorkHoursFromScheduleRows(scheduleRows);
+  const workStartTime =
+    d.workStartTime?.trim() || inferredWh.workStartTime || "";
+  const workEndTime = d.workEndTime?.trim() || inferredWh.workEndTime || "";
+
   return {
     id: d.id,
     projectId: d.projectId,
@@ -63,6 +98,8 @@ function mapToInitial(d: DagsplanLoaded): DagsplanEditorInitial {
     displayLocale: parseDagsplanLocale(d.displayLocale),
     sunriseTimeOverride: d.sunriseTimeOverride ?? "",
     sunsetTimeOverride: d.sunsetTimeOverride ?? "",
+    workStartTime,
+    workEndTime,
     crewRows: d.crewEntries.map((r: DagsplanLoaded["crewEntries"][number]) => ({
       departmentTitle: r.departmentTitle,
       personName: r.personName,
@@ -78,35 +115,7 @@ function mapToInitial(d: DagsplanLoaded): DagsplanEditorInitial {
       meetTime: r.meetTime ?? "",
       readyOnSetTime: r.readyOnSetTime ?? "",
     })),
-    scheduleRows: recalculateScheduleRows(
-      d.scheduleEntries.map((r: DagsplanLoaded["scheduleEntries"][number], i) => {
-        const rowKind = parseScheduleRowKind(r.rowKind, i);
-        let durationMinutes = Math.max(0, r.durationMinutes ?? 30);
-        if (rowKind === "free" && r.startTime?.trim() && r.endTime?.trim()) {
-          durationMinutes = inferDurationMinutes(r.startTime, r.endTime);
-        } else if (
-          rowKind !== "free" &&
-          r.startTime?.trim() &&
-          r.endTime?.trim()
-        ) {
-          durationMinutes = inferDurationMinutes(r.startTime, r.endTime);
-        }
-        return {
-          id: r.id,
-          rowKind,
-          startTime: r.startTime ?? "",
-          endTime: r.endTime ?? "",
-          durationMinutes,
-          interiorExterior: r.interiorExterior ?? "",
-          dayNight: r.dayNight ?? "",
-          sceneSetting: r.sceneSetting ?? "",
-          info: r.info ?? "",
-          actorNumbers: r.actorNumbers ?? "",
-          shotImageUrl: r.shotImageUrl ?? "",
-          rowBgColor: r.rowBgColor ?? "",
-        };
-      }),
-    ),
+    scheduleRows,
     departmentRows: d.departmentInfos.map((r: DagsplanLoaded["departmentInfos"][number]) => ({
       departmentName: r.departmentName,
       info: r.info ?? "",

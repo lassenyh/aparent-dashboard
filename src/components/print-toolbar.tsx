@@ -8,11 +8,9 @@ type PrintToolbarProps = {
   backHref?: string;
   /** Valgfri hjelpetekst under knappene (f.eks. utskriftsformat). */
   printHint?: string;
-  /** Nedlasting (f.eks. PDF). Uten `alwaysShowPrint`: erstatter «Skriv ut» (f.eks. lønnsliste). */
+  /** Nedlasting (f.eks. PDF). Når satt: erstatter «Skriv ut» (f.eks. lønnsliste, dagsplan). */
   exportHref?: string;
   exportLabel?: string;
-  /** true: vis både «Skriv ut» og nedlasting (f.eks. dagsplan med PDF-lenker). */
-  alwaysShowPrint?: boolean;
 };
 
 export function PrintToolbar({
@@ -20,10 +18,9 @@ export function PrintToolbar({
   printHint,
   exportHref,
   exportLabel,
-  alwaysShowPrint,
 }: PrintToolbarProps) {
   const hasExport = Boolean(exportHref?.trim());
-  const showPrint = !hasExport || alwaysShowPrint === true;
+  const showPrint = !hasExport;
 
   return (
     <div className="no-print mb-8 space-y-3">
@@ -37,11 +34,7 @@ export function PrintToolbar({
         )}
         <div className="flex flex-wrap items-center gap-2">
           {showPrint ? (
-            <Button
-              type="button"
-              variant={hasExport ? "outline" : "default"}
-              onClick={() => window.print()}
-            >
+            <Button type="button" variant="default" onClick={() => window.print()}>
               Skriv ut
             </Button>
           ) : null}

@@ -263,8 +263,6 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
         backHref={`/dagsplaner/${d.id}`}
         exportHref={`/api/dagsplan/${d.id}/pdf`}
         exportLabel={pt.downloadPdf}
-        alwaysShowPrint
-        printHint={pt.printPdfHint}
       />
 
       {/* Rad 1: logoer. Deretter: linje med prosjekt·dagsplan·dato, under det arbeidstid·vær. */}
