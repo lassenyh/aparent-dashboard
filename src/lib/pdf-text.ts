@@ -1,4 +1,3 @@
-import { createRequire } from "node:module";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -6,13 +5,20 @@ import { pathToFileURL } from "node:url";
 const PDFJS_CDN_BASE = "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.296";
 
 /**
- * Node/Vercel: worker må være `file:` eller `data:` — ikke `https:` (ESM-loader feiler).
- * Peker på faktisk `pdf.worker.mjs` under `node_modules` (inkluderes via outputFileTracingIncludes).
+ * Node/Vercel: worker må være `file:` — ikke `https:` (ESM-loader feiler).
+ *
+ * Bruk eksplisitt sti under `process.cwd()/node_modules` — ikke `require.resolve` her:
+ * Turbopack kan gi numerisk modul-id i stedet for filsti, som knekker `path.dirname`.
  */
 function getPdfWorkerSrc(): string {
-  const require = createRequire(import.meta.url);
-  const pdfMainPath = require.resolve("pdfjs-dist/legacy/build/pdf.mjs");
-  const workerPath = path.join(path.dirname(pdfMainPath), "pdf.worker.mjs");
+  const workerPath = path.join(
+    process.cwd(),
+    "node_modules",
+    "pdfjs-dist",
+    "legacy",
+    "build",
+    "pdf.worker.mjs",
+  );
   return pathToFileURL(workerPath).href;
 }
 
