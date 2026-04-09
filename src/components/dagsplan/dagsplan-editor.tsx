@@ -38,8 +38,8 @@ import {
   rowKindForNewSequentialRow,
   SCHEDULE_CALL_TIME_INFO,
   SCHEDULE_INTERIOR_EXTERIOR_TRUCK,
+  SCHEDULE_PRE_WRAP_INFO,
   SCHEDULE_WRAP_INFO,
-  scheduleHasCallTimeFirstRow,
 } from "@/lib/schedule-rows";
 import { buildGoogleMapsSearchUrl } from "@/lib/google-maps-url";
 import { sortDagsplanCrewRowsByDepartmentOrder } from "@/lib/crew-department-order";
@@ -1556,38 +1556,59 @@ export function DagsplanEditor({
             }
           />
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {!scheduleHasCallTimeFirstRow(state.scheduleRows) ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setState((s) => {
-                    const id = crypto.randomUUID();
-                    const callRow = {
-                      ...emptyScheduleRow(id, "anchor"),
-                      info: SCHEDULE_CALL_TIME_INFO,
-                      durationMinutes: 0,
-                      rowBgColor: SCHEDULE_CALL_TIME_DEFAULT_ROW_BG,
-                    };
-                    const rest = s.scheduleRows.map((r, i) => {
-                      if (i !== 0) return r;
-                      if (r.rowKind === "free") return r;
-                      if (r.rowKind === "anchor") {
-                        return { ...r, rowKind: "sequential" as const };
-                      }
-                      return r;
-                    });
-                    return {
-                      ...s,
-                      scheduleRows: recalculateScheduleRows([callRow, ...rest]),
-                    };
-                  })
-                }
-              >
-                {t.addCallTime}
-              </Button>
-            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setState((s) => {
+                  const id = crypto.randomUUID();
+                  const kind = rowKindForNewSequentialRow(
+                    s.scheduleRows[s.scheduleRows.length - 1],
+                  );
+                  const row = {
+                    ...emptyScheduleRow(id, kind),
+                    info: SCHEDULE_CALL_TIME_INFO,
+                    durationMinutes: 0,
+                    rowBgColor: SCHEDULE_CALL_TIME_DEFAULT_ROW_BG,
+                  };
+                  return {
+                    ...s,
+                    scheduleRows: recalculateScheduleRows([...s.scheduleRows, row]),
+                  };
+                })
+              }
+            >
+              {t.addCallTime}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setState((s) => {
+                  const id = crypto.randomUUID();
+                  const kind = rowKindForNewSequentialRow(
+                    s.scheduleRows[s.scheduleRows.length - 1],
+                  );
+                  const row = {
+                    ...emptyScheduleRow(id, kind),
+                    info: SCHEDULE_PRE_WRAP_INFO,
+                    durationMinutes: 0,
+                    rowBgColor: SCHEDULE_WRAP_DEFAULT_ROW_BG,
+                  };
+                  return {
+                    ...s,
+                    scheduleRows: recalculateScheduleRows([
+                      ...s.scheduleRows,
+                      row,
+                    ]),
+                  };
+                })
+              }
+            >
+              {t.addPreWrap}
+            </Button>
             <Button
               type="button"
               variant="outline"

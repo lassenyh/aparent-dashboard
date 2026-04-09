@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import puppeteer from "puppeteer-core";
 import type { Browser } from "puppeteer-core";
 
@@ -20,12 +21,26 @@ function forcePackagedChromiumLinux(): boolean {
 function candidateBrowserPaths(): string[] {
   const p = process.platform;
   if (p === "darwin") {
+    const home = homedir();
     return [
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      "/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
       "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
       "/Applications/Chromium.app/Contents/MacOS/Chromium",
       "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+      "/Applications/Brave Browser Beta.app/Contents/MacOS/Brave Browser Beta",
+      "/Applications/Arc.app/Contents/MacOS/Arc",
       "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+      "/Applications/Microsoft Edge Beta.app/Contents/MacOS/Microsoft Edge Beta",
+      `${home}/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`,
+      `${home}/Applications/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`,
+      `${home}/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary`,
+      `${home}/Applications/Chromium.app/Contents/MacOS/Chromium`,
+      `${home}/Applications/Brave Browser.app/Contents/MacOS/Brave Browser`,
+      `${home}/Applications/Brave Browser Beta.app/Contents/MacOS/Brave Browser Beta`,
+      `${home}/Applications/Arc.app/Contents/MacOS/Arc`,
+      `${home}/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge`,
+      `${home}/Applications/Microsoft Edge Beta.app/Contents/MacOS/Microsoft Edge Beta`,
     ];
   }
   if (p === "win32") {

@@ -148,15 +148,15 @@ export function recalculateScheduleRows(rows: ScheduleRow[]): ScheduleRow[] {
         cur = null;
         continue;
       }
-      /** Call time (rad 0): kun oppmøtetid — ingen varighet; starter ikke tidskjeden (neste rad har egen anker). */
-      if (isScheduleCallTimeRow(row) && i === 0) {
+      /** Call time: kun oppmøtetid — ingen varighet. Første rad starter ikke kjeden. */
+      if (isScheduleCallTimeRow(row)) {
         out[i] = {
           ...row,
           startTime: start,
           endTime: start,
           durationMinutes: 0,
         };
-        cur = null;
+        cur = i === 0 ? null : start;
         continue;
       }
       /** Wrap (anker): kun fra-tid — markør, ingen varighet. */
@@ -308,7 +308,7 @@ export function isScheduleLunchRow(row: {
   return row.sceneSetting?.trim().toLowerCase() === "lunsj";
 }
 
-/** Info «Call time» — kun tillatt som øverste rad (normaliseres bort andre steder). */
+/** Info «Call time» — markør med kun starttid (ingen varighet). */
 export const SCHEDULE_CALL_TIME_INFO = "Call time";
 
 export function isScheduleCallTimeRow(row: { info?: string | null }): boolean {
@@ -317,9 +317,11 @@ export function isScheduleCallTimeRow(row: { info?: string | null }): boolean {
 
 /** Info «Wrap» — kun starttid (markør), samme kjede-logikk som call time uten posisjonskrav. */
 export const SCHEDULE_WRAP_INFO = "Wrap";
+export const SCHEDULE_PRE_WRAP_INFO = "Pre-wrap";
 
 export function isScheduleWrapRow(row: { info?: string | null }): boolean {
-  return row.info?.trim() === SCHEDULE_WRAP_INFO;
+  const info = row.info?.trim();
+  return info === SCHEDULE_WRAP_INFO || info === SCHEDULE_PRE_WRAP_INFO;
 }
 
 /** Etter «Call time» (rad 0) skal neste rad være anker med egen fra-tid (ikke kopiert fra call time). */
@@ -336,17 +338,9 @@ export function scheduleHasCallTimeFirstRow(rows: ScheduleRow[]): boolean {
   return rows.length > 0 && isScheduleCallTimeRow(rows[0]);
 }
 
-/** Fjerner «Call time» fra rader som ikke er først (etter dra eller duplikat). */
+/** Beholder signatur av bakoverkompatibilitet; call time er nå tillatt på flere rader. */
 export function normalizeCallTimeOnlyOnFirst(rows: ScheduleRow[]): ScheduleRow[] {
-  let changed = false;
-  const out = rows.map((r, i) => {
-    if (i > 0 && isScheduleCallTimeRow(r)) {
-      changed = true;
-      return { ...r, info: "" };
-    }
-    return r;
-  });
-  return changed ? out : rows;
+  return rows;
 }
 
 /** Velg kind for ny «+ Rad» ut fra siste rad. */

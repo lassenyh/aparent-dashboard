@@ -182,7 +182,7 @@ function SortableScheduleRow({
   onRemove: () => void;
 }) {
   const lockCallTimeRow = index === 0 && isScheduleCallTimeRow(row);
-  const hideEndDurationRow = lockCallTimeRow || isScheduleWrapRow(row);
+  const hideEndDurationRow = isScheduleCallTimeRow(row) || isScheduleWrapRow(row);
 
   const {
     attributes,

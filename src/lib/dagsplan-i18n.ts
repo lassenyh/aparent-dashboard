@@ -133,6 +133,7 @@ export type DagsplanEditorT = {
   /** Når det ikke finnes locations: forklaring før manuelt felt */
   companyMoveManualHint: string;
   companyMoveManualPlaceholder: string;
+  addPreWrap: string;
   addWrap: string;
   deptInfo: string;
   deptName: string;
@@ -224,6 +225,7 @@ const editorNo: DagsplanEditorT = {
   companyMoveManualHint:
     "Ingen lagrede locations — skriv adressen i feltet under (scene/adresse på raden).",
   companyMoveManualPlaceholder: "Adresse",
+  addPreWrap: "Pre-wrap",
   addWrap: "Wrap",
   deptInfo: "Avdelingsinfo",
   deptName: "Avdeling",
@@ -315,6 +317,7 @@ const editorEn: DagsplanEditorT = {
   companyMoveManualHint:
     "No saved locations — enter the address below (scene/address on the row).",
   companyMoveManualPlaceholder: "Address",
+  addPreWrap: "Pre-wrap",
   addWrap: "Wrap",
   deptInfo: "Department info",
   deptName: "Department",
