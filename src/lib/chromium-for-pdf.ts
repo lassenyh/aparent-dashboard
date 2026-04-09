@@ -76,7 +76,6 @@ async function launchWithSparticuz(): Promise<Browser> {
       "--no-default-browser-check",
       "--disable-gpu",
     ],
-    defaultViewport: chromium.defaultViewport,
     executablePath,
     headless: true,
     ignoreHTTPSErrors: true,
