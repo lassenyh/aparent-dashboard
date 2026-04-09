@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
     "@prisma/client",
     "pdf-parse",
     "puppeteer-core",
-    "@sparticuz/chromium",
   ],
   experimental: {
     serverActions: {
