@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
     /** Server action `parsePayrollContractPdf` — pdf-parse må med i Lambda. */
     "/projects/[id]/lonningsliste/[listId]": [
       "./node_modules/pdf-parse/**",
+      "./node_modules/dommatrix/**",
     ],
   },
   experimental: {
