@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
+import path from "node:path";
 import puppeteer from "puppeteer-core";
 import type { Browser } from "puppeteer-core";
 
@@ -62,7 +63,17 @@ function candidateBrowserPaths(): string[] {
 
 async function launchWithSparticuz(): Promise<Browser> {
   const chromium = (await import("@sparticuz/chromium")).default;
-  const executablePath = await chromium.executablePath();
+  const chromiumPkgDir = path.join(
+    process.cwd(),
+    "node_modules",
+    "@sparticuz",
+    "chromium",
+  );
+  const chromiumBinDir = path.join(chromiumPkgDir, "bin");
+  const brotliDir = existsSync(chromiumBinDir) ? chromiumBinDir : chromiumPkgDir;
+
+  // Vercel kan mangle "bin/" i traced output; bruk eksplisitt mappe med .br-filer.
+  const executablePath = await chromium.executablePath(brotliDir);
   if (!executablePath) {
     throw new Error("sparticuz ga tom executablePath");
   }
