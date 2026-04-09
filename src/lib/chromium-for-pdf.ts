@@ -78,7 +78,6 @@ async function launchWithSparticuz(): Promise<Browser> {
     ],
     executablePath,
     headless: true,
-    ignoreHTTPSErrors: true,
   });
 }
 
