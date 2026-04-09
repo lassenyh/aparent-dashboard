@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
     "/projects/[id]/lonningsliste/[listId]": [
       "./node_modules/pdf-parse/**",
       "./node_modules/dommatrix/**",
+      "./node_modules/@napi-rs/canvas/**",
     ],
   },
   experimental: {
