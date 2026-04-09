@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
     /** Server action `parsePayrollContractPdf` — pdf-parse må med i Lambda. */
     "/projects/[id]/lonningsliste/[listId]": [
       "./node_modules/pdf-parse/**",
+      /** pdf.js worker må ligge på disk — `file:`-URL (ikke https worker på Node). */
+      "./node_modules/pdfjs-dist/legacy/build/**",
       "./node_modules/dommatrix/**",
       "./node_modules/@napi-rs/canvas/**",
     ],

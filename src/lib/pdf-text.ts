@@ -1,13 +1,20 @@
+import { createRequire } from "node:module";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+/** Må matche `pdfjs-dist` som følger med `pdf-parse` (se node_modules/pdfjs-dist/package.json). */
+const PDFJS_CDN_BASE = "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.296";
+
 /**
- * Må matche `pdfjs-dist`-versjonen som følger med `pdf-parse`
- * (sjekk: node_modules/pdfjs-dist/package.json → version).
+ * Node/Vercel: worker må være `file:` eller `data:` — ikke `https:` (ESM-loader feiler).
+ * Peker på faktisk `pdf.worker.mjs` under `node_modules` (inkluderes via outputFileTracingIncludes).
  */
-const PDFJS_ASSET_VERSION = "5.4.296";
-
-const PDFJS_CDN_BASE = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${PDFJS_ASSET_VERSION}`;
-
-/** Samme worker som `pdf-parse` / legacy `pdf.mjs` — må settes ellers leter pdf.js etter `pdf.worker.mjs` i `.next/chunks` (finnes ikke på Vercel). */
-const PDFJS_WORKER_URL = `${PDFJS_CDN_BASE}/legacy/build/pdf.worker.mjs`;
+function getPdfWorkerSrc(): string {
+  const require = createRequire(import.meta.url);
+  const pdfMainPath = require.resolve("pdfjs-dist/legacy/build/pdf.mjs");
+  const workerPath = path.join(path.dirname(pdfMainPath), "pdf.worker.mjs");
+  return pathToFileURL(workerPath).href;
+}
 
 /** Tekst fra PDF (f.eks. statistkontrakt). Skannede bilder uten tekstlag gir tom streng. */
 export async function extractTextFromPdfBuffer(
@@ -17,15 +24,15 @@ export async function extractTextFromPdfBuffer(
   await import("./pdf-dom-polyfills");
   const { PDFParse } = await import("pdf-parse");
 
-  /** Før noen `getDocument` — ellers «fake worker» prøver feil sti under `.next/server/chunks/ssr/`. */
-  PDFParse.setWorker(PDFJS_WORKER_URL);
+  /** Før `getDocument` — ellers feiler «fake worker» med feil sti eller ugyldig worker-URL. */
+  PDFParse.setWorker(getPdfWorkerSrc());
 
   /** Unngå at worker «overtar» buffer (transfer) feil på serverless; bruk kopi. */
   const data = new Uint8Array(buffer.slice(0));
 
   /**
    * CMap / standardfonter / WASM fra CDN når lokale filer mangler i Lambda.
-   * `useWorkerFetch: true` lar worker hente disse over HTTPS.
+   * `useWorkerFetch: true` lar worker hente disse over HTTPS (gyldig for fetch, ikke for worker-entry).
    */
   const parser = new PDFParse({
     data,
