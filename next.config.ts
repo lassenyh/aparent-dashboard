@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: [
     "@prisma/client",
-    "pdf-parse",
+    /** Ikke external: full bundle trengs for server actions som leser PDF (Vercel). */
     "puppeteer-core",
   ],
   outputFileTracingIncludes: {
@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
     "/api/projects/[id]/lonningsliste/[listId]/pdf": [
       "./node_modules/@sparticuz/chromium/**",
       "./node_modules/puppeteer-core/**",
+    ],
+    /** Server action `parsePayrollContractPdf` — pdf-parse må med i Lambda. */
+    "/projects/[id]/lonningsliste/[listId]": [
+      "./node_modules/pdf-parse/**",
     ],
   },
   experimental: {
