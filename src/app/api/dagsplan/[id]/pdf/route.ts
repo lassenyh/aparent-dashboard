@@ -53,7 +53,10 @@ export async function GET(
       {
         error:
           "Kunne ikke starte nettlesermotor for PDF. Installer Chrome eller Edge (macOS/Windows), eller sett PUPPETEER_EXECUTABLE_PATH. På Linux uten Chrome: USE_CHROMIUM_PACK=1. Ellers bruk «Skriv ut» i nettleseren.",
-        ...(process.env.NODE_ENV !== "production" ? { details } : {}),
+        ...(process.env.PDF_DEBUG_ERRORS === "1" ||
+        process.env.NODE_ENV !== "production"
+          ? { details }
+          : {}),
       },
       { status: 503 },
     );

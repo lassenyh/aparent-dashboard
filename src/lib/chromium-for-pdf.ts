@@ -62,10 +62,24 @@ function candidateBrowserPaths(): string[] {
 
 async function launchWithSparticuz(): Promise<Browser> {
   const chromium = (await import("@sparticuz/chromium")).default;
+  const executablePath = await chromium.executablePath();
+  if (!executablePath) {
+    throw new Error("sparticuz ga tom executablePath");
+  }
   return puppeteer.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath(),
+    args: [
+      ...chromium.args,
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-gpu",
+    ],
+    defaultViewport: chromium.defaultViewport,
+    executablePath,
     headless: true,
+    ignoreHTTPSErrors: true,
   });
 }
 
