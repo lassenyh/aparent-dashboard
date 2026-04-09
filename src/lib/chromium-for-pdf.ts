@@ -70,10 +70,36 @@ async function launchWithSparticuz(): Promise<Browser> {
 }
 
 async function launchWithExecutable(executablePath: string): Promise<Browser> {
-  return puppeteer.launch({
-    executablePath,
-    headless: true,
-  });
+  const attempts = [
+    () =>
+      puppeteer.launch({
+        executablePath,
+        headless: true,
+      }),
+    () =>
+      puppeteer.launch({
+        executablePath,
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--no-first-run",
+          "--no-default-browser-check",
+          "--disable-gpu",
+        ],
+      }),
+  ] as const;
+
+  const errors: string[] = [];
+  for (const attempt of attempts) {
+    try {
+      return await attempt();
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
+    }
+  }
+  throw new Error(errors.join(" | "));
 }
 
 /**

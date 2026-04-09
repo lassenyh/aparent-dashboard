@@ -48,10 +48,12 @@ export async function GET(
     browser = await launchChromiumForPdf();
   } catch (e) {
     console.error("chromium launch", e);
+    const details = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
       {
         error:
           "Kunne ikke starte nettlesermotor for PDF. Installer Chrome eller Edge (macOS/Windows), eller sett PUPPETEER_EXECUTABLE_PATH. På Linux uten Chrome: USE_CHROMIUM_PACK=1. Ellers bruk «Skriv ut» i nettleseren.",
+        ...(process.env.NODE_ENV !== "production" ? { details } : {}),
       },
       { status: 503 },
     );
