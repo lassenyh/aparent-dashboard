@@ -11,7 +11,7 @@ export type PayrollContractPdfResult =
       data: ReturnType<typeof parsePayrollContractPlainText>;
       textPreview: string;
     }
-  | { ok: false; error: string };
+  | { ok: false; error: string; details?: string };
 
 /** Leser statistkontrakt / lignende PDF og tolker personfelter til lønningsliste. */
 export async function parsePayrollContractPdf(
@@ -35,11 +35,16 @@ export async function parsePayrollContractPdf(
       text = await extractTextFromPdfBuffer(buf);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      console.error(`APARENT_PAYROLL_PDF_READ_FAILED ${msg}`);
+      const stack = e instanceof Error ? e.stack : undefined;
+      console.error(`APARENT_PAYROLL_PDF_READ_FAILED ${msg}`, stack ?? "");
+      const showTech =
+        process.env.PDF_DEBUG_ERRORS === "1" ||
+        process.env.PAYROLL_PDF_DEBUG === "1";
       return {
         ok: false,
         error:
           "Kunne ikke lese PDF. Prøv en annen fil eller kopier tekst manuelt.",
+        ...(showTech ? { details: msg.slice(0, 500) } : {}),
       };
     }
 

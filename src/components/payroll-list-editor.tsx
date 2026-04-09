@@ -642,7 +642,9 @@ export function PayrollListEditor({
             fd.append("pdf", file);
             const res = await parsePayrollContractPdf(fd);
             if (!res.ok) {
-              toast.error(res.error);
+              toast.error(
+                res.details ? `${res.error} (${res.details})` : res.error,
+              );
               return;
             }
             addRowFromContractPdf(seg, res.data);
