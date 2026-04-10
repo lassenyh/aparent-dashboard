@@ -40,6 +40,13 @@ function fmtHonorar(n: number | null) {
   }).format(n);
 }
 
+function oneLine(value: string | null | undefined, maxChars: number): string {
+  const s = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!s) return "—";
+  if (s.length <= maxChars) return s;
+  return `${s.slice(0, Math.max(1, maxChars - 1)).trimEnd()}…`;
+}
+
 const styles = StyleSheet.create({
   page: {
     padding: 28,
@@ -134,36 +141,40 @@ function PayrollPdfRow({ item }: { item: PayrollDisplayRow }) {
   return (
     <View style={styles.row} wrap={false}>
       <Text style={[styles.cell, styles.colName]}>
-        {row.fullName.trim() || "—"}
+        {oneLine(row.fullName, 26)}
       </Text>
       <Text style={[styles.cell, styles.colDiet]}>
-        {payrollDietaryCell(row.dietaryPreference)}
+        {oneLine(payrollDietaryCell(row.dietaryPreference), 10)}
       </Text>
       <Text style={[styles.cell, styles.colAddr]}>
-        {formatNorwegianAddressLine({
-          addressLine: row.addressLine,
-          postalCode: row.postalCode,
-          city: row.city,
-          country: row.country,
-        }).trim() || "—"}
+        {oneLine(
+          formatNorwegianAddressLine({
+            addressLine: row.addressLine,
+            postalCode: row.postalCode,
+            city: row.city,
+            country: row.country,
+          }),
+          34,
+        )}
       </Text>
       <Text style={[styles.cell, styles.colHon]}>{fmtHonorar(row.honorar)}</Text>
       <Text style={[styles.cell, styles.colFp, { textAlign: "center" }]}>
         {row.includesHolidayPay ? "Ja" : "Nei"}
       </Text>
       <Text style={[styles.cell, styles.colPnr]}>
-        {row.nationalId?.trim() || "—"}
+        {oneLine(row.nationalId, 11)}
       </Text>
       <Text style={[styles.cell, styles.colBank]}>
-        {row.bankAccount?.trim() || "—"}
+        {oneLine(row.bankAccount, 11)}
       </Text>
       <Text style={[styles.cell, styles.colMob]}>
-        {formatNorwegianMobileFromRaw(row.mobile) ??
-          row.mobile?.trim() ??
-          "—"}
+        {oneLine(
+          formatNorwegianMobileFromRaw(row.mobile) ?? row.mobile?.trim() ?? "",
+          12,
+        )}
       </Text>
       <Text style={[styles.cell, styles.colEmail]}>
-        {row.email?.trim() || "—"}
+        {oneLine(row.email, 32)}
       </Text>
     </View>
   );
