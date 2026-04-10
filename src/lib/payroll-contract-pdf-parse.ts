@@ -55,13 +55,26 @@ function parseCombinedAddressLine(
   line: string,
 ): { addressLine: string; postalCode: string; city: string } | null {
   const t = line.trim();
-  const m = t.match(/^(.+?),\s*(\d{4})\s+(.+)$/);
-  if (!m) return null;
-  return {
-    addressLine: m[1].trim(),
-    postalCode: m[2],
-    city: m[3].trim(),
-  };
+  // Vanlig format: "Gate 1, 0123 Oslo"
+  const withComma = t.match(/^(.+?),\s*(\d{4})\s+(.+)$/);
+  if (withComma) {
+    return {
+      addressLine: withComma[1].trim(),
+      postalCode: withComma[2],
+      city: withComma[3].trim(),
+    };
+  }
+  // Fallback uten komma: "Gate 1 0123 Oslo"
+  const noComma = t.match(/^(.+?)\s+(\d{4})\s+(.+)$/);
+  if (noComma) {
+    const addressLine = noComma[1].trim();
+    const postalCode = noComma[2];
+    const city = noComma[3].trim();
+    if (addressLine.length >= 3 && city.length >= 2) {
+      return { addressLine, postalCode, city };
+    }
+  }
+  return null;
 }
 
 function normalizeLines(raw: string): string[] {
