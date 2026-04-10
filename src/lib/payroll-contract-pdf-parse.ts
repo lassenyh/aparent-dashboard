@@ -47,6 +47,15 @@ function cleanLine(s: string): string {
   return s.replace(/\s+/g, " ").trim();
 }
 
+/** Navnfelt: stor forbokstav per ord (inkl. bindestrek/apostrof). */
+function toNameTitleCase(raw: string): string {
+  const s = cleanLine(raw).toLocaleLowerCase("nb-NO");
+  return s.replace(
+    /(^|[\s'-])([a-zæøå])/giu,
+    (_m, sep: string, chr: string) => `${sep}${chr.toLocaleUpperCase("nb-NO")}`,
+  );
+}
+
 const EMAIL_RE =
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 
@@ -134,7 +143,7 @@ function parseAparentOneflowStatistAvtale(
     const lower = line.toLowerCase();
 
     if (/^fullt\s+navn$/i.test(line)) {
-      o.fullName = next.replace(/[,;]+$/, "").trim();
+      o.fullName = toNameTitleCase(next.replace(/[,;]+$/, "").trim());
       matched.add("fullName");
       continue;
     }
@@ -373,7 +382,7 @@ function applyLegacyFallback(
       /(?:^|\n)\s*(?:Navn|Fullt\s+navn|Statist(?:ens)?\s+navn|Utøver|Medvirkende)\s*[:.]?\s*([^\n]+?)(?=\n|$)/i,
     ]);
     if (fullName) {
-      o.fullName = fullName.replace(/[,;]+$/, "").trim();
+      o.fullName = toNameTitleCase(fullName.replace(/[,;]+$/, "").trim());
       matched.add("fullName");
     }
   }
