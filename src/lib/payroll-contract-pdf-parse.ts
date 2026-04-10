@@ -81,7 +81,7 @@ function parseCombinedAddressLine(
 ): { addressLine: string; postalCode: string; city: string } | null {
   const t = line.trim();
   // Vanlig format: "Gate 1, 0123 Oslo"
-  const withComma = t.match(/^(.+?),\s*(\d{4})\s+(.+)$/);
+  const withComma = t.match(/^(.+?),\s*(\d{4})\s*,?\s*(.+)$/);
   if (withComma) {
     return {
       addressLine: toAddressTitleCase(withComma[1].trim()),
@@ -90,7 +90,7 @@ function parseCombinedAddressLine(
     };
   }
   // Fallback uten komma: "Gate 1 0123 Oslo"
-  const noComma = t.match(/^(.+?)\s+(\d{4})\s+(.+)$/);
+  const noComma = t.match(/^(.+?)\s+(\d{4})\s*,?\s*(.+)$/);
   if (noComma) {
     const addressLine = noComma[1].trim();
     const postalCode = noComma[2];
