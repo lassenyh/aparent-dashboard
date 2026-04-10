@@ -22,7 +22,7 @@ export default async function HomePage() {
         title="Prosjekter"
         actions={
           isInternal ? (
-            <Button variant="destructive" asChild>
+            <Button variant="sidebar" asChild>
               <Link href="/projects/new">
                 <Plus className="h-4 w-4" />
                 Nytt prosjekt
