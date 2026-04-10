@@ -149,12 +149,19 @@ function pickAddressCandidate(lines: string[], labelIndex: number): string | nul
 
 function detectInvoiceSelection(text: string): boolean | null {
   const lines = normalizeLines(text);
-  const checkedTokenRe = /(?:\[[xX]\]|\([xX]\)|☒|☑|✅|✔|✗|✘|■|\bX\b)/i;
+  const checkedTokenRe =
+    /(?:\[[xX]\]|\([xX]\)|☒|☑|✅|✔|✗|✘|■|||\bX\b)/i;
   const uncheckedTokenRe = /(?:\[\s\]|\(\s\)|☐|□)/;
   const invoiceWordRe = /\bfaktura\b/i;
   const salaryWordRe = /\b(?:lønn|lonn)\b/i;
   const invoiceStandaloneRe = /^faktura$/i;
   const salaryStandaloneRe = /^(lønn|lonn)$/i;
+
+  // Oneflow: ofte egen verdi-linje med kun "Faktura" eller "Lønn".
+  const hasInvoiceStandalone = lines.some((l) => invoiceStandaloneRe.test(l.trim()));
+  const hasSalaryStandalone = lines.some((l) => salaryStandaloneRe.test(l.trim()));
+  if (hasInvoiceStandalone && !hasSalaryStandalone) return true;
+  if (hasSalaryStandalone && !hasInvoiceStandalone) return false;
 
   // Oneflow-mønster: egen avhukingslinje (""/checksymbol), deretter verdi-linje.
   for (let i = 0; i < lines.length; i++) {
