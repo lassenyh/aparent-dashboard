@@ -5,7 +5,6 @@ import { PrintToolbar } from "@/components/print-toolbar";
 import { formatNorwegianAddressLine } from "@/lib/address";
 import { expandPayrollRowsForDisplay } from "@/lib/payroll-export-display";
 import { formatNorwegianMobileFromRaw } from "@/lib/norwegian-mobile";
-import { payrollDietaryCell } from "@/lib/dietary";
 import { cn, formatDate, formatPayrollProjectLabel } from "@/lib/utils";
 
 type PageProps = {
@@ -84,25 +83,24 @@ export default async function PayrollPrintPage({
       </header>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 print:border-neutral-300">
-        <table className="w-full min-w-[940px] border-collapse text-left print:min-w-0 print:w-full">
+        <table className="w-full min-w-[940px] table-fixed border-collapse text-left print:min-w-0 print:w-full">
           <thead>
             <tr>
-              <th className={th}>Navn</th>
-              <th className={th}>Kost</th>
-              <th className={th}>Adresse</th>
+              <th className={cn(th, "w-[16%]")}>Navn</th>
+              <th className={cn(th, "w-[23%]")}>Adresse</th>
               <th className={th}>Honorar</th>
               <th className={cn(th, "w-16 text-center")}>Inkl. FP</th>
               <th className={th}>Personnr.</th>
               <th className={th}>Kontonr.</th>
               <th className={th}>Mobil</th>
-              <th className={th}>E-post</th>
+              <th className={cn(th, "w-[18%]")}>E-post</th>
             </tr>
           </thead>
           <tbody>
             {displayRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={8}
                   className={cn(td, "py-8 text-center text-neutral-500")}
                 >
                   Ingen rader lagret ennå.
@@ -116,7 +114,7 @@ export default async function PayrollPrintPage({
                   className="bg-neutral-100/90 print:bg-neutral-100"
                 >
                   <td
-                    colSpan={9}
+                    colSpan={8}
                     className="border-b border-neutral-300 px-3 py-2 text-xs font-bold uppercase tracking-wide text-neutral-700"
                   >
                     {item.segment === "crew" ? "Crew" : "Cast"}
@@ -125,7 +123,7 @@ export default async function PayrollPrintPage({
               ) : item.row.isSectionHeader ? (
                 <tr key={item.row.id} className="bg-sky-50/90 print:bg-sky-50">
                   <td
-                    colSpan={9}
+                    colSpan={8}
                     className="border-b border-neutral-200 px-3 py-2 font-semibold text-neutral-900"
                   >
                     {item.row.sectionTitle?.trim() || "—"}
@@ -133,17 +131,20 @@ export default async function PayrollPrintPage({
                 </tr>
               ) : (
                 <tr key={item.row.id} className="break-inside-avoid">
-                  <td className={td}>{item.row.fullName.trim() || "—"}</td>
                   <td className={cn(td, "whitespace-nowrap")}>
-                    {payrollDietaryCell(item.row.dietaryPreference)}
+                    <span className="block truncate">
+                      {item.row.fullName.trim() || "—"}
+                    </span>
                   </td>
-                  <td className={td}>
-                    {formatNorwegianAddressLine({
-                      addressLine: item.row.addressLine,
-                      postalCode: item.row.postalCode,
-                      city: item.row.city,
-                      country: item.row.country,
-                    }).trim() || "—"}
+                  <td className={cn(td, "whitespace-nowrap")}>
+                    <span className="block truncate">
+                      {formatNorwegianAddressLine({
+                        addressLine: item.row.addressLine,
+                        postalCode: item.row.postalCode,
+                        city: item.row.city,
+                        country: item.row.country,
+                      }).trim() || "—"}
+                    </span>
                   </td>
                   <td className={cn(td, "tabular-nums")}>
                     {fmtHonorar(item.row.honorar)}
@@ -158,8 +159,10 @@ export default async function PayrollPrintPage({
                       item.row.mobile?.trim() ??
                       "—"}
                   </td>
-                  <td className={cn(td, "break-all")}>
-                    {item.row.email?.trim() || "—"}
+                  <td className={cn(td, "whitespace-nowrap")}>
+                    <span className="block truncate">
+                      {item.row.email?.trim() || "—"}
+                    </span>
                   </td>
                 </tr>
               ),
