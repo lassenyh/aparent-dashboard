@@ -14,7 +14,6 @@ import {
 } from "@/lib/payroll-export-display";
 import { formatNorwegianMobileFromRaw } from "@/lib/norwegian-mobile";
 import { formatNorwegianAddressLine } from "@/lib/address";
-import { payrollDietaryCell } from "@/lib/dietary";
 import { formatDate, formatPayrollProjectLabel } from "@/lib/utils";
 
 const notoPath = path.join(
@@ -97,9 +96,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   cell: { paddingRight: 4 },
-  colName: { width: 88 },
-  colDiet: { width: 36 },
-  colAddr: { width: 104 },
+  colName: { width: 96 },
+  colAddr: { width: 124 },
   colHon: { width: 52 },
   colFp: { width: 32 },
   colPnr: { width: 72 },
@@ -142,9 +140,6 @@ function PayrollPdfRow({ item }: { item: PayrollDisplayRow }) {
     <View style={styles.row} wrap={false}>
       <Text style={[styles.cell, styles.colName]}>
         {oneLine(row.fullName, 26)}
-      </Text>
-      <Text style={[styles.cell, styles.colDiet]}>
-        {oneLine(payrollDietaryCell(row.dietaryPreference), 10)}
       </Text>
       <Text style={[styles.cell, styles.colAddr]}>
         {oneLine(
@@ -223,7 +218,6 @@ export function PayrollPdfDocument({ data }: { data: PayrollPageData }) {
 
           <View style={styles.tableHeader}>
             <Text style={[styles.th, styles.colName]}>Navn</Text>
-            <Text style={[styles.th, styles.colDiet]}>Kost</Text>
             <Text style={[styles.th, styles.colAddr]}>Adresse</Text>
             <Text style={[styles.th, styles.colHon]}>Honorar</Text>
             <Text style={[styles.th, styles.colFp, { textAlign: "center" }]}>
