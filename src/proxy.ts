@@ -27,9 +27,14 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/signup")) {
+    return NextResponse.next();
+  }
+
   if (
     pathname.startsWith("/api/auth/login") ||
-    pathname.startsWith("/api/auth/logout")
+    pathname.startsWith("/api/auth/logout") ||
+    pathname.startsWith("/api/auth/signup")
   ) {
     return NextResponse.next();
   }

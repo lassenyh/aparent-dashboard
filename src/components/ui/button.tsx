@@ -15,9 +15,9 @@ const buttonVariants = cva(
           "border border-border bg-background hover:bg-muted hover:text-foreground",
         secondary: "bg-muted text-foreground hover:bg-muted/80",
         ghost: "hover:bg-muted hover:text-foreground",
-        /** Samme palett som `AppSidebar` (mørkeblå gradient). */
+        /** Primær handlingsknapp — amber på mørk bakgrunn. */
         sidebar:
-          "border-0 bg-gradient-to-b from-[#1a2a4a] via-[#152238] to-[#0c1424] text-white shadow-sm hover:brightness-110 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          "border-0 bg-amber-500 text-black font-medium shadow-none hover:bg-amber-400 focus-visible:ring-amber-500/50",
         link: "text-foreground underline-offset-4 hover:underline",
       },
       size: {

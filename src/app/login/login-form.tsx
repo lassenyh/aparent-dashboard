@@ -49,16 +49,14 @@ export function LoginForm({ onSuccess }: Props) {
     }
   }
 
+  const labelClass = "mb-1.5 block text-xs font-medium text-zinc-500";
   const inputClass =
-    "w-full rounded-2xl border border-neutral-200 bg-neutral-50/80 px-3.5 py-2.5 text-sm text-neutral-900 outline-none ring-0 transition placeholder:text-neutral-400 focus:border-[#eaa631] focus:bg-white focus:ring-2 focus:ring-[#eaa631]/35 disabled:opacity-60";
+    "w-full rounded-lg border border-white/[0.08] bg-white/[0.05] px-3.5 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-amber-500/50 focus:bg-white/[0.08] focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label
-          htmlFor="username"
-          className="mb-1.5 block text-xs font-medium text-neutral-600"
-        >
+        <label htmlFor="username" className={labelClass}>
           Brukernavn
         </label>
         <input
@@ -73,10 +71,7 @@ export function LoginForm({ onSuccess }: Props) {
         />
       </div>
       <div>
-        <label
-          htmlFor="password"
-          className="mb-1.5 block text-xs font-medium text-neutral-600"
-        >
+        <label htmlFor="password" className={labelClass}>
           Passord
         </label>
         <input
@@ -93,12 +88,12 @@ export function LoginForm({ onSuccess }: Props) {
       <button
         type="submit"
         disabled={pending}
-        className="mt-4 w-full rounded-full bg-[#eaa631] px-4 py-2.5 text-sm font-semibold text-neutral-950 shadow-sm transition hover:bg-[#f1b64f] active:bg-[#dda124] disabled:opacity-60"
+        className="mt-2 w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50"
       >
         {pending ? "…" : "Logg inn"}
       </button>
       {error && (
-        <p className="pt-2 text-center text-xs text-red-600">{error}</p>
+        <p className="pt-1 text-center text-xs text-red-400">{error}</p>
       )}
     </form>
   );
