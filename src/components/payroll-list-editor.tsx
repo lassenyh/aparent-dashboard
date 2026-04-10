@@ -267,6 +267,9 @@ export function PayrollListEditor({
   const [dbPending, startDbSearch] = useTransition();
   /** Kun én personrad utvidet om gangen (accordion). */
   const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
+  const [pdfDropActiveSegment, setPdfDropActiveSegment] = useState<
+    PayrollSegment | null
+  >(null);
 
   const initialRowsSerialized = useMemo(() => {
     const { crew, cast } = splitInitialRows(initialRows);
@@ -577,6 +580,23 @@ export function PayrollListEditor({
     ]);
   }
 
+  function importPdfFile(file: File, segment: PayrollSegment) {
+    startPdfImport(async () => {
+      const fd = new FormData();
+      fd.append("pdf", file);
+      const res = await parsePayrollContractPdf(fd);
+      if (!res.ok) {
+        toast.error(res.details ? `${res.error} (${res.details})` : res.error);
+        return;
+      }
+      addRowFromContractPdf(segment, res.data);
+      const fields = res.data.matchedFields;
+      toast.success(
+        `Rad fra PDF (${fields.length} felt: ${fields.join(", ")}). Kontroller opplysningene.`,
+      );
+    });
+  }
+
   function save() {
     if (!listTitle.trim()) {
       toast.error("Navn på liste mangler.");
@@ -637,22 +657,7 @@ export function PayrollListEditor({
           e.target.value = "";
           if (!file) return;
           const seg = pdfPickSegmentRef.current;
-          startPdfImport(async () => {
-            const fd = new FormData();
-            fd.append("pdf", file);
-            const res = await parsePayrollContractPdf(fd);
-            if (!res.ok) {
-              toast.error(
-                res.details ? `${res.error} (${res.details})` : res.error,
-              );
-              return;
-            }
-            addRowFromContractPdf(seg, res.data);
-            const fields = res.data.matchedFields;
-            toast.success(
-              `Rad fra PDF (${fields.length} felt: ${fields.join(", ")}). Kontroller opplysningene.`,
-            );
-          });
+          importPdfFile(file, seg);
         }}
       />
       {locked ? (
@@ -864,9 +869,50 @@ export function PayrollListEditor({
 
               <div className="space-y-3">
         {rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-            Ingen rader i {heading} ennå. Bruk «Legg til», «Legg til fra PDF»
-            (f.eks. statistkontrakt), fra prosjekt eller database.
+          <div
+            className={cn(
+              "rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground transition-colors",
+              pdfDropActiveSegment === segment &&
+                "border-primary bg-primary/5 text-foreground",
+            )}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              if (locked || pdfImportPending) return;
+              setPdfDropActiveSegment(segment);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (locked || pdfImportPending) return;
+              setPdfDropActiveSegment(segment);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              if (pdfDropActiveSegment !== segment) return;
+              setPdfDropActiveSegment(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (locked || pdfImportPending) return;
+              setPdfDropActiveSegment(null);
+              const file = e.dataTransfer.files?.[0];
+              if (!file) return;
+              if (
+                file.type !== "application/pdf" &&
+                !file.name.toLowerCase().endsWith(".pdf")
+              ) {
+                toast.error("Velg en PDF-fil.");
+                return;
+              }
+              importPdfFile(file, segment);
+            }}
+          >
+            <p>
+              Ingen rader i {heading} ennå. Slipp en PDF her for import, eller bruk
+              «Legg til», «Legg til fra PDF», fra prosjekt eller database.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Støtter f.eks. statistkontrakt (tekstbasert PDF).
+            </p>
           </div>
         ) : null}
         {rows.map((row, idx) =>
