@@ -350,11 +350,6 @@ function parseAparentOneflowStatistAvtale(
     matched.add("includesHolidayPay");
   }
 
-  if (/STATISTAVTALE|statistavtale/i.test(text) && !o.country) {
-    o.country = "Norge";
-    matched.add("country");
-  }
-
   const invoiceOnly = detectInvoiceSelection(text);
   if (invoiceOnly != null) {
     o.invoiceOnly = invoiceOnly;
