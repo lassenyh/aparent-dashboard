@@ -72,15 +72,22 @@ const styles = StyleSheet.create({
   pageMeta: { fontSize: 7, color: "#737373", marginBottom: 6 },
   tableHeader: {
     flexDirection: "row",
+    alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: "#d4d4d4",
     backgroundColor: "#f5f5f5",
     paddingVertical: 4,
     paddingHorizontal: 3,
   },
-  th: { fontSize: 6, fontWeight: 700, textTransform: "uppercase" },
+  th: {
+    fontSize: 6,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    lineHeight: 1.25 * 6,
+  },
   row: {
     flexDirection: "row",
+    alignItems: "center",
     borderBottomWidth: 0.5,
     borderBottomColor: "#e5e5e5",
     paddingVertical: 4,
@@ -106,7 +113,8 @@ const styles = StyleSheet.create({
   colName: { width: 96 },
   colAddr: { width: 124 },
   colHon: { width: 52 },
-  colFp: { width: 32 },
+  /** Må være bred nok til «Inkl. FP» på én linje — ellers brytes tekst og header ser «låst ut» vertikalt. */
+  colFp: { width: 52 },
   colPnr: { width: 72 },
   colBank: { width: 72 },
   colMob: { width: 62 },
@@ -227,7 +235,7 @@ export function PayrollPdfDocument({ data }: { data: PayrollPageData }) {
             <Text style={[styles.th, styles.colAddr]}>Adresse</Text>
             <Text style={[styles.th, styles.colHon]}>Honorar</Text>
             <Text style={[styles.th, styles.colFp, { textAlign: "center" }]}>
-              Inkl. FP
+              Inkl.{`\u00A0`}FP
             </Text>
             <Text style={[styles.th, styles.colPnr]}>Personnr.</Text>
             <Text style={[styles.th, styles.colBank]}>Kontonr.</Text>
