@@ -901,51 +901,54 @@ export function PayrollListEditor({
                   Legg til fra PDF
                 </Button>
               </div>
+              <div
+                className={cn(
+                  "no-print rounded-lg border border-dashed border-border px-4 py-4 text-sm text-muted-foreground transition-colors",
+                  pdfDropActiveSegment === segment &&
+                    "border-primary bg-primary/5 text-foreground",
+                )}
+                onDragEnter={(e) => {
+                  e.preventDefault();
+                  if (locked || pdfImportPending) return;
+                  setPdfDropActiveSegment(segment);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (locked || pdfImportPending) return;
+                  setPdfDropActiveSegment(segment);
+                }}
+                onDragLeave={(e) => {
+                  e.preventDefault();
+                  if (pdfDropActiveSegment !== segment) return;
+                  setPdfDropActiveSegment(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (locked || pdfImportPending) return;
+                  setPdfDropActiveSegment(null);
+                  const dropped = Array.from(e.dataTransfer.files ?? []);
+                  if (dropped.length === 0) return;
+                  const pdfFiles = dropped.filter(
+                    (file) =>
+                      file.type === "application/pdf" ||
+                      file.name.toLowerCase().endsWith(".pdf"),
+                  );
+                  if (pdfFiles.length === 0) {
+                    toast.error("Slipp minst én PDF-fil.");
+                    return;
+                  }
+                  importPdfFiles(pdfFiles, segment);
+                }}
+              >
+                Slipp én eller flere PDF-kontrakter her for import til {heading}.
+              </div>
 
               <div className="space-y-3">
         {rows.length === 0 ? (
-          <div
-            className={cn(
-              "rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground transition-colors",
-              pdfDropActiveSegment === segment &&
-                "border-primary bg-primary/5 text-foreground",
-            )}
-            onDragEnter={(e) => {
-              e.preventDefault();
-              if (locked || pdfImportPending) return;
-              setPdfDropActiveSegment(segment);
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              if (locked || pdfImportPending) return;
-              setPdfDropActiveSegment(segment);
-            }}
-            onDragLeave={(e) => {
-              e.preventDefault();
-              if (pdfDropActiveSegment !== segment) return;
-              setPdfDropActiveSegment(null);
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (locked || pdfImportPending) return;
-              setPdfDropActiveSegment(null);
-              const dropped = Array.from(e.dataTransfer.files ?? []);
-              if (dropped.length === 0) return;
-              const pdfFiles = dropped.filter(
-                (file) =>
-                  file.type === "application/pdf" ||
-                  file.name.toLowerCase().endsWith(".pdf"),
-              );
-              if (pdfFiles.length === 0) {
-                toast.error("Slipp minst én PDF-fil.");
-                return;
-              }
-              importPdfFiles(pdfFiles, segment);
-            }}
-          >
+          <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
             <p>
-              Ingen rader i {heading} ennå. Slipp en PDF her for import, eller bruk
-              «Legg til», «Legg til fra PDF», fra prosjekt eller database.
+              Ingen rader i {heading} ennå. Bruk «Legg til», «Legg til fra PDF»,
+              dropzone over, fra prosjekt eller database.
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               Støtter f.eks. statistkontrakt (tekstbasert PDF).
