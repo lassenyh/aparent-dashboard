@@ -317,7 +317,7 @@ function parseAparentOneflowStatistAvtale(
     );
   if (honorarBlock) {
     const n = parseAmountLoose(honorarBlock[1]);
-    if (Number.isFinite(n) && n > 0) {
+    if (n != null && Number.isFinite(n) && n > 0) {
       o.honorar = n;
       matched.add("honorar");
     }
@@ -325,7 +325,7 @@ function parseAparentOneflowStatistAvtale(
     for (let i = 0; i < lines.length - 1; i++) {
       if (/samlet\s+brutto\s+vederlag\s+på\s*$/i.test(lines[i])) {
         const n = parseAmountLoose(lines[i + 1]);
-        if (Number.isFinite(n) && n > 0) {
+        if (n != null && Number.isFinite(n) && n > 0) {
           o.honorar = n;
           matched.add("honorar");
         }
