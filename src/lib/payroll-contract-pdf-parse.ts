@@ -56,6 +56,15 @@ function toNameTitleCase(raw: string): string {
   );
 }
 
+/** Adresse/poststed: stor forbokstav per ord, behold tall/tegn. */
+function toAddressTitleCase(raw: string): string {
+  const s = cleanLine(raw).toLocaleLowerCase("nb-NO");
+  return s.replace(
+    /(^|[\s'-])([a-zæøå])/giu,
+    (_m, sep: string, chr: string) => `${sep}${chr.toLocaleUpperCase("nb-NO")}`,
+  );
+}
+
 const EMAIL_RE =
   /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 
@@ -68,9 +77,9 @@ function parseCombinedAddressLine(
   const withComma = t.match(/^(.+?),\s*(\d{4})\s+(.+)$/);
   if (withComma) {
     return {
-      addressLine: withComma[1].trim(),
+      addressLine: toAddressTitleCase(withComma[1].trim()),
       postalCode: withComma[2],
-      city: withComma[3].trim(),
+      city: toAddressTitleCase(withComma[3].trim()),
     };
   }
   // Fallback uten komma: "Gate 1 0123 Oslo"
@@ -80,7 +89,11 @@ function parseCombinedAddressLine(
     const postalCode = noComma[2];
     const city = noComma[3].trim();
     if (addressLine.length >= 3 && city.length >= 2) {
-      return { addressLine, postalCode, city };
+      return {
+        addressLine: toAddressTitleCase(addressLine),
+        postalCode,
+        city: toAddressTitleCase(city),
+      };
     }
   }
   return null;
@@ -175,7 +188,7 @@ function parseAparentOneflowStatistAvtale(
         !isLikelyAddressLabelFragment(candidate) &&
         !isLikelyNonAddressValue(candidate)
       ) {
-        o.addressLine = candidate;
+        o.addressLine = toAddressTitleCase(candidate);
         matched.add("addressLine");
       }
       continue;
@@ -407,7 +420,7 @@ function applyLegacyFallback(
         matched.add("postalCode");
         matched.add("city");
       } else {
-        o.addressLine = addr;
+        o.addressLine = toAddressTitleCase(addr);
         matched.add("addressLine");
       }
       }
@@ -429,7 +442,7 @@ function applyLegacyFallback(
       const inlineCity = cleanLine(inline[2]);
       if (!isLikelyNonAddressValue(inlineCity)) {
         pc = inline[1];
-        cityFromPostal = inlineCity;
+        cityFromPostal = toAddressTitleCase(inlineCity);
       }
     }
   }
@@ -438,7 +451,7 @@ function applyLegacyFallback(
     matched.add("postalCode");
   }
   if (!o.city && cityFromPostal) {
-    o.city = cityFromPostal;
+    o.city = toAddressTitleCase(cityFromPostal);
     matched.add("city");
   }
 
@@ -447,7 +460,7 @@ function applyLegacyFallback(
       /(?:^|\n)\s*Poststed\s*[:.]?\s*([^\n]+?)(?=\n|$)/i,
     ]);
     if (cityOnly) {
-      o.city = cityOnly;
+      o.city = toAddressTitleCase(cityOnly);
       matched.add("city");
     }
   }
