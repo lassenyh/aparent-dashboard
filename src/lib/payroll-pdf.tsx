@@ -28,6 +28,8 @@ function ensureNotoFont() {
     family: "Noto Sans",
     src: notoPath,
   });
+  // Unngå automatisk ord-deling som kan splitte e-post over to linjer.
+  Font.registerHyphenationCallback((word) => [word]);
   fontReady = true;
 }
 
@@ -103,7 +105,7 @@ const styles = StyleSheet.create({
   colPnr: { width: 72 },
   colBank: { width: 72 },
   colMob: { width: 62 },
-  colEmail: { width: 118 },
+  colEmail: { width: 156 },
 });
 
 const ROWS_PER_PAGE = 24;
@@ -169,7 +171,7 @@ function PayrollPdfRow({ item }: { item: PayrollDisplayRow }) {
         )}
       </Text>
       <Text style={[styles.cell, styles.colEmail]}>
-        {oneLine(row.email, 32)}
+        {oneLine(row.email, 48)}
       </Text>
     </View>
   );
