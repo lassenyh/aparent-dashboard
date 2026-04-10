@@ -145,21 +145,48 @@ function pickAddressCandidate(lines: string[], labelIndex: number): string | nul
 
 function detectInvoiceSelection(text: string): boolean | null {
   const lines = normalizeLines(text);
-  const mark = String.raw`(?:\[[xX]\]|\([xX]\)|☒|☑|✅|✔|✗|✘|X|x)`;
-  const invoiceMarkedRe = new RegExp(`${mark}\\s*faktura|faktura\\s*${mark}`, "i");
-  const salaryMarkedRe = new RegExp(
-    `${mark}\\s*(?:lønn|lonn)|(?:lønn|lonn)\\s*${mark}`,
-    "i",
-  );
+  const checkedTokenRe = /(?:\[[xX]\]|\([xX]\)|☒|☑|✅|✔|✗|✘|■|\bX\b)/i;
+  const uncheckedTokenRe = /(?:\[\s\]|\(\s\)|☐|□)/;
+  const invoiceWordRe = /\bfaktura\b/i;
+  const salaryWordRe = /\b(?:lønn|lonn)\b/i;
 
-  for (const line of lines) {
-    const t = line.trim();
-    if (!/(faktura|lønn|lonn)/i.test(t)) continue;
-    const invoiceMarked = invoiceMarkedRe.test(t);
-    const salaryMarked = salaryMarkedRe.test(t);
-    if (invoiceMarked && !salaryMarked) return true;
-    if (salaryMarked && !invoiceMarked) return false;
+  const scoreWordAt = (wordIndex: number, wordRe: RegExp): number => {
+    let score = 0;
+    const from = Math.max(0, wordIndex - 2);
+    const to = Math.min(lines.length - 1, wordIndex + 2);
+    for (let i = from; i <= to; i++) {
+      const line = lines[i];
+      if (!wordRe.test(lines[wordIndex])) continue;
+      if (checkedTokenRe.test(line) && !uncheckedTokenRe.test(line)) score += 2;
+      if (
+        i !== wordIndex &&
+        checkedTokenRe.test(line) &&
+        /^[\s[\]()xX☒☑✅✔✗✘■☐□]+$/.test(line)
+      ) {
+        score += 1;
+      }
+    }
+    if (checkedTokenRe.test(lines[wordIndex]) && !uncheckedTokenRe.test(lines[wordIndex])) {
+      score += 2;
+    }
+    return score;
+  };
+
+  let invoiceScore = 0;
+  let salaryScore = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (invoiceWordRe.test(lines[i])) {
+      invoiceScore += scoreWordAt(i, invoiceWordRe);
+      if (/faktura\s*:\s*(ja|yes)/i.test(lines[i])) invoiceScore += 2;
+    }
+    if (salaryWordRe.test(lines[i])) {
+      salaryScore += scoreWordAt(i, salaryWordRe);
+      if (/(lønn|lonn)\s*:\s*(ja|yes)/i.test(lines[i])) salaryScore += 2;
+    }
   }
+
+  if (invoiceScore >= salaryScore + 2 && invoiceScore > 0) return true;
+  if (salaryScore >= invoiceScore + 2 && salaryScore > 0) return false;
 
   // Fallback: tydelig tekstlig valg i samme setning.
   if (/(utbetal(?:ing|es)|betalingsform).{0,30}faktura/i.test(text)) {
