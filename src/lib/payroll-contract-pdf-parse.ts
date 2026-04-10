@@ -73,6 +73,38 @@ function normalizeLines(raw: string): string[] {
     .filter((l) => l.length > 0);
 }
 
+function isLikelyAddressLabelFragment(line: string): boolean {
+  const t = line.trim().toLowerCase();
+  if (!t) return true;
+  return (
+    t === "adresse" ||
+    t.includes("inkludert postnummer og sted") ||
+    t.includes("personlig informasjon") ||
+    t.includes("personlig informasjon.")
+  );
+}
+
+function isLikelyNonAddressValue(line: string): boolean {
+  const t = line.trim().toLowerCase();
+  return (
+    t.includes("totaltbeløpet inkluderer") ||
+    t.includes("beregning av feriepenger") ||
+    t.includes("for oppdraget utbetales") ||
+    t.includes("samlet brutto vederlag")
+  );
+}
+
+function pickAddressCandidate(lines: string[], labelIndex: number): string | null {
+  for (let j = labelIndex + 1; j < Math.min(lines.length, labelIndex + 7); j++) {
+    const cand = lines[j]?.trim() ?? "";
+    if (!cand) continue;
+    if (isLikelyAddressLabelFragment(cand)) continue;
+    if (isLikelyNonAddressValue(cand)) continue;
+    return cand;
+  }
+  return null;
+}
+
 /**
  * Aparent / Oneflow «STATISTAVTALE» — etikett på én linje, verdi på neste.
  */
@@ -103,8 +135,12 @@ function parseAparentOneflowStatistAvtale(
       continue;
     }
 
-    if (/adresse,?\s+inkludert\s+postnummer\s+og\s+sted/i.test(line)) {
-      const parsed = parseCombinedAddressLine(next);
+    if (
+      /adresse,?\s+inkludert\s+postnummer\s+og\s+sted/i.test(line) ||
+      /^adresse$/i.test(line)
+    ) {
+      const candidate = pickAddressCandidate(lines, i) ?? next;
+      const parsed = parseCombinedAddressLine(candidate);
       if (parsed) {
         o.addressLine = parsed.addressLine;
         o.postalCode = parsed.postalCode;
@@ -112,6 +148,13 @@ function parseAparentOneflowStatistAvtale(
         matched.add("addressLine");
         matched.add("postalCode");
         matched.add("city");
+      } else if (
+        candidate &&
+        !isLikelyAddressLabelFragment(candidate) &&
+        !isLikelyNonAddressValue(candidate)
+      ) {
+        o.addressLine = candidate;
+        matched.add("addressLine");
       }
       continue;
     }
@@ -327,6 +370,12 @@ function applyLegacyFallback(
       /(?:^|\n)\s*(?:Gateadresse|Adresse|Besøksadresse|Bostedsadresse)\s*[:.]?\s*([^\n]+?)(?=\n|$)/i,
     ]);
     if (addr) {
+      if (
+        isLikelyAddressLabelFragment(addr) ||
+        isLikelyNonAddressValue(addr)
+      ) {
+        // ignorer åpenbart feil linje; la andre heuristikker prøve videre
+      } else {
       const combined = parseCombinedAddressLine(addr);
       if (combined) {
         o.addressLine = combined.addressLine;
@@ -338,6 +387,7 @@ function applyLegacyFallback(
       } else {
         o.addressLine = addr;
         matched.add("addressLine");
+      }
       }
     }
   }
@@ -354,8 +404,11 @@ function applyLegacyFallback(
   if (!pc) {
     const inline = text.match(POSTAL_INLINE_RE);
     if (inline) {
-      pc = inline[1];
-      cityFromPostal = cleanLine(inline[2]);
+      const inlineCity = cleanLine(inline[2]);
+      if (!isLikelyNonAddressValue(inlineCity)) {
+        pc = inline[1];
+        cityFromPostal = inlineCity;
+      }
     }
   }
   if (pc && !o.postalCode) {

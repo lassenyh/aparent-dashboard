@@ -580,20 +580,41 @@ export function PayrollListEditor({
     ]);
   }
 
-  function importPdfFile(file: File, segment: PayrollSegment) {
+  function importPdfFiles(files: File[], segment: PayrollSegment) {
+    if (files.length === 0) return;
     startPdfImport(async () => {
-      const fd = new FormData();
-      fd.append("pdf", file);
-      const res = await parsePayrollContractPdf(fd);
-      if (!res.ok) {
-        toast.error(res.details ? `${res.error} (${res.details})` : res.error);
-        return;
+      let okCount = 0;
+      let failCount = 0;
+      for (const file of files) {
+        const fd = new FormData();
+        fd.append("pdf", file);
+        const res = await parsePayrollContractPdf(fd);
+        if (!res.ok) {
+          failCount += 1;
+          toast.error(
+            `${file.name}: ${
+              res.details ? `${res.error} (${res.details})` : res.error
+            }`,
+          );
+          continue;
+        }
+        addRowFromContractPdf(segment, res.data);
+        okCount += 1;
       }
-      addRowFromContractPdf(segment, res.data);
-      const fields = res.data.matchedFields;
-      toast.success(
-        `Rad fra PDF (${fields.length} felt: ${fields.join(", ")}). Kontroller opplysningene.`,
-      );
+      if (okCount > 0) {
+        toast.success(
+          okCount === 1
+            ? "1 rad importert fra PDF. Kontroller opplysningene."
+            : `${okCount} rader importert fra PDF.`,
+        );
+      }
+      if (failCount > 0 && okCount === 0) {
+        toast.error(
+          failCount === 1
+            ? "Ingen PDF-er kunne importeres."
+            : `Ingen av ${failCount} PDF-er kunne importeres.`,
+        );
+      }
     });
   }
 
@@ -650,14 +671,24 @@ export function PayrollListEditor({
         type="file"
         className="sr-only"
         accept="application/pdf,.pdf"
+        multiple
         aria-hidden
         tabIndex={-1}
         onChange={(e) => {
-          const file = e.target.files?.[0];
+          const dropped = Array.from(e.target.files ?? []);
           e.target.value = "";
-          if (!file) return;
+          if (dropped.length === 0) return;
           const seg = pdfPickSegmentRef.current;
-          importPdfFile(file, seg);
+          const pdfFiles = dropped.filter(
+            (file) =>
+              file.type === "application/pdf" ||
+              file.name.toLowerCase().endsWith(".pdf"),
+          );
+          if (pdfFiles.length === 0) {
+            toast.error("Velg minst én PDF-fil.");
+            return;
+          }
+          importPdfFiles(pdfFiles, seg);
         }}
       />
       {locked ? (
@@ -894,16 +925,18 @@ export function PayrollListEditor({
               e.preventDefault();
               if (locked || pdfImportPending) return;
               setPdfDropActiveSegment(null);
-              const file = e.dataTransfer.files?.[0];
-              if (!file) return;
-              if (
-                file.type !== "application/pdf" &&
-                !file.name.toLowerCase().endsWith(".pdf")
-              ) {
-                toast.error("Velg en PDF-fil.");
+              const dropped = Array.from(e.dataTransfer.files ?? []);
+              if (dropped.length === 0) return;
+              const pdfFiles = dropped.filter(
+                (file) =>
+                  file.type === "application/pdf" ||
+                  file.name.toLowerCase().endsWith(".pdf"),
+              );
+              if (pdfFiles.length === 0) {
+                toast.error("Slipp minst én PDF-fil.");
                 return;
               }
-              importPdfFile(file, segment);
+              importPdfFiles(pdfFiles, segment);
             }}
           >
             <p>
