@@ -23,25 +23,25 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+        "mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
-      <div className="min-w-0 space-y-2">
+      <div className="min-w-0 space-y-1">
         {branding ? (
           <>
             <h1 className="sr-only">{sr || "Prosjekt"}</h1>
             <div className="flex flex-col items-start gap-1">{branding}</div>
           </>
         ) : visibleTitle ? (
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
             {visibleTitle}
           </h1>
         ) : sr ? (
           <h1 className="sr-only">{sr}</h1>
         ) : null}
         {description?.trim() ? (
-          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+          <p className="text-sm leading-relaxed text-muted-foreground">
             {description}
           </p>
         ) : null}
