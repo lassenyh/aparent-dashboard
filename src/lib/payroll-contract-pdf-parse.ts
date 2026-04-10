@@ -62,9 +62,13 @@ function toNameTitleCase(raw: string): string {
 /** Adresse/poststed: stor forbokstav per ord, behold tall/tegn. */
 function toAddressTitleCase(raw: string): string {
   const s = cleanLine(raw).toLocaleLowerCase("nb-NO");
-  return s.replace(
+  const titled = s.replace(
     /(^|[\s'-])([a-zæøå])/giu,
     (_m, sep: string, chr: string) => `${sep}${chr.toLocaleUpperCase("nb-NO")}`,
+  );
+  // Behold bokstav etter husnummer i stor form (f.eks. 3C).
+  return titled.replace(/(\d+)([a-zæøå])\b/giu, (_m, d: string, l: string) =>
+    `${d}${l.toLocaleUpperCase("nb-NO")}`,
   );
 }
 
@@ -149,6 +153,19 @@ function detectInvoiceSelection(text: string): boolean | null {
   const uncheckedTokenRe = /(?:\[\s\]|\(\s\)|☐|□)/;
   const invoiceWordRe = /\bfaktura\b/i;
   const salaryWordRe = /\b(?:lønn|lonn)\b/i;
+  const invoiceStandaloneRe = /^faktura$/i;
+  const salaryStandaloneRe = /^(lønn|lonn)$/i;
+
+  // Oneflow-mønster: egen avhukingslinje (""/checksymbol), deretter verdi-linje.
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!checkedTokenRe.test(line) || uncheckedTokenRe.test(line)) continue;
+    const near = [lines[i - 1], lines[i + 1], lines[i + 2], lines[i - 2]]
+      .filter((x): x is string => Boolean(x))
+      .map((x) => x.trim());
+    if (near.some((x) => invoiceStandaloneRe.test(x))) return true;
+    if (near.some((x) => salaryStandaloneRe.test(x))) return false;
+  }
 
   const scoreWordAt = (wordIndex: number, wordRe: RegExp): number => {
     let score = 0;
@@ -195,6 +212,14 @@ function detectInvoiceSelection(text: string): boolean | null {
     }
   }
   return null;
+}
+
+function parseAmountLoose(raw: string): number | null {
+  const m = raw.match(/(\d[\d\s.,]*)/);
+  if (!m) return null;
+  const s = m[1].replace(/\s/g, "").replace(/\.(?=\d{3}\b)/g, "");
+  const n = Number(s.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /**
@@ -287,13 +312,11 @@ function parseAparentOneflowStatistAvtale(
 
   // Honorar: «For oppdraget utbetales et samlet brutto vederlag på» → neste linje tall
   const honorarBlock =
-    /For\s+oppdraget\s+utbetales\s+et\s+samlet\s+brutto\s+vederlag\s+på\s*\n\s*([\d\s.,]+)/i.exec(
+    /For\s+oppdraget\s+utbetales\s+et\s+samlet\s+brutto\s+vederlag\s+på\s*\n\s*([^\n]+)/i.exec(
       text.replace(/\r\n/g, "\n"),
     );
   if (honorarBlock) {
-    const n = Number(
-      honorarBlock[1].replace(/\s/g, "").replace(",", ".").replace(/\s/g, ""),
-    );
+    const n = parseAmountLoose(honorarBlock[1]);
     if (Number.isFinite(n) && n > 0) {
       o.honorar = n;
       matched.add("honorar");
@@ -301,8 +324,7 @@ function parseAparentOneflowStatistAvtale(
   } else {
     for (let i = 0; i < lines.length - 1; i++) {
       if (/samlet\s+brutto\s+vederlag\s+på\s*$/i.test(lines[i])) {
-        const rawNum = lines[i + 1].replace(/\s/g, "");
-        const n = Number(rawNum.replace(",", "."));
+        const n = parseAmountLoose(lines[i + 1]);
         if (Number.isFinite(n) && n > 0) {
           o.honorar = n;
           matched.add("honorar");
