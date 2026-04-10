@@ -48,6 +48,11 @@ function oneLine(value: string | null | undefined, maxChars: number): string {
   return `${s.slice(0, Math.max(1, maxChars - 1)).trimEnd()}…`;
 }
 
+function fullValue(value: string | null | undefined): string {
+  const s = (value ?? "").replace(/\s+/g, " ").trim();
+  return s || "—";
+}
+
 const styles = StyleSheet.create({
   page: {
     padding: 28,
@@ -141,17 +146,16 @@ function PayrollPdfRow({ item }: { item: PayrollDisplayRow }) {
   return (
     <View style={styles.row} wrap={false}>
       <Text style={[styles.cell, styles.colName]}>
-        {oneLine(row.fullName, 26)}
+        {fullValue(row.fullName)}
       </Text>
       <Text style={[styles.cell, styles.colAddr]}>
-        {oneLine(
+        {fullValue(
           formatNorwegianAddressLine({
             addressLine: row.addressLine,
             postalCode: row.postalCode,
             city: row.city,
             country: row.country,
           }),
-          34,
         )}
       </Text>
       <Text style={[styles.cell, styles.colHon]}>{fmtHonorar(row.honorar)}</Text>
@@ -171,7 +175,7 @@ function PayrollPdfRow({ item }: { item: PayrollDisplayRow }) {
         )}
       </Text>
       <Text style={[styles.cell, styles.colEmail]}>
-        {oneLine(row.email, 48)}
+        {fullValue(row.email)}
       </Text>
     </View>
   );
