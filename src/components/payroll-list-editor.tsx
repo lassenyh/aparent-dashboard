@@ -102,6 +102,8 @@ export type PayrollRowDraft = {
   segment: PayrollSegment;
   /** Fra crew-database (Person); vises ikke lagret på rad. */
   dietaryPreference: DietaryPreference | null;
+  /** Kun UI-markering fra PDF-import: kontrakt ser ut til å være faktura (ikke lønn). */
+  invoiceOnly?: boolean;
 };
 
 export type PayrollRowInput = Omit<PayrollRowDraft, "key"> & { id: string };
@@ -542,6 +544,7 @@ export function PayrollListEditor({
         sensitiveFieldsMaskInUi: false,
         segment,
         dietaryPreference: null,
+        invoiceOnly: false,
       },
     ]);
   }
@@ -576,6 +579,7 @@ export function PayrollListEditor({
         sensitiveFieldsMaskInUi: false,
         segment,
         dietaryPreference: null,
+        invoiceOnly: d.invoiceOnly === true,
       },
     ]);
   }
@@ -992,7 +996,11 @@ export function PayrollListEditor({
                 if (open) setExpandedRowKey(row.key);
                 else setExpandedRowKey(null);
               }}
-              className="group rounded-lg border border-border bg-card shadow-sm"
+              className={cn(
+                "group rounded-lg border border-border bg-card shadow-sm",
+                row.invoiceOnly &&
+                  "border-red-300 bg-red-50/40 dark:border-red-900/50 dark:bg-red-950/20",
+              )}
             >
               <div className="flex flex-wrap items-start gap-2 px-3 py-3 sm:items-center">
                 <CollapsibleTrigger asChild>
@@ -1019,6 +1027,7 @@ export function PayrollListEditor({
                         row.dietaryPreference !== "none"
                           ? ` · ${dietaryLabel(row.dietaryPreference)}`
                           : ""}
+                        {row.invoiceOnly ? " · Faktura (ikke lønn)" : ""}
                       </span>
                     </span>
                   </button>
@@ -1036,6 +1045,12 @@ export function PayrollListEditor({
               </div>
               <CollapsibleContent className="overflow-hidden">
                 <div className="border-t border-border px-4 pb-4 pt-1">
+                  {row.invoiceOnly ? (
+                    <div className="mb-3 mt-3 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-200">
+                      Kontrakten ser ut til å være avhuket for faktura. Denne raden
+                      skal normalt ikke med i lønningslisten.
+                    </div>
+                  ) : null}
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1 space-y-4">
                       <div className="space-y-1.5">

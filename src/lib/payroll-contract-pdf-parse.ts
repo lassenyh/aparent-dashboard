@@ -21,6 +21,8 @@ export type PayrollContractExtract = {
   honorar: number | null;
   /** Satt når avtalen sier at beløpet inkl. feriepenger (f.eks. 10,2 %). */
   includesHolidayPay: boolean | null;
+  /** true når kontrakten ser ut til å være avhuket for faktura (ikke lønn). */
+  invoiceOnly: boolean | null;
   /** Felt vi med rimelig sikkerhet fant (for tilbakemelding i UI). */
   matchedFields: string[];
 };
@@ -37,6 +39,7 @@ const empty = (): Omit<PayrollContractExtract, "matchedFields"> => ({
   email: null,
   honorar: null,
   includesHolidayPay: null,
+  invoiceOnly: null,
 });
 
 function onlyDigits(s: string): string {
@@ -136,6 +139,33 @@ function pickAddressCandidate(lines: string[], labelIndex: number): string | nul
     if (isLikelyAddressLabelFragment(cand)) continue;
     if (isLikelyNonAddressValue(cand)) continue;
     return cand;
+  }
+  return null;
+}
+
+function detectInvoiceSelection(text: string): boolean | null {
+  const lines = normalizeLines(text);
+  const mark = String.raw`(?:\[[xX]\]|\([xX]\)|☒|☑|✅|✔|✗|✘|X|x)`;
+  const invoiceMarkedRe = new RegExp(`${mark}\\s*faktura|faktura\\s*${mark}`, "i");
+  const salaryMarkedRe = new RegExp(
+    `${mark}\\s*(?:lønn|lonn)|(?:lønn|lonn)\\s*${mark}`,
+    "i",
+  );
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (!/(faktura|lønn|lonn)/i.test(t)) continue;
+    const invoiceMarked = invoiceMarkedRe.test(t);
+    const salaryMarked = salaryMarkedRe.test(t);
+    if (invoiceMarked && !salaryMarked) return true;
+    if (salaryMarked && !invoiceMarked) return false;
+  }
+
+  // Fallback: tydelig tekstlig valg i samme setning.
+  if (/(utbetal(?:ing|es)|betalingsform).{0,30}faktura/i.test(text)) {
+    if (!/(utbetal(?:ing|es)|betalingsform).{0,30}(lønn|lonn)/i.test(text)) {
+      return true;
+    }
   }
   return null;
 }
@@ -267,6 +297,12 @@ function parseAparentOneflowStatistAvtale(
   if (/STATISTAVTALE|statistavtale/i.test(text) && !o.country) {
     o.country = "Norge";
     matched.add("country");
+  }
+
+  const invoiceOnly = detectInvoiceSelection(text);
+  if (invoiceOnly != null) {
+    o.invoiceOnly = invoiceOnly;
+    matched.add("invoiceOnly");
   }
 }
 
