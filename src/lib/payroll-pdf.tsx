@@ -83,11 +83,9 @@ const styles = StyleSheet.create({
     fontSize: 6,
     fontWeight: 700,
     textTransform: "uppercase",
-    lineHeight: 1.25 * 6,
   },
   row: {
     flexDirection: "row",
-    alignItems: "center",
     borderBottomWidth: 0.5,
     borderBottomColor: "#e5e5e5",
     paddingVertical: 4,
@@ -113,8 +111,7 @@ const styles = StyleSheet.create({
   colName: { width: 96 },
   colAddr: { width: 124 },
   colHon: { width: 52 },
-  /** Må være bred nok til «Inkl. FP» på én linje — ellers brytes tekst og header ser «låst ut» vertikalt. */
-  colFp: { width: 52 },
+  colFp: { width: 32 },
   colPnr: { width: 72 },
   colBank: { width: 72 },
   colMob: { width: 62 },
@@ -235,7 +232,7 @@ export function PayrollPdfDocument({ data }: { data: PayrollPageData }) {
             <Text style={[styles.th, styles.colAddr]}>Adresse</Text>
             <Text style={[styles.th, styles.colHon]}>Honorar</Text>
             <Text style={[styles.th, styles.colFp, { textAlign: "center" }]}>
-              Inkl.{`\u00A0`}FP
+              Inkl.fp
             </Text>
             <Text style={[styles.th, styles.colPnr]}>Personnr.</Text>
             <Text style={[styles.th, styles.colBank]}>Kontonr.</Text>
