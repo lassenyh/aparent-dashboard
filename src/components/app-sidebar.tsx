@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, FolderKanban, Building2, Store, LogOut } from "lucide-react";
+import { Users, FolderKanban, Building2, Store, LogOut, ShieldCheck } from "lucide-react";
 import { AparentLogo } from "@/components/aparent-logo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const navInternal = [
   { href: "/crew", label: "Crew", icon: Users },
   { href: "/kunder", label: "Kunder", icon: Store },
   { href: "/byra", label: "Byrå", icon: Building2 },
+  { href: "/brukertilgang", label: "Brukertilgang", icon: ShieldCheck },
 ];
 
 const navExternal = [
