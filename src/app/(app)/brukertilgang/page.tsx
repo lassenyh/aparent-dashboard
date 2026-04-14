@@ -1,8 +1,10 @@
+import Link from "next/link";
 import { listDashboardUsers, removeDashboardUser, updateDashboardUserAccess } from "@/actions/dashboard-users";
 import { DashboardUserAddForm } from "@/components/dashboard-user-add-form";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { requireInternalUser } from "@/lib/project-access";
+import { formatProjectDisplayName } from "@/lib/utils";
 
 export default async function UserAccessPage() {
   const me = await requireInternalUser();
@@ -67,6 +69,32 @@ export default async function UserAccessPage() {
                     Lagre
                   </Button>
                 </form>
+                {!u.isInternal ? (
+                  <div className="mt-4 rounded-md bg-muted/40 p-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Prosjekter
+                    </p>
+                    {u.memberships.length ? (
+                      <ul className="space-y-1">
+                        {u.memberships.map((membership) => (
+                          <li key={membership.project.id} className="text-sm">
+                            <Link
+                              href={`/projects/${membership.project.id}`}
+                              className="text-foreground hover:underline"
+                            >
+                              {formatProjectDisplayName(membership.project)}
+                            </Link>
+                            <span className="text-xs text-muted-foreground">
+                              {` · ${membership.role}`}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Ingen prosjekttilknytning.</p>
+                    )}
+                  </div>
+                ) : null}
               </div>
             );
           })}

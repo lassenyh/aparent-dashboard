@@ -21,6 +21,19 @@ export async function listDashboardUsers() {
       isInternal: true,
       isActive: true,
       createdAt: true,
+      memberships: {
+        orderBy: [{ project: { name: "asc" } }],
+        select: {
+          role: true,
+          project: {
+            select: {
+              id: true,
+              name: true,
+              internalTitle: true,
+            },
+          },
+        },
+      },
     },
   });
 }

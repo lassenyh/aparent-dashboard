@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { getProjectsList } from "@/actions/projects";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ export default async function HomePage() {
     getSessionDashboardUser(),
   ]);
   const isInternal = user?.isInternal ?? false;
+  const activeProjects = projects.filter((p) => p.status === "active");
+  const archivedProjects = projects.filter((p) => p.status === "archived");
 
   return (
     <>
@@ -32,46 +34,95 @@ export default async function HomePage() {
         }
       />
 
-      <div className="divide-y divide-border">
-        {projects.map((p) => (
-          <Link
-            key={p.id}
-            href={`/projects/${p.id}`}
-            className="flex min-h-[56px] flex-col gap-2 py-4 transition-colors first:pt-0 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex min-w-0 flex-1 items-start gap-3">
-              {p.customer?.logoUrl ? (
-                <PublicLogoImg
-                  src={p.customer.logoUrl}
-                  alt=""
-                  className="mt-0.5 h-8 w-20 shrink-0 object-contain object-left"
-                />
-              ) : null}
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-foreground">
-                    {formatProjectDisplayName(p)}
-                  </span>
-                  <Badge variant={p.status === "active" ? "default" : "secondary"}>
-                    {p.status === "active" ? "Aktiv" : "Arkivert"}
-                  </Badge>
-                </div>
-                {p.customer?.name && !p.customer?.logoUrl ? (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {p.customer.name}
-                  </p>
+      <div className="space-y-6">
+        <div className="divide-y divide-border">
+          {activeProjects.map((p) => (
+            <Link
+              key={p.id}
+              href={`/projects/${p.id}`}
+              className="flex min-h-[56px] flex-col gap-2 py-4 transition-colors first:pt-0 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                {p.customer?.logoUrl ? (
+                  <PublicLogoImg
+                    src={p.customer.logoUrl}
+                    alt=""
+                    className="mt-0.5 h-8 w-20 shrink-0 object-contain object-left"
+                  />
                 ) : null}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-foreground">
+                      {formatProjectDisplayName(p)}
+                    </span>
+                    <Badge variant="default">Aktiv</Badge>
+                  </div>
+                  {p.customer?.name && !p.customer?.logoUrl ? (
+                    <p className="mt-1 text-sm text-muted-foreground">{p.customer.name}</p>
+                  ) : null}
+                </div>
               </div>
+              <div className="flex shrink-0 flex-wrap gap-4 text-sm text-muted-foreground sm:justify-end">
+                <span>{p._count.crew} crew</span>
+                {FEATURE_CALL_SHEETS_UI ? <span>{p._count.callSheets} call sheets</span> : null}
+                {p.startDate ? <span>{formatDateShort(p.startDate)}</span> : null}
+              </div>
+            </Link>
+          ))}
+          {!activeProjects.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Ingen aktive prosjekter.
+            </p>
+          ) : null}
+        </div>
+
+        {archivedProjects.length ? (
+          <details className="group rounded-md border border-border bg-muted/20">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-foreground [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-2">
+                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" />
+                Arkiverte prosjekter ({archivedProjects.length})
+              </span>
+            </summary>
+            <div className="divide-y divide-border border-t border-border px-4">
+              {archivedProjects.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/projects/${p.id}`}
+                  className="flex min-h-[56px] flex-col gap-2 py-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    {p.customer?.logoUrl ? (
+                      <PublicLogoImg
+                        src={p.customer.logoUrl}
+                        alt=""
+                        className="mt-0.5 h-8 w-20 shrink-0 object-contain object-left"
+                      />
+                    ) : null}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-foreground">
+                          {formatProjectDisplayName(p)}
+                        </span>
+                        <Badge variant="secondary">Arkivert</Badge>
+                      </div>
+                      {p.customer?.name && !p.customer?.logoUrl ? (
+                        <p className="mt-1 text-sm text-muted-foreground">{p.customer.name}</p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-4 text-sm text-muted-foreground sm:justify-end">
+                    <span>{p._count.crew} crew</span>
+                    {FEATURE_CALL_SHEETS_UI ? (
+                      <span>{p._count.callSheets} call sheets</span>
+                    ) : null}
+                    {p.startDate ? <span>{formatDateShort(p.startDate)}</span> : null}
+                  </div>
+                </Link>
+              ))}
             </div>
-            <div className="flex shrink-0 flex-wrap gap-4 text-sm text-muted-foreground sm:justify-end">
-              <span>{p._count.crew} crew</span>
-              {FEATURE_CALL_SHEETS_UI ? (
-                <span>{p._count.callSheets} call sheets</span>
-              ) : null}
-              {p.startDate ? <span>{formatDateShort(p.startDate)}</span> : null}
-            </div>
-          </Link>
-        ))}
+          </details>
+        ) : null}
       </div>
       {!projects.length ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
