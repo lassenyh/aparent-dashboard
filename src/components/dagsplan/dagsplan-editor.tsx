@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -392,6 +393,7 @@ export function DagsplanEditor({
     [state.displayLocale],
   );
   const [saveState, setSaveState] = useState<string | null>(null);
+  const [autoSaveState, setAutoSaveState] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [uploading, setUploading] = useState<"agency" | "client" | null>(null);
   const [locationSavePending, setLocationSavePending] = useState(false);
@@ -628,20 +630,61 @@ export function DagsplanEditor({
       departmentRows,
     };
   }, [state]);
+  const payloadFingerprint = useMemo(() => JSON.stringify(payload), [payload]);
+  const latestPayloadRef = useRef(payload);
+  const latestFingerprintRef = useRef(payloadFingerprint);
+  const lastSavedFingerprintRef = useRef(payloadFingerprint);
+  const autosaveInFlightRef = useRef(false);
+
+  useEffect(() => {
+    latestPayloadRef.current = payload;
+    latestFingerprintRef.current = payloadFingerprint;
+  }, [payload, payloadFingerprint]);
 
   const save = useCallback(() => {
     setSaveState(null);
+    setAutoSaveState(null);
     startTransition(async () => {
       const res = await saveDagsplan(null, payload);
       if (res?.error) {
         toast.error(res.error);
         setSaveState(res.error);
       } else {
+        lastSavedFingerprintRef.current = payloadFingerprint;
         toast.success(t.toastSaved);
         router.refresh();
       }
     });
-  }, [payload, router, t]);
+  }, [payload, payloadFingerprint, router, t]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (autosaveInFlightRef.current) return;
+      if (pending || uploading !== null || locationSavePending) return;
+      if (document.visibilityState !== "visible") return;
+      if (latestFingerprintRef.current === lastSavedFingerprintRef.current) return;
+
+      autosaveInFlightRef.current = true;
+      void (async () => {
+        const res = await saveDagsplan(null, latestPayloadRef.current);
+        if (res?.error) {
+          setAutoSaveState(`Autosave feilet: ${res.error}`);
+        } else {
+          lastSavedFingerprintRef.current = latestFingerprintRef.current;
+          setAutoSaveState(
+            `Autosist lagret ${new Intl.DateTimeFormat("nb-NO", {
+              hour: "2-digit",
+              minute: "2-digit",
+            }).format(new Date())}`,
+          );
+        }
+      })().finally(() => {
+        autosaveInFlightRef.current = false;
+      });
+    }, 5 * 60 * 1000);
+
+    return () => window.clearInterval(interval);
+  }, [locationSavePending, pending, uploading]);
 
   const saveLocations = useCallback(async () => {
     setLocationSavePending(true);
@@ -798,6 +841,18 @@ export function DagsplanEditor({
 
       {saveState ? (
         <p className="mb-3 text-sm text-destructive">{saveState}</p>
+      ) : null}
+      {autoSaveState ? (
+        <p
+          className={cn(
+            "mb-3 text-sm",
+            autoSaveState.startsWith("Autosave feilet")
+              ? "text-destructive"
+              : "text-muted-foreground",
+          )}
+        >
+          {autoSaveState}
+        </p>
       ) : null}
 
       <div className="space-y-10">
