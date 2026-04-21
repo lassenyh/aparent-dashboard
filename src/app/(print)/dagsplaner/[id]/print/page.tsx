@@ -236,6 +236,19 @@ const tdTime = cn(
 const lunchPrintText = "text-red-700 print:text-red-800";
 const lunchPrintTimeBg = "bg-red-50/40 print:bg-red-50/50";
 
+/**
+ * Timeplan: faste kolonner + lang tekst (info, scene, aktører) må kunne brytes
+ * slik at PDF-eksport ikke klipper innhold utenfor cellen.
+ */
+const tdScheduleText = cn(
+  tdBase,
+  "min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]",
+);
+const tdScheduleActors = cn(
+  tdNum,
+  "min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]",
+);
+
 export default async function DagsplanPrintPage({ params }: PageProps) {
   const { id } = await params;
   const d = await getDagsplanById(id);
@@ -522,7 +535,14 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                   d.actorEntries.map((r, i) => (
                     <tr key={r.id}>
                       <td className={tdNum}>{i + 1}</td>
-                      <td className={tdBase}>{cellText(r.actorName)}</td>
+                      <td
+                        className={cn(
+                          tdBase,
+                          "min-w-0 break-words [overflow-wrap:anywhere]",
+                        )}
+                      >
+                        {cellText(r.actorName)}
+                      </td>
                       <td className={tdNum}>{fmtTime(r.meetTime)}</td>
                       <td className={tdNum}>{fmtTime(r.readyOnSetTime)}</td>
                     </tr>
@@ -573,12 +593,12 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               <col className="w-[7%]" />
               <col className="w-[6%]" />
               <col className="w-[6%]" />
-              <col className="w-[16%]" />
-              <col className="w-[11%]" />
-              {/* Shot: bred nok kolonne — ellers skaleres bildet ned av smal celle (object-contain). */}
-              {showShotColumn ? <col className="w-[20%]" /> : null}
-              <col className={showShotColumn ? "w-[17%]" : "w-[37%]"} />
+              <col className="w-[15%]" />
               <col className="w-[10%]" />
+              {/* Shot: bred nok kolonne — ellers skaleres bildet ned av smal celle (object-contain). */}
+              {showShotColumn ? <col className="w-[19%]" /> : null}
+              <col className={showShotColumn ? "w-[13%]" : "w-[32%]"} />
+              <col className="w-[17%]" />
             </colgroup>
             <thead>
               <tr>
@@ -592,7 +612,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                   <th className={cn(thBase, "text-center")}>{pt.shot}</th>
                 ) : null}
                 <th className={thBase}>{pt.sceneSetting}</th>
-                <th className={cn(thNum, "whitespace-nowrap")}>{pt.actors}</th>
+                <th className={cn(thNum, "whitespace-normal")}>{pt.actors}</th>
               </tr>
             </thead>
             <tbody>
@@ -647,7 +667,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                       <td className={cn(tdBase, lunch && lunchPrintText)}>
                         {cellText(r.dayNight)}
                       </td>
-                      <td className={cn(tdBase, lunch && lunchPrintText)}>
+                      <td className={cn(tdScheduleText, lunch && lunchPrintText)}>
                         {cellText(r.info)}
                       </td>
                       <td
@@ -675,10 +695,10 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                           ) : null}
                         </td>
                       ) : null}
-                      <td className={cn(tdBase, lunch && lunchPrintText)}>
+                      <td className={cn(tdScheduleText, lunch && lunchPrintText)}>
                         {cellText(r.sceneSetting)}
                       </td>
-                      <td className={cn(tdNum, lunch && lunchPrintText)}>
+                      <td className={cn(tdScheduleActors, lunch && lunchPrintText)}>
                         {cellText(r.actorNumbers)}
                       </td>
                     </tr>

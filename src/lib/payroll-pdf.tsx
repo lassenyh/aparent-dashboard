@@ -48,6 +48,23 @@ function oneLine(value: string | null | undefined, maxChars: number): string {
   return `${s.slice(0, Math.max(1, maxChars - 1)).trimEnd()}…`;
 }
 
+/**
+ * Personnr./kontonr. i PDF: alle siffer med, uavhengig av mellomrom ved lagring.
+ * Maskerte verdier (forhåndsvisning) vises i fullt — ikke kutt på tegnlengde før stripping.
+ */
+function payrollPdfDigitsColumn(
+  value: string | null | undefined,
+  maxDigits: number,
+): string {
+  const s = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!s) return "—";
+  if (s.includes("*")) return s;
+  const digits = s.replace(/\D/g, "");
+  if (!digits) return "—";
+  if (digits.length <= maxDigits) return digits;
+  return `${digits.slice(0, Math.max(1, maxDigits - 1))}…`;
+}
+
 function fullValue(value: string | null | undefined): string {
   const s = (value ?? "").replace(/\s+/g, " ").trim();
   return s || "—";
@@ -168,10 +185,10 @@ function PayrollPdfRow({ item }: { item: PayrollDisplayRow }) {
         {row.includesHolidayPay ? "Ja" : "Nei"}
       </Text>
       <Text style={[styles.cell, styles.colPnr]}>
-        {oneLine(row.nationalId, 11)}
+        {payrollPdfDigitsColumn(row.nationalId, 11)}
       </Text>
       <Text style={[styles.cell, styles.colBank]}>
-        {oneLine(row.bankAccount, 11)}
+        {payrollPdfDigitsColumn(row.bankAccount, 11)}
       </Text>
       <Text style={[styles.cell, styles.colMob]}>
         {oneLine(
