@@ -1,0 +1,24 @@
+/* Excerpt from src/app/globals.css — print rules used by Dagsplan */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 11mm 12mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Keep subtle fills and borders visible on paper / PDF */
+  .dagsplan-print {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Parking image as its own page after the main document */
+  .dagsplan-print-parking-attachment {
+    page-break-before: always;
+    break-before: page;
+  }
+}

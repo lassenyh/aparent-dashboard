@@ -1,0 +1,292 @@
+/**
+ * Reference Prisma schema excerpt for Dagsplan.
+ *
+ * This is NOT a runnable drop-in of the full dashboard schema.
+ * Relations to Project / Person / ProjectCrew / Agency / Customer /
+ * DashboardUser / ProjectMembership are required by the feature.
+ *
+ * Intentionally omitted from this excerpt:
+ * - CallSheet*, Payroll*, ProjectCrewList*, encryption fields on Person
+ * - Full dashboard permission surface beyond the flags listed on membership
+ *
+ * datasource URLs must come from the host app env — do not commit secrets.
+ */
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum RateType {
+  day
+  hour
+}
+
+enum ProjectStatus {
+  active
+  archived
+}
+
+enum ProjectMembershipRole {
+  owner
+  admin
+  editor
+  viewer
+}
+
+/** Manually selected weather icon on dagsplan (no external weather API). */
+enum WeatherIconKind {
+  none
+  sun
+  partly_cloudy
+  cloudy
+  rain
+  snow
+  thunder
+  fog
+  wind
+}
+
+model Agency {
+  id        String   @id @default(cuid())
+  name      String
+  orgNumber String?
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projects  Project[]
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projects  Project[]
+}
+
+/** Crew register person — dagsplan uses identity + contact fields only. */
+model Person {
+  id                  String   @id @default(cuid())
+  firstName           String
+  lastName            String
+  fullName            String
+  email               String?
+  phone               String?
+  addressLine         String?
+  postalCode          String?
+  city                String?
+  country             String?
+  roles               String[] @default([])
+  defaultRate         Decimal? @db.Decimal(10, 2)
+  rateType            RateType @default(day)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  projectCrews        ProjectCrew[]
+  dagsplanCrewEntries DagsplanCrewEntry[]
+}
+
+model Project {
+  id            String        @id @default(cuid())
+  name          String
+  internalTitle String?
+  startDate     DateTime?     @db.Date
+  endDate       DateTime?     @db.Date
+  status        ProjectStatus @default(active)
+  notes         String?
+  agencyId      String?
+  agency        Agency?       @relation(fields: [agencyId], references: [id], onDelete: SetNull)
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  crew         ProjectCrew[]
+  dagsplaner   Dagsplan[]
+  memberships  ProjectMembership[]
+}
+
+model DashboardUser {
+  id                    String   @id @default(cuid())
+  username              String   @unique
+  passwordHash          String
+  fullName              String?
+  email                 String?
+  company               String?
+  isActive              Boolean  @default(true)
+  isInternal            Boolean  @default(false)
+  legacySupabaseLoginId String?  @unique
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  memberships           ProjectMembership[]
+
+  @@map("dashboard_users")
+}
+
+model ProjectMembership {
+  id                     String                 @id @default(cuid())
+  userId                 String
+  user                   DashboardUser          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId              String
+  project                Project                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  role                   ProjectMembershipRole  @default(viewer)
+  canViewProjectInfo     Boolean                @default(true)
+  canViewCrew            Boolean                @default(false)
+  canEditCrew            Boolean                @default(false)
+  canViewDagsplan        Boolean                @default(false)
+  canEditDagsplan        Boolean                @default(false)
+  /** Other dashboard flags exist in the full app; kept minimal here. */
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+}
+
+model ProjectCrew {
+  id               String    @id @default(cuid())
+  projectId        String
+  project          Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  personId         String
+  person           Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
+  roleOverride     String?
+  rateOverride     Decimal?  @db.Decimal(10, 2)
+  rateTypeOverride RateType?
+  notes            String?
+  sortOrder        Int?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  dagsplanCrewLinks DagsplanCrewEntry[]
+
+  @@unique([projectId, personId])
+  @@index([projectId])
+  @@index([personId])
+}
+
+model Dagsplan {
+  id                         String          @id @default(cuid())
+  projectId                  String
+  project                    Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title                      String
+  shootDate                  DateTime        @db.Date
+  workStartTime              String?
+  workEndTime                String?
+  agencyLogoUrl              String?
+  clientLogoUrl              String?
+  infoText                   String?         @db.Text
+  weatherIcon                WeatherIconKind @default(none)
+  weatherTempMin             Int?
+  weatherTempMax             Int?
+  weatherText                String?         @db.Text
+  emergencyNumbersText       String?         @db.Text
+  radioChannelsText          String?         @db.Text
+  printIncludeActors         Boolean         @default(true)
+  printIncludeDepartmentInfo Boolean         @default(true)
+  printIncludeSchedule       Boolean         @default(true)
+  showShotColumn             Boolean         @default(false)
+  sunriseTimeOverride        String?
+  sunsetTimeOverride         String?
+  displayLocale              String          @default("no")
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+
+  locations       DagsplanLocation[]
+  crewEntries     DagsplanCrewEntry[]
+  actorEntries    DagsplanActorEntry[]
+  scheduleEntries DagsplanScheduleEntry[]
+  departmentInfos DagsplanDepartmentInfoEntry[]
+
+  @@index([projectId])
+  @@index([shootDate])
+}
+
+model DagsplanLocation {
+  id              String   @id @default(cuid())
+  dagsplanId      String
+  dagsplan        Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  sortOrder       Int      @default(0)
+  locationName    String?  @db.Text
+  locationText    String?  @db.Text
+  locationMapsUrl String?
+  parkingText     String?  @db.Text
+  parkingMapsUrl  String?
+  parkingImageUrl String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([dagsplanId])
+}
+
+model DagsplanCrewEntry {
+  id                  String       @id @default(cuid())
+  dagsplanId          String
+  dagsplan            Dagsplan     @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  departmentTitle     String
+  personName          String
+  mobile              String?
+  email               String?
+  onSetTime           String?
+  sortOrder           Int          @default(0)
+  linkedProjectCrewId String?
+  projectCrew         ProjectCrew? @relation(fields: [linkedProjectCrewId], references: [id], onDelete: SetNull)
+  linkedPersonId      String?
+  linkedPerson        Person?      @relation(fields: [linkedPersonId], references: [id], onDelete: SetNull)
+
+  @@index([dagsplanId])
+  @@index([linkedProjectCrewId])
+  @@index([linkedPersonId])
+}
+
+model DagsplanActorEntry {
+  id             String   @id @default(cuid())
+  dagsplanId     String
+  dagsplan       Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  actorNumber    String
+  actorName      String
+  meetTime       String?
+  readyOnSetTime String?
+  sortOrder      Int      @default(0)
+
+  @@index([dagsplanId])
+}
+
+model DagsplanScheduleEntry {
+  id               String   @id @default(cuid())
+  dagsplanId       String
+  dagsplan         Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  startTime        String?
+  endTime          String?
+  durationMinutes  Int      @default(30)
+  rowKind          String   @default("sequential")
+  interiorExterior String?
+  dayNight         String?
+  sceneSetting     String?
+  info             String?
+  actorNumbers     String?
+  shotImageUrl     String?
+  rowBgColor       String?
+  sortOrder        Int      @default(0)
+
+  @@index([dagsplanId])
+}
+
+model DagsplanDepartmentInfoEntry {
+  id             String   @id @default(cuid())
+  dagsplanId     String
+  dagsplan       Dagsplan @relation(fields: [dagsplanId], references: [id], onDelete: Cascade)
+  departmentName String
+  info           String?  @db.Text
+  sortOrder      Int      @default(0)
+
+  @@index([dagsplanId])
+}
