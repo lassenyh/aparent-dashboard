@@ -2,18 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAgencyOptions } from "@/actions/agencies";
 import { getCustomerOptions } from "@/actions/customers";
-import { getProjectById } from "@/actions/projects";
+import { getProjectById, getProjectLeadOptions } from "@/actions/projects";
 import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { ProjectInfoSection } from "@/components/project-info-section";
 import { ProjectPageSection } from "@/components/project-page-section";
-import { ProjectCrewPicker } from "@/components/project-crew-picker";
-import { ProjectCrewList } from "@/components/project-crew-list";
+import { ProjectCrewSection } from "@/components/project-crew-section";
+import { sortProjectCrewByDepartmentOrder } from "@/lib/crew-department-order";
 import { ProjectDeleteControl } from "@/components/project-delete-control";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PublicLogoImg } from "@/components/public-logo-img";
-import { cn, formatDateShort, formatProjectDisplayName } from "@/lib/utils";
+import { projectLeads } from "@/lib/project-leads";
+import { projectListLabel } from "@/lib/project-list-presentation";
+import { formatDateShort, formatProjectDisplayName } from "@/lib/utils";
 import {
   projectScalarsForClient,
   serializeProjectCrewRowForClient,
@@ -30,48 +31,50 @@ import {
   deletePayrollList,
 } from "@/actions/payroll";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string | string[] }> };
 
-export default async function ProjectDetailPage({ params }: PageProps) {
-  const { id } = await params;
-  const project = await getProjectById(id);
-  if (!project) notFound();
-
-  const user = await getSessionDashboardUser();
+export default async function ProjectDetailPage({ params, searchParams }: PageProps) {
+  const [{ id }, { tab: requestedTab }, user] = await Promise.all([
+    params,
+    searchParams,
+    getSessionDashboardUser(),
+  ]);
   if (!user) notFound();
   const flags = await getProjectAccessForUser(user, id);
   if (!flags) notFound();
 
-  const [agencies, customers] = flags.canEditProjectInfo
-    ? await Promise.all([getAgencyOptions(), getCustomerOptions()])
-    : [[], []];
+  const tabs = [
+    { id: "overview", label: "Oversikt", visible: flags.canViewProjectInfo },
+    { id: "crew", label: "Crew", visible: flags.canViewCrew },
+    { id: "schedule", label: "Dagsplaner", visible: flags.canViewDagsplan },
+    { id: "payroll", label: "Lønningslister", visible: flags.canViewPayroll },
+    { id: "callsheets", label: "Call sheets", visible: FEATURE_CALL_SHEETS_UI && flags.canViewCallSheets },
+    { id: "access", label: "Tilgang", visible: flags.canManageMemberships },
+  ].filter((tab) => tab.visible);
+  const activeTab = tabs.find((tab) => tab.id === requestedTab)?.id ?? tabs[0]?.id;
+  const isOverview = activeTab === "overview";
+
+  /** Hent kun det aktiv fane viser — prosjekt og valglister parallelt. */
+  const [project, [agencies, customers, leadOptions]] = await Promise.all([
+    getProjectById(id, {
+      crew: isOverview || activeTab === "crew",
+      dagsplaner: activeTab === "schedule",
+      payrollLists: activeTab === "payroll",
+      callSheets: activeTab === "callsheets",
+    }),
+    isOverview && flags.canEditProjectInfo
+      ? Promise.all([getAgencyOptions(), getCustomerOptions(), user.isInternal && flags.canEditCrew ? getProjectLeadOptions() : Promise.resolve([])])
+      : Promise.resolve([[], [], []] as [Awaited<ReturnType<typeof getAgencyOptions>>, Awaited<ReturnType<typeof getCustomerOptions>>, Awaited<ReturnType<typeof getProjectLeadOptions>>]),
+  ]);
+  if (!project) notFound();
+
+  const leads = projectLeads(project.crew);
+  const people = isOverview
+    ? Array.from(new Map([...leadOptions, ...project.crew.map((row) => ({ id: row.personId, fullName: row.person.fullName, roles: row.person.roles }))].map((person) => [person.id, person])).values()).sort((a, b) => a.fullName.localeCompare(b.fullName, "nb"))
+    : [];
 
   const customerName = project.customer?.name?.trim() ?? null;
   const agencyName = project.agency?.name?.trim() ?? null;
-  const customerHasLogo = Boolean(project.customer?.logoUrl);
-  const projectName = project.name.trim();
-  const internalTitle = project.internalTitle?.trim();
-
-  /** Undertekst når kundelogo er sidetittel: prosjektnummer + prosjektnavn. */
-  const lineUnderCustomerLogo = formatProjectDisplayName(project);
-
-  const descParts: string[] = [];
-  if (!customerHasLogo) {
-    if (customerName) descParts.push(customerName);
-    if (internalTitle) descParts.push(internalTitle);
-  }
-
-  const headerDescription = customerHasLogo
-    ? lineUnderCustomerLogo
-    : descParts.length > 0
-      ? descParts.join(" · ")
-      : "Prosjektdetaljer og crew.";
-
-  const headerScreenReader =
-    customerHasLogo && project.customer?.logoUrl
-      ? [project.name, internalTitle].filter(Boolean).join(" · ")
-      : undefined;
-
   const deleteLabel = formatProjectDisplayName(project);
 
   return (
@@ -81,18 +84,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
       </div>
 
       <PageHeader
-        branding={
-          customerHasLogo && project.customer?.logoUrl ? (
-            <PublicLogoImg
-              src={project.customer.logoUrl}
-              alt={customerName ? customerName : "Kunde"}
-              className="h-14 max-w-[240px] object-contain object-left"
-            />
-          ) : undefined
-        }
-        title={!customerHasLogo ? project.name : undefined}
-        screenReaderTitle={headerScreenReader}
-        description={headerDescription}
+        title={projectListLabel(project)}
+        description={[agencyName, project.status === "archived" ? "Arkivert" : "Aktiv"].filter(Boolean).join(" · ")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {flags.canViewCrew ? (
@@ -120,65 +113,53 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         }
       />
 
-      {project.customer &&
-      !project.customer.logoUrl &&
-      project.customer.name ? (
-        <div className="mb-8 flex flex-wrap items-end gap-8 border-b border-border pb-8">
-          <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Kunde</p>
-            <p className="text-lg font-semibold tracking-tight text-foreground">
-              {project.customer.name}
-            </p>
-          </div>
-        </div>
-      ) : null}
+      <nav aria-label="Prosjekt" className="ap-tabs overflow-x-auto overflow-y-hidden">
+        {tabs.map((tab) => (
+          <Link key={tab.id} href={`/projects/${project.id}?tab=${tab.id}`} scroll={false}
+            aria-current={activeTab === tab.id ? "page" : undefined}
+            className="inline-flex shrink-0 items-center whitespace-nowrap">
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
 
       <div className="space-y-4">
-        {flags.canViewProjectInfo ? (
-          <ProjectPageSection title="Prosjektinfo">
+        {activeTab === "overview" && flags.canViewProjectInfo ? (
+          <ProjectPageSection collapsible={false} title="Prosjektinfo">
             <div className="pt-2">
               <ProjectInfoSection
+                canEditLeads={flags.canEditCrew}
                 project={projectScalarsForClient(project)}
                 customerName={customerName}
+                customerLogoUrl={project.customer?.logoUrl ?? null}
                 agencyName={agencyName}
                 canEdit={flags.canEditProjectInfo}
                 agencies={agencies}
                 customers={customers}
+                people={people}
+                leads={leads}
               />
             </div>
           </ProjectPageSection>
         ) : null}
 
-        {flags.canViewCrew ? (
-        <ProjectPageSection title="Prosjektcrew">
+        {activeTab === "crew" && flags.canViewCrew ? (
+        <ProjectPageSection collapsible={false} title="Prosjektcrew">
           <div className="pt-2">
-            <div
-              className={cn(
-                "mb-3 flex flex-wrap items-center gap-2",
-                project.crew.length > 0 && "border-b border-border pb-3",
-              )}
-            >
-              {flags.canEditCrew ? (
-                <ProjectCrewPicker projectId={project.id} />
-              ) : null}
-            </div>
-            <ProjectCrewList
-              rows={project.crew.map(serializeProjectCrewRowForClient)}
+            <ProjectCrewSection
+              projectId={project.id}
+              canAdd={user.isInternal && flags.canEditCrew}
+              canEdit={flags.canEditCrew}
+              canEditRates={flags.canEditPayroll}
+              canOpenProfile={user.isInternal}
+              rows={sortProjectCrewByDepartmentOrder(project.crew).map(serializeProjectCrewRowForClient)}
             />
-            {!project.crew.length ? (
-              <p className="py-4 text-sm text-muted-foreground">
-                Ingen crew ennå.
-                {flags.canEditCrew
-                  ? " Bruk «Legg til fra database» over."
-                  : ""}
-              </p>
-            ) : null}
           </div>
         </ProjectPageSection>
         ) : null}
 
-        {flags.canViewDagsplan ? (
-        <ProjectPageSection
+        {activeTab === "schedule" && flags.canViewDagsplan ? (
+        <ProjectPageSection collapsible={false}
           title="Dagsplaner"
           headerRight={
             flags.canEditDagsplan ? (
@@ -190,24 +171,40 @@ export default async function ProjectDetailPage({ params }: PageProps) {
             ) : null
           }
         >
-          <div className="divide-y divide-border pt-2">
-            {project.dagsplaner.map((dp) => (
-              <div
+          {project.dagsplaner.length ? (
+          <ul className="mt-2 overflow-hidden border border-border bg-card shadow-sm">
+            {project.dagsplaner.map((dp, index) => (
+              <li
                 key={dp.id}
-                className="flex min-h-[52px] flex-wrap items-center justify-between gap-3 py-3 first:pt-0"
+                className="group grid border-b border-border last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto]"
               >
                 <Link
                   href={`/dagsplaner/${dp.id}`}
-                  className="min-w-0 flex-1 transition-colors hover:text-foreground"
+                  className="flex min-w-0 items-center gap-4 px-4 py-4 outline-none transition-colors hover:bg-muted/40 focus-visible:bg-muted/40"
                 >
-                  <p className="font-medium text-foreground">{dp.title}</p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {formatDateShort(dp.shootDate)}
-                  </p>
+                  <span className="flex size-11 shrink-0 flex-col items-center justify-center border border-border bg-muted/35 text-center">
+                    <span className="ap-kicker text-[9px] leading-none text-muted-foreground">
+                      Dag
+                    </span>
+                    <span className="ap-code mt-1 text-sm font-semibold leading-none text-foreground">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[15px] font-semibold text-foreground">
+                      {dp.title}
+                    </span>
+                    <time
+                      dateTime={dp.shootDate.toISOString().slice(0, 10)}
+                      className="ap-code mt-1 block text-muted-foreground"
+                    >
+                      {formatDateShort(dp.shootDate)}
+                    </time>
+                  </span>
                 </Link>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center gap-1 border-t border-border bg-muted/15 px-2 py-2 sm:border-l sm:border-t-0 sm:bg-transparent">
                   <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/dagsplaner/${dp.id}/print`} target="_blank">
+                    <Link href={`/dagsplaner/${dp.id}/print`} target="_blank" rel="noopener noreferrer">
                       Print
                     </Link>
                   </Button>
@@ -226,9 +223,10 @@ export default async function ProjectDetailPage({ params }: PageProps) {
                   />
                   ) : null}
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
+          ) : null}
           {!project.dagsplaner.length ? (
             <p className="py-4 text-sm text-muted-foreground">
               Ingen dagsplaner ennå. Opprett en for hver innspillingsdag.
@@ -237,8 +235,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         </ProjectPageSection>
         ) : null}
 
-        {flags.canViewPayroll ? (
-        <ProjectPageSection
+        {activeTab === "payroll" && flags.canViewPayroll ? (
+        <ProjectPageSection collapsible={false}
           title="Lønningslister"
           headerRight={
             flags.canEditPayroll ? (
@@ -262,15 +260,15 @@ export default async function ProjectDetailPage({ params }: PageProps) {
               >
                 <Link
                   href={`/projects/${project.id}/lonningsliste/${pl.id}`}
-                  className="min-w-0 flex-1 rounded-md py-1 transition-colors hover:bg-muted/40"
+                  className="min-w-0 flex-1 py-1 transition-colors hover:bg-muted/40"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium text-foreground">{pl.title}</p>
+                    <p className="font-medium">{pl.title}</p>
                     <Badge variant={pl.submitted ? "success" : "warning"}>
                       {pl.submitted ? "Innsendt" : "Påbegynt"}
                     </Badge>
                   </div>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
+                  <p className="ap-code mt-0.5 text-muted-foreground">
                     {pl._count.rows}{" "}
                     {pl._count.rows === 1 ? "rad" : "rader"} · Oppdatert{" "}
                     {formatDateShort(pl.updatedAt)}
@@ -315,8 +313,8 @@ export default async function ProjectDetailPage({ params }: PageProps) {
         </ProjectPageSection>
         ) : null}
 
-        {FEATURE_CALL_SHEETS_UI && flags.canViewCallSheets ? (
-          <ProjectPageSection
+        {activeTab === "callsheets" && FEATURE_CALL_SHEETS_UI && flags.canViewCallSheets ? (
+          <ProjectPageSection collapsible={false}
             title="Call sheets"
             headerRight={
               flags.canEditCallSheets ? (
@@ -336,11 +334,11 @@ export default async function ProjectDetailPage({ params }: PageProps) {
                 >
                   <Link
                     href={`/callsheets/${cs.id}`}
-                    className="flex min-h-[52px] min-w-0 flex-1 items-center justify-between gap-4 rounded-md transition-colors hover:bg-muted/40"
+                    className="flex min-h-[52px] min-w-0 flex-1 items-center justify-between gap-4 transition-colors hover:bg-muted/40"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium text-foreground">{cs.name}</p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
+                      <p className="font-medium">{cs.name}</p>
+                      <p className="ap-code mt-0.5 text-muted-foreground">
                         {formatDateShort(cs.date)}
                         {cs.location ? ` · ${cs.location}` : ""}
                       </p>
@@ -369,10 +367,10 @@ export default async function ProjectDetailPage({ params }: PageProps) {
           </ProjectPageSection>
         ) : null}
 
-        <ProjectAccessSection projectId={project.id} flags={flags} />
+        {activeTab === "access" ? <ProjectAccessSection projectId={project.id} flags={flags} /> : null}
       </div>
 
-      {user.isInternal ? (
+      {activeTab === "overview" && user.isInternal ? (
       <div className="mt-10 border-t border-border pt-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">

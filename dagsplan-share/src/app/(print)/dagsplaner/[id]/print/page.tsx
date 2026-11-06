@@ -254,8 +254,14 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
   const d = await getDagsplanById(id);
   if (!d) notFound();
 
-  const agencyLogo = d.agencyLogoUrl || d.project.agency?.logoUrl || null;
-  const clientLogo = d.clientLogoUrl || d.project.customer?.logoUrl || null;
+  const agencyLogo =
+    d.agencyLogoUrl === ""
+      ? null
+      : d.agencyLogoUrl || d.project.agency?.logoUrl || null;
+  const clientLogo =
+    d.clientLogoUrl === ""
+      ? null
+      : d.clientLogoUrl || d.project.customer?.logoUrl || null;
 
   const crewMeetChunks =
     d.crewEntries.length > 0 ? chunkCrewMeetForPrint(d.crewEntries) : [];
@@ -611,7 +617,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                 {showShotColumn ? (
                   <th className={cn(thBase, "text-center")}>{pt.shot}</th>
                 ) : null}
-                <th className={thBase}>{pt.sceneSetting}</th>
+                <th className={thBase}>{pt.scene}</th>
                 <th className={cn(thNum, "whitespace-normal")}>{pt.actors}</th>
               </tr>
             </thead>

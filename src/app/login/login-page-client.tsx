@@ -1,7 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { AparentLogo } from "@/components/aparent-logo";
+import { ProductLockup, ProductWordmark } from "@/components/product-mark";
+import { PRODUCT_SERVICE, WRAPUP_THEME_ACTIVE } from "@/lib/product";
 import { safeLoginRedirect } from "@/lib/login-redirect";
 import { LoginForm } from "./login-form";
 
@@ -14,23 +15,14 @@ export function LoginPageClient() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-neutral-100 px-4 py-8 sm:px-8">
-      <div className="w-full max-w-md rounded-[1.75rem] border border-neutral-200/90 bg-white px-8 py-10 shadow-[0_18px_60px_rgba(0,0,0,0.08)] sm:px-10">
-        <header className="flex flex-col items-center text-center">
-          <div className="flex w-full flex-col items-center gap-[50px]">
-            <div className="flex w-full justify-center">
-              <AparentLogo
-                alt=""
-                className="h-[50.4px] max-h-[60.5px] w-auto max-w-full object-contain object-center"
-              />
-            </div>
-            <p className="text-center text-[14px] font-medium leading-tight tracking-[0.2em] text-muted-foreground [font-family:var(--font-production-dashboard)]">
-              <span className="block">PRODUCTION</span>
-              <span className="block">DASHBOARD</span>
-            </p>
-          </div>
-        </header>
-        <div className="mt-10">
+    <div className="flex min-h-screen w-full flex-1 flex-col items-center justify-center px-4 py-12 sm:py-16">
+      <div className="flex w-full max-w-md flex-col items-center">
+        <div className="flex w-full flex-col items-center gap-6">
+          {WRAPUP_THEME_ACTIVE ? (
+            <ProductLockup service={PRODUCT_SERVICE} size="lg" />
+          ) : (
+            <ProductWordmark size="lg" />
+          )}
           <LoginForm onSuccess={handleSuccess} />
         </div>
       </div>

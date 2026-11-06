@@ -111,6 +111,7 @@ export function departmentOrderRank(title: string): number {
 
   if (
     t.includes("lys-assistent") ||
+    t.includes("lysassistent") ||
     t.includes("lys assistent") ||
     /\bbest\s*boy\b/.test(t) ||
     t.includes("best-boy") ||
@@ -239,4 +240,19 @@ export function sortDagsplanCrewRowsByDepartmentOrder<
       ),
     )
     .map(({ row }) => row);
+}
+
+/** Crewlisten følger samme hierarki; manuell rekkefølge beholdes innenfor hvert nivå. */
+export function sortCrewListMembersByDepartmentOrder<T extends {
+  sortOrder: number;
+  projectCrew: ProjectCrewWithPerson;
+}>(members: T[]): T[] {
+  return [...members].sort((a, b) => compareCrewDepartmentOrder(
+    resolveRoleForProject(a.projectCrew),
+    resolveRoleForProject(b.projectCrew),
+    a.sortOrder,
+    b.sortOrder,
+    0,
+    0,
+  ));
 }

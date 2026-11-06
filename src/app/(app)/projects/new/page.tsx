@@ -1,3 +1,4 @@
+import { getProjectLeadOptions } from "@/actions/projects";
 import { getAgencyOptions } from "@/actions/agencies";
 import { getCustomerOptions } from "@/actions/customers";
 import { PageHeader } from "@/components/page-header";
@@ -7,9 +8,10 @@ import { requireInternalUser } from "@/lib/project-access";
 
 export default async function NewProjectPage() {
   await requireInternalUser();
-  const [agencies, customers] = await Promise.all([
+  const [agencies, customers, people] = await Promise.all([
     getAgencyOptions(),
     getCustomerOptions(),
+    getProjectLeadOptions(),
   ]);
 
   return (
@@ -18,10 +20,11 @@ export default async function NewProjectPage() {
         <PageBackLink href="/">Tilbake</PageBackLink>
       </div>
       <PageHeader
+        kicker="Prosjekt"
         title="Nytt prosjekt"
         description="Koble kunde og byrå fra registeret. Crew legges til på prosjektsiden."
       />
-      <ProjectNewForm agencies={agencies} customers={customers} />
+      <ProjectNewForm agencies={agencies} customers={customers} people={people} />
     </>
   );
 }

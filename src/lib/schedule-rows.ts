@@ -1,4 +1,5 @@
-export type ScheduleRowKind = "anchor" | "sequential" | "free";
+export type ScheduleRowKind = "anchor" | "sequential" | "free" | "untimed";
+export type ScheduleImageFit = "contain" | "cover";
 
 /** Lagret i `interiorExterior` — company move-rad (bil-ikon i I/E). */
 export const SCHEDULE_INTERIOR_EXTERIOR_TRUCK = "truck";
@@ -12,11 +13,19 @@ export type ScheduleRow = {
   durationMinutes: number | null;
   interiorExterior: string;
   dayNight: string;
+  /** Eksisterende Scene / setting-data beholdes her og vises nå som «Scene». */
   sceneSetting: string;
+  setting: string;
   info: string;
   actorNumbers: string;
+  costume: string;
   /** Storyboard / referansebilde (én per rad). */
   shotImageUrl: string;
+  shotImageAssetId: string;
+  shotImageZoom: number;
+  shotImagePositionX: number;
+  shotImagePositionY: number;
+  shotImageFit: ScheduleImageFit;
   /** Bakgrunnsfarge for raden (#RRGGBB), tom = standard. */
   rowBgColor: string;
 };
@@ -90,7 +99,12 @@ export function inferDurationMinutes(
 }
 
 function isRowKind(s: string | null | undefined): s is ScheduleRowKind {
-  return s === "anchor" || s === "sequential" || s === "free";
+  return (
+    s === "anchor" ||
+    s === "sequential" ||
+    s === "free" ||
+    s === "untimed"
+  );
 }
 
 /** Les lagret verdi (inkl. eldre rader uten felt). */
@@ -130,6 +144,15 @@ export function recalculateScheduleRows(rows: ScheduleRow[]): ScheduleRow[] {
 
   for (let i = 0; i < out.length; i++) {
     const row = out[i];
+    if (row.rowKind === "untimed") {
+      out[i] = {
+        ...row,
+        startTime: "",
+        endTime: "",
+        durationMinutes: 0,
+      };
+      continue;
+    }
     if (row.rowKind === "free") {
       const dur = inferDurationMinutes(row.startTime, row.endTime);
       out[i] = { ...row, durationMinutes: dur };
@@ -228,6 +251,7 @@ export function recalculateScheduleRows(rows: ScheduleRow[]): ScheduleRow[] {
 export function sumScheduleDurationMinutes(rows: ScheduleRow[]): number {
   let acc = 0;
   for (const r of rows) {
+    if (r.rowKind === "untimed") continue;
     if (r.rowKind === "free") {
       const a = parseTimeToMinutes(r.startTime);
       const b = parseTimeToMinutes(r.endTime);
@@ -253,7 +277,9 @@ export function applyReorderPreserveSchedule(
 
   const prevTime = prevFirst.startTime?.trim() ?? "";
   if (!prevTime) return reordered;
-  if (newFirst.rowKind === "free") return reordered;
+  if (newFirst.rowKind === "free" || newFirst.rowKind === "untimed") {
+    return reordered;
+  }
 
   let nf: ScheduleRow = { ...newFirst };
   if (nf.rowKind === "sequential") {
@@ -272,7 +298,7 @@ export function applyRemovePreserveSchedule(
   const anchorTime = rowsBefore[0]?.startTime?.trim();
   if (!anchorTime) return filtered;
   const nf = filtered[0];
-  if (nf.rowKind === "free") return filtered;
+  if (nf.rowKind === "free" || nf.rowKind === "untimed") return filtered;
   const promoted =
     nf.rowKind === "sequential" ? { ...nf, rowKind: "anchor" as const } : nf;
   return [{ ...promoted, startTime: anchorTime }, ...filtered.slice(1)];
@@ -280,20 +306,27 @@ export function applyRemovePreserveSchedule(
 
 export function emptyScheduleRow(
   id: string,
-  kind: "sequential" | "anchor" | "free",
+  kind: ScheduleRowKind,
 ): ScheduleRow {
   return {
     id,
     rowKind: kind,
     startTime: "",
     endTime: "",
-    durationMinutes: kind === "free" ? 0 : 30,
+    durationMinutes: kind === "free" || kind === "untimed" ? 0 : 30,
     interiorExterior: "",
     dayNight: "",
     sceneSetting: "",
+    setting: "",
     info: "",
     actorNumbers: "",
+    costume: "",
     shotImageUrl: "",
+    shotImageAssetId: "",
+    shotImageZoom: 1,
+    shotImagePositionX: 50,
+    shotImagePositionY: 50,
+    shotImageFit: "contain",
     rowBgColor: "",
   };
 }
@@ -324,12 +357,16 @@ export function isScheduleWrapRow(row: { info?: string | null }): boolean {
   return info === SCHEDULE_WRAP_INFO || info === SCHEDULE_PRE_WRAP_INFO;
 }
 
+export function isScheduleUntimedRow(row: { rowKind?: string | null }): boolean {
+  return row.rowKind === "untimed";
+}
+
 /** Etter «Call time» (rad 0) skal neste rad være anker med egen fra-tid (ikke kopiert fra call time). */
 function ensureAnchorRowAfterCallTime(rows: ScheduleRow[]): ScheduleRow[] {
   if (rows.length < 2) return rows;
   if (!isScheduleCallTimeRow(rows[0])) return rows;
   const out = rows.map((r) => ({ ...r }));
-  if (out[1].rowKind === "free") return out;
+  if (out[1].rowKind === "free" || out[1].rowKind === "untimed") return out;
   out[1] = { ...out[1], rowKind: "anchor" };
   return out;
 }

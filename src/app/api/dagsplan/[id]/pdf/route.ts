@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Page } from "puppeteer-core";
 import { getSessionDashboardUser } from "@/lib/auth-session";
 import { launchChromiumForPdf } from "@/lib/chromium-for-pdf";
 import { prisma } from "@/lib/db";
@@ -10,6 +11,69 @@ import {
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+const MAX_PDF_BYTES = 10_000_000;
+const PDF_IMAGE_PRESETS = [
+  { maxDimension: 1_000, quality: 0.7 },
+  { maxDimension: 800, quality: 0.55 },
+  { maxDimension: 600, quality: 0.4 },
+  { maxDimension: 450, quality: 0.3 },
+] as const;
+
+async function compressMarkedImages(
+  page: Page,
+  preset: (typeof PDF_IMAGE_PRESETS)[number],
+) {
+  return page.evaluate(async ({ maxDimension, quality }) => {
+    const images = Array.from(
+      document.querySelectorAll<HTMLImageElement>("img[data-pdf-compress]"),
+    );
+
+    let compressed = 0;
+    let failed = 0;
+
+    for (const image of images) {
+      if (!image.complete || image.naturalWidth < 1 || image.naturalHeight < 1) {
+        failed += 1;
+        continue;
+      }
+
+      try {
+        const scale = Math.min(
+          1,
+          maxDimension / Math.max(image.naturalWidth, image.naturalHeight),
+        );
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          failed += 1;
+          continue;
+        }
+
+        context.fillStyle = "#fff";
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+        const compressedSrc = canvas.toDataURL("image/jpeg", quality);
+
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () => reject(new Error("Komprimert bilde kunne ikke lastes"));
+          image.src = compressedSrc;
+        });
+        compressed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    return { compressed, failed };
+  }, preset);
+}
 
 export async function GET(
   request: NextRequest,
@@ -73,12 +137,42 @@ export async function GET(
     });
     await new Promise((r) => setTimeout(r, 400));
 
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      preferCSSPageSize: true,
-      margin: { top: "11mm", right: "12mm", bottom: "11mm", left: "12mm" },
-    });
+    await page
+      .waitForFunction(
+        () =>
+          Array.from(document.querySelectorAll("img[data-pdf-compress]")).every(
+            (image) =>
+              image instanceof HTMLImageElement &&
+              image.complete &&
+              image.naturalWidth > 0 &&
+              image.naturalHeight > 0,
+          ),
+        { timeout: 15_000 },
+      )
+      .catch(() => undefined);
+
+    let pdfBuffer: Uint8Array | undefined;
+    for (const preset of PDF_IMAGE_PRESETS) {
+      const result = await compressMarkedImages(page, preset);
+      if (result.failed > 0) {
+        console.warn("dagsplan pdf image compression", result);
+      }
+
+      pdfBuffer = await page.pdf({
+        format: "A4",
+        printBackground: true,
+        preferCSSPageSize: true,
+        margin: { top: "11mm", right: "12mm", bottom: "11mm", left: "12mm" },
+      });
+
+      if (pdfBuffer.byteLength <= MAX_PDF_BYTES) break;
+    }
+
+    if (!pdfBuffer || pdfBuffer.byteLength > MAX_PDF_BYTES) {
+      throw new Error(
+        `PDF-en kunne ikke komprimeres under ${MAX_PDF_BYTES} bytes`,
+      );
+    }
 
     const basename = buildDagsplanPdfBasename(row.title, row.shootDate);
     const filename = sanitizePayrollPdfFilename(`${basename}.pdf`);

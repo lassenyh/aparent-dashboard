@@ -13,7 +13,7 @@ import {
 } from "@/lib/logo-upload";
 
 const customerSchema = z.object({
-  name: z.string().min(1, "Navn er påkrevd"),
+  name: z.string().trim().min(1, "Navn er påkrevd"),
   logoUrl: z.string().optional(),
 });
 
@@ -55,6 +55,15 @@ export async function createCustomer(
   _prev: { error?: string } | null,
   formData: FormData,
 ): Promise<{ error?: string }> {
+  const result = await createCustomerInline(null, formData);
+  if (result.customer) redirect(`/kunder/${result.customer.id}`);
+  return { error: result.error };
+}
+
+export async function createCustomerInline(
+  _prev: { error?: string; customer?: { id: string; name: string } } | null,
+  formData: FormData,
+): Promise<{ error?: string; customer?: { id: string; name: string } }> {
   await requireInternalUser();
   const raw = {
     name: String(formData.get("name") ?? ""),
@@ -95,7 +104,7 @@ export async function createCustomer(
   }
 
   revalidatePath("/kunder");
-  redirect(`/kunder/${c.id}`);
+  return { customer: { id: c.id, name: c.name } };
 }
 
 export async function updateCustomer(

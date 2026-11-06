@@ -11,6 +11,7 @@ export default async function NewCustomerPage() {
         <PageBackLink href="/kunder">Kunder</PageBackLink>
       </div>
       <PageHeader
+        kicker="Kunde"
         title="Ny kunde"
         description="Logo vises på prosjektsiden og på call sheet PDF."
       />

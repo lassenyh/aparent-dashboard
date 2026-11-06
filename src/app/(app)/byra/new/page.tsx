@@ -11,6 +11,7 @@ export default async function NewAgencyPage() {
         <PageBackLink href="/byra">Byrå</PageBackLink>
       </div>
       <PageHeader
+        kicker="Byrå"
         title="Nytt byrå"
         description="Logo vises på call sheet PDF sammen med org.nr."
       />

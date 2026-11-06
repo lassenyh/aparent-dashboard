@@ -12,6 +12,7 @@ export default async function CrewImportPage() {
         <PageBackLink href="/crew">Crew-database</PageBackLink>
       </div>
       <PageHeader
+        kicker="Crew"
         title="Importer crew fra PDF eller tekst"
         description="Last opp PDF eller lim inn tekst. PDF med «CREW INFO» (f.eks. dagsplan): avdelingstype, navn og mobil. Ellers tabell/stabsliste: (1) yrke/rolle, (2) navn, deretter telefon og e-post. Du godkjenner før opprettelse. Duplikater hoppes over."
       />

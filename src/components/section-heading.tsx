@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** Section title — medium emphasis, consistent across app */
+/** Section title — Archivo, matching WrapUp Sign. */
 export function SectionHeading({
   children,
   className,
@@ -9,12 +9,7 @@ export function SectionHeading({
   className?: string;
 }) {
   return (
-    <h2
-      className={cn(
-        "mb-4 text-[13px] font-medium uppercase tracking-[0.06em] text-muted-foreground",
-        className,
-      )}
-    >
+    <h2 className={cn("ap-section-title mb-4", className)}>
       {children}
     </h2>
   );

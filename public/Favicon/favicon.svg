@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" shape-rendering="crispEdges">
+  <title>WrapUp</title>
+  <style>
+    .l1 { fill: #c4bca8; }
+    .l2 { fill: #9a9484; }
+    .l3 { fill: #5c574a; }
+    .seal { fill: #7a2e2a; }
+    @media (prefers-color-scheme: dark) {
+      .l1 { fill: #c4bca8; }
+      .l2 { fill: #9a9484; }
+      .l3 { fill: #7a7364; }
+      .seal { fill: #c8756b; }
+    }
+  </style>
+  <rect class="l1" x="0" y="0" width="6" height="6" />
+  <rect class="l2" x="7" y="0" width="6" height="6" />
+  <rect class="l3" x="0" y="7" width="6" height="6" />
+  <rect class="seal" x="7" y="7" width="8" height="8" />
+</svg>

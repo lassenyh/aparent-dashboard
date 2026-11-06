@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { ChevronDown, ChevronUp } from "lucide-react";
@@ -10,6 +9,7 @@ import {
   removeProjectCrewListMember,
 } from "@/actions/project-crew-list";
 import { Button } from "@/components/ui/button";
+import { departmentOrderRank } from "@/lib/crew-department-order";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -42,7 +42,6 @@ export function ProjectDefaultCrewListEditor({
   rows: DefaultCrewRowProps[];
   availableToAdd: DefaultCrewAvailableProps[];
 }) {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
 
   const showDietaryColumn = rows.some((r) => r.dietaryAllergiesLine);
@@ -54,7 +53,6 @@ export function ProjectDefaultCrewListEditor({
     startTransition(async () => {
       try {
         await fn();
-        router.refresh();
       } catch {
         toast.error("Noe gikk galt");
       }
@@ -139,7 +137,7 @@ export function ProjectDefaultCrewListEditor({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground"
-                  disabled={pending || index === 0}
+                  disabled={pending || index === 0 || departmentOrderRank(rows[index - 1].roleLine) !== departmentOrderRank(row.roleLine)}
                   aria-label="Flytt opp"
                   onClick={() =>
                     run(async () => {
@@ -158,7 +156,7 @@ export function ProjectDefaultCrewListEditor({
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground"
-                  disabled={pending || index === rows.length - 1}
+                  disabled={pending || index === rows.length - 1 || departmentOrderRank(rows[index + 1].roleLine) !== departmentOrderRank(row.roleLine)}
                   aria-label="Flytt ned"
                   onClick={() =>
                     run(async () => {

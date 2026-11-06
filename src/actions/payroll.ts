@@ -31,6 +31,8 @@ export async function getPayrollSensitiveFieldsFromPerson(
 ) {
   const { flags } = await requireProjectAccess(projectId);
   assertPermission(flags, "canEditPayroll");
+  assertPermission(flags, "canViewSensitiveData");
+  if (!await prisma.projectCrew.findFirst({ where: { projectId, personId } })) notFound();
 
   const list = await prisma.payrollList.findFirst({
     where: { id: listId, projectId },
@@ -222,16 +224,16 @@ async function loadPayrollPageData(
         personId: r.personId,
         fullName: r.fullName,
         projectLabel: r.projectLabel,
-        addressLine: r.addressLine,
-        postalCode: r.postalCode,
-        city: r.city,
-        country: r.country,
+        addressLine: flags.canViewSensitiveData ? r.addressLine : null,
+        postalCode: flags.canViewSensitiveData ? r.postalCode : null,
+        city: flags.canViewSensitiveData ? r.city : null,
+        country: flags.canViewSensitiveData ? r.country : null,
         honorar: r.honorar != null ? Number(r.honorar) : null,
         includesHolidayPay: r.includesHolidayPay,
-        nationalId: useMask
+        nationalId: !flags.canViewSensitiveData ? null : useMask
           ? maskNationalId(r.nationalId)
           : r.nationalId,
-        bankAccount: useMask
+        bankAccount: !flags.canViewSensitiveData ? null : useMask
           ? maskBankAccount(r.bankAccount)
           : r.bankAccount,
         mobile: r.mobile,
@@ -247,10 +249,10 @@ async function loadPayrollPageData(
       fullName: pc.person.fullName,
       phone: pc.person.phone,
       email: pc.person.email,
-      addressLine: pc.person.addressLine,
-      postalCode: pc.person.postalCode,
-      city: pc.person.city,
-      country: pc.person.country,
+      addressLine: flags.canViewSensitiveData ? pc.person.addressLine : null,
+      postalCode: flags.canViewSensitiveData ? pc.person.postalCode : null,
+      city: flags.canViewSensitiveData ? pc.person.city : null,
+      country: flags.canViewSensitiveData ? pc.person.country : null,
       roleLine: resolveRoleForProject(pc),
       honorar:
         resolveRateForProject(pc) != null
@@ -306,6 +308,7 @@ export async function savePayrollRows(
 
   const { flags } = await requireProjectAccess(projectId);
   assertPermission(flags, "canEditPayroll");
+  assertPermission(flags, "canViewSensitiveData");
 
   let titlePatch: string | undefined;
   if (options?.title !== undefined) {
@@ -645,7 +648,8 @@ export async function searchPeopleForPayroll(
   q: string,
   limit = 12,
 ) {
-  const { flags } = await requireProjectAccess(projectId);
+  const { user, flags } = await requireProjectAccess(projectId);
+  if (!user.isInternal) return [];
   assertPermission(flags, "canEditPayroll");
 
   const list = await prisma.payrollList.findFirst({
@@ -696,4 +700,24 @@ export async function searchPeopleForPayroll(
     : all.filter((p) => !exclude.has(p.id));
 
   return filtered.slice(0, limit).map(serializePersonForClient);
+}
+
+/** Editors without sensitive-data access can change fees without touching hidden details. */
+export async function updatePayrollFees(projectId: string, listId: string, form: FormData) {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditPayroll");
+  await prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "PayrollList" WHERE id = ${listId} AND "projectId" = ${projectId} FOR UPDATE`;
+    const list = await tx.payrollList.findFirst({ where: { id: listId, projectId, submitted: false }, include: { rows: true } });
+    if (!list) return;
+    for (const row of list.rows) {
+      if (row.isSectionHeader || !form.has(`fee-${row.id}`)) continue;
+      const raw = String(form.get(`fee-${row.id}`) ?? "").trim();
+      const amount = Number(raw.replace(",", "."));
+      if (!raw || !Number.isFinite(amount) || amount < 0 || amount > 99999999) continue;
+      await tx.payrollRow.update({ where: { id: row.id }, data: { honorar: amount } });
+    }
+    await tx.payrollList.update({ where: { id: listId }, data: { documentSavedAt: new Date() } });
+  });
+  revalidatePayrollPaths(projectId, listId);
 }

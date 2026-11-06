@@ -1,3 +1,4 @@
+import { requireProjectAccess } from "@/lib/project-access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -22,6 +23,7 @@ export default async function PayrollListsIndexPage({ params }: PageProps) {
   if (!data) notFound();
 
   const { project, lists } = data;
+  const { flags } = await requireProjectAccess(id);
 
   return (
     <>
@@ -29,11 +31,12 @@ export default async function PayrollListsIndexPage({ params }: PageProps) {
         <PageBackLink href={`/projects/${project.id}`}>{project.name}</PageBackLink>
       </div>
       <PageHeader
+        kicker="Lønn"
         title="Lønningslister"
         description="Opprett én liste per oppgjør eller periode. Rediger rader, merk som innsendt når den er sendt til regnskapsfører."
       />
 
-      <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-border bg-muted/20 px-4 py-4">
+      {flags.canEditPayroll && <div className="mb-6 flex flex-wrap items-end gap-3 border border-border bg-muted/20 px-4 py-4">
         <form action={createPayrollListFormAction} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="projectId" value={project.id} />
           <div className="space-y-1.5">
@@ -49,7 +52,7 @@ export default async function PayrollListsIndexPage({ params }: PageProps) {
             Ny lønningsliste
           </Button>
         </form>
-      </div>
+      </div>}
 
       <div className="divide-y divide-border rounded-lg border border-border">
         {lists.length === 0 ? (
@@ -88,11 +91,11 @@ export default async function PayrollListsIndexPage({ params }: PageProps) {
                     PDF
                   </Link>
                 </Button>
-                <ConfirmDeleteListItem
+                {flags.canEditPayroll && <ConfirmDeleteListItem
                   title="Slette lønningsliste?"
                   description={`«${list.title}» og alle rader i den slettes permanent.`}
                   formAction={deletePayrollList.bind(null, project.id, list.id)}
-                />
+                />}
               </div>
             </div>
           ))

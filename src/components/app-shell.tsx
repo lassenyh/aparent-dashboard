@@ -1,4 +1,4 @@
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppMobileNav, AppSidebar } from "@/components/app-sidebar";
 
 export function AppShell({
   children,
@@ -8,13 +8,12 @@ export function AppShell({
   isInternal: boolean;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="flex min-h-full flex-1 flex-col md:flex-row">
       <AppSidebar isInternal={isInternal} />
-      <div className="min-h-screen min-w-0 pl-[188px] md:pl-[200px]">
-        <main>
-          <div className="mx-auto w-full max-w-[1120px] px-6 py-8 md:px-8">
-            {children}
-          </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <AppMobileNav isInternal={isInternal} />
+        <main className="min-w-0 flex-1 px-3 py-5 sm:px-4 lg:px-5">
+          {children}
         </main>
       </div>
     </div>

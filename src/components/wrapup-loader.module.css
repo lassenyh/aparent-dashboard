@@ -1,0 +1,21 @@
+.mark { width: 160px; height: 160px; }
+.mark[data-centered="true"] .position { animation: centerArrival var(--duration) cubic-bezier(.4,0,.2,1) both; }
+.mark[data-centered="true"][data-loop="true"] .position { animation-name: centerOrbit; animation-iteration-count: infinite; }
+.mark[data-paused="true"] .position { animation-play-state: paused; }
+@keyframes centerArrival { 0%, 68% { transform: translate(15px, 15px); } 88%, 100% { transform: translate(5px, 5px); } }
+@keyframes centerOrbit { 0%, 40% { transform: translate(15px, 15px); } 51%, 64% { transform: translate(5px, 5px); } 73%, 100% { transform: translate(15px, 15px); } }
+@media (prefers-reduced-motion: reduce) { .mark[data-centered="true"] .position { animation: none; transform: translate(5px, 5px); } }
+.rotor { position: relative; width: 130px; height: 130px; transform-origin: 65px 65px; animation: arrive var(--duration) cubic-bezier(.4,0,.2,1) both; }
+.rotor span { position: absolute; width: 60px; height: 60px; }
+.light { left: 0; top: 0; background: #c4bca8; }
+.medium { left: 70px; top: 0; background: #9a9484; }
+.dark { left: 0; top: 70px; background: #5c574a; }
+.red { left: 70px; top: 70px; background: #7a2e2a; transform-origin: top left; animation: grow var(--duration) cubic-bezier(.4,0,.2,1) both; }
+.mark[data-loop="true"] .rotor { animation-name: orbit; animation-iteration-count: infinite; }
+.mark[data-loop="true"] .red { animation-name: seal; animation-iteration-count: infinite; }
+.mark[data-paused="true"] .rotor, .mark[data-paused="true"] .red { animation-play-state: paused; }
+@keyframes arrive { 0%, 10% { transform: rotate(-180deg); } 34%, 42% { transform: rotate(-90deg); } 66%, 100% { transform: rotate(0); } }
+@keyframes grow { 0%, 68% { transform: scale(1); } 88%, 100% { transform: scale(1.3333333333); } }
+@keyframes orbit { 0%, 6% { transform: rotate(-180deg); } 20%, 25% { transform: rotate(-90deg); } 39%, 73% { transform: rotate(0); } 85%, 88% { transform: rotate(90deg); } 100% { transform: rotate(180deg); } }
+@keyframes seal { 0%, 40% { transform: scale(1); } 51%, 64% { transform: scale(1.3333333333); } 73%, 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .mark .rotor { animation: none; transform: rotate(0); } .mark .red { animation: none; transform: scale(1.3333333333); } }

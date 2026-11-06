@@ -20,6 +20,7 @@ export default async function CustomerDetailPage({ params }: PageProps) {
         <PageBackLink href="/kunder">Kunder</PageBackLink>
       </div>
       <PageHeader
+        kicker="Kunde"
         title={customer.name}
         description={`${customer._count.projects} prosjekt`}
       />

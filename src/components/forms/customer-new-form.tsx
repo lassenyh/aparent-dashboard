@@ -1,14 +1,26 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { createCustomer } from "@/actions/customers";
+import { BrregSearch } from "@/components/brreg-search";
+import { createCustomer, createCustomerInline } from "@/actions/customers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function CustomerNewForm() {
-  const [state, action, pending] = useActionState(createCustomer, null);
+export function CustomerNewForm({ onCreated, onCancel, onPendingChange }: {
+  onCreated?: (customer: { id: string; name: string }) => void;
+  onCancel?: () => void;
+  onPendingChange?: (pending: boolean) => void;
+} = {}) {
+  const id = useId();
+  const [state, action, pending] = useActionState<{ error?: string; customer?: { id: string; name: string } } | null, FormData>(onCreated ? createCustomerInline : createCustomer, null);
+  useEffect(() => {
+    if (state?.customer) onCreated?.(state.customer);
+  }, [state, onCreated]);
+  useEffect(() => { onPendingChange?.(pending); }, [pending, onPendingChange]);
+
+  const [name, setName] = useState("");
 
   return (
     <form action={action} className="max-w-lg space-y-6">
@@ -18,15 +30,19 @@ export function CustomerNewForm() {
         </p>
       ) : null}
 
+      <BrregSearch disabled={pending} onSelect={(organization) => {
+        setName(organization.name);
+      }} />
+
       <div className="space-y-2">
-        <Label htmlFor="name">Kundenavn</Label>
-        <Input id="name" name="name" required />
+        <Label htmlFor={`${id}-name`}>Kundenavn</Label>
+        <Input id={`${id}-name`} name="name" required value={name} onChange={(event) => setName(event.target.value)} />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="logoFile">Logo fra datamaskin</Label>
+        <Label htmlFor={`${id}-logoFile`}>Logo fra datamaskin</Label>
         <Input
-          id="logoFile"
+          id={`${id}-logoFile`}
           name="logoFile"
           type="file"
           accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
@@ -37,9 +53,9 @@ export function CustomerNewForm() {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="logoUrl">Alternativt: logo (URL)</Label>
+        <Label htmlFor={`${id}-logoUrl`}>Alternativt: logo (URL)</Label>
         <Input
-          id="logoUrl"
+          id={`${id}-logoUrl`}
           name="logoUrl"
           type="text"
           inputMode="url"
@@ -55,9 +71,9 @@ export function CustomerNewForm() {
         <Button type="submit" variant="sidebar" disabled={pending}>
           {pending ? "Oppretter…" : "Opprett kunde"}
         </Button>
-        <Button type="button" variant="outline" asChild>
-          <Link href="/kunder">Avbryt</Link>
-        </Button>
+        {onCancel ? <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>Avbryt</Button> : (
+          <Button type="button" variant="outline" asChild><Link href="/kunder">Avbryt</Link></Button>
+        )}
       </div>
     </form>
   );

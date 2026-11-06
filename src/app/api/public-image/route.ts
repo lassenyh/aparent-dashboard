@@ -4,6 +4,23 @@ import { isVercelBlobPublicUrl } from "@/lib/img-url";
 export const runtime = "nodejs";
 
 const ALLOWED_CONTENT_PREFIX = "image/";
+const UPSTREAM_IMAGE_TIMEOUT_MS = 10_000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(
+      () => reject(new Error(`Timed out after ${timeoutMs} ms`)),
+      timeoutMs,
+    );
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
 
 function contentTypeForImageResponse(
   headerCt: string,
@@ -78,6 +95,7 @@ export async function GET(request: Request) {
     upstream = await fetch(target, {
       redirect: "follow",
       cache: "no-store",
+      signal: AbortSignal.timeout(UPSTREAM_IMAGE_TIMEOUT_MS),
       headers: {
         Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
         "User-Agent": BROWSER_LIKE_UA,
@@ -95,7 +113,10 @@ export async function GET(request: Request) {
 
   if (process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
     try {
-      const result = await get(target, { access: "public" });
+      const result = await withTimeout(
+        get(target, { access: "public" }),
+        UPSTREAM_IMAGE_TIMEOUT_MS,
+      );
       if (result?.statusCode === 200 && result.stream) {
         const rawCt = result.blob.contentType ?? "";
         const ct = contentTypeForImageResponse(rawCt, target);

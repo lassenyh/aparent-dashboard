@@ -14,6 +14,7 @@ const roleSchema = z.enum(["owner", "admin", "editor", "viewer"]);
 const membershipUpdateSchema = z.object({
   role: roleSchema,
   canViewProjectInfo: z.boolean(),
+  canEditProjectInfo: z.boolean(),
   canViewCrew: z.boolean(),
   canEditCrew: z.boolean(),
   canViewDagsplan: z.boolean(),
@@ -74,7 +75,8 @@ export async function addUserToProject(
     formData.get(k) === "on" || formData.get(k) === "true";
 
   const perm = {
-    canViewProjectInfo: bool("canViewProjectInfo"),
+    canViewProjectInfo: bool("canViewProjectInfo") || bool("canEditProjectInfo"),
+    canEditProjectInfo: bool("canEditProjectInfo"),
     canViewCrew: bool("canViewCrew"),
     canEditCrew: bool("canEditCrew"),
     canViewDagsplan: bool("canViewDagsplan"),
@@ -140,7 +142,7 @@ export async function addUserToProject(
 export async function updateProjectMembership(
   membershipId: string,
   formData: FormData,
-): Promise<void> {
+): Promise<{ success: true } | { error: string }> {
   const row = await prisma.projectMembership.findUnique({
     where: { id: membershipId },
     select: {
@@ -150,7 +152,7 @@ export async function updateProjectMembership(
       canEditCallSheets: true,
     },
   });
-  if (!row) return;
+  if (!row) return { error: "Tilgangen finnes ikke lenger. Last inn siden på nytt." };
 
   const { flags } = await requireProjectAccess(row.projectId);
   assertPermission(flags, "canManageMemberships");
@@ -158,13 +160,14 @@ export async function updateProjectMembership(
   const raw = {
     role: String(formData.get("role") ?? ""),
     canViewProjectInfo: formData.get("canViewProjectInfo") === "on",
+    canEditProjectInfo: formData.get("canEditProjectInfo") === "on",
     canViewCrew: formData.get("canViewCrew") === "on",
     canEditCrew: formData.get("canEditCrew") === "on",
     canViewDagsplan: formData.get("canViewDagsplan") === "on",
     canEditDagsplan: formData.get("canEditDagsplan") === "on",
     /** Ikke i skjema — behold lagrede verdier. */
-    canViewCallSheets: row.canViewCallSheets,
-    canEditCallSheets: row.canEditCallSheets,
+    canViewCallSheets: formData.get("canViewCallSheets") === "on",
+    canEditCallSheets: formData.get("canEditCallSheets") === "on",
     canViewSensitiveData: formData.get("canViewSensitiveData") === "on",
     canViewPayroll: formData.get("canViewPayroll") === "on",
     canEditPayroll: formData.get("canEditPayroll") === "on",
@@ -173,7 +176,7 @@ export async function updateProjectMembership(
 
   const parsed = membershipUpdateSchema.safeParse(raw);
   if (!parsed.success) {
-    return;
+    return { error: "Rettighetene kunne ikke lagres. Kontroller valgene og prøv igjen." };
   }
 
   const d = parsed.data;
@@ -181,21 +184,23 @@ export async function updateProjectMembership(
     where: { id: membershipId },
     data: {
       role: d.role,
-      canViewProjectInfo: d.canViewProjectInfo,
-      canViewCrew: d.canViewCrew,
+      canViewProjectInfo: d.canViewProjectInfo || d.canEditProjectInfo,
+      canEditProjectInfo: d.canEditProjectInfo,
+      canViewCrew: d.canViewCrew || d.canEditCrew,
       canEditCrew: d.canEditCrew,
-      canViewDagsplan: d.canViewDagsplan,
+      canViewDagsplan: d.canViewDagsplan || d.canEditDagsplan,
       canEditDagsplan: d.canEditDagsplan,
-      canViewCallSheets: d.canViewCallSheets,
+      canViewCallSheets: d.canViewCallSheets || d.canEditCallSheets,
       canEditCallSheets: d.canEditCallSheets,
       canViewSensitiveData: d.canViewSensitiveData,
-      canViewPayroll: d.canViewPayroll,
+      canViewPayroll: d.canViewPayroll || d.canEditPayroll,
       canEditPayroll: d.canEditPayroll,
       canImportCrewDatabase: d.canImportCrewDatabase,
     },
   });
 
   revalidatePath(`/projects/${row.projectId}`);
+  return { success: true };
 }
 
 export async function removeProjectMembership(
@@ -205,13 +210,17 @@ export async function removeProjectMembership(
   void _formData;
   const row = await prisma.projectMembership.findUnique({
     where: { id: membershipId },
-    select: { projectId: true },
+    select: { projectId: true, userId: true },
   });
   if (!row) return;
 
   const { flags } = await requireProjectAccess(row.projectId);
   assertPermission(flags, "canManageMemberships");
 
-  await prisma.projectMembership.delete({ where: { id: membershipId } });
+  await prisma.$transaction([
+    prisma.projectMembership.delete({ where: { id: membershipId } }),
+    prisma.projectInvitation.updateMany({ where: { projectId: row.projectId, acceptedUserId: row.userId, status: "accepted" }, data: { status: "revoked" } }),
+  ]);
+  revalidatePath("/brukertilgang/invitasjon");
   revalidatePath(`/projects/${row.projectId}`);
 }

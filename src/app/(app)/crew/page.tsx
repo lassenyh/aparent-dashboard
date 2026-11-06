@@ -1,5 +1,6 @@
+import { CrewLiveFilterForm } from "@/components/crew/crew-live-filter-form";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 import {
   deletePerson,
   getCrewList,
@@ -10,7 +11,7 @@ import { ConfirmDeleteListItem } from "@/components/confirm-delete-list-item";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { CrewSearchInput } from "@/components/crew/crew-search-input";
 import { Label } from "@/components/ui/label";
 import { formatRate } from "@/lib/utils";
 import { rolesLabel } from "@/lib/person";
@@ -49,6 +50,13 @@ export default async function CrewPage({ searchParams }: PageProps) {
     getCrewFilterOptions(),
   ]);
 
+  const createdId = typeof sp.created === "string" ? sp.created : undefined;
+  const updatedId = typeof sp.updated === "string" ? sp.updated : undefined;
+  const savedPerson = people.find((person) => person.id === (createdId ?? updatedId));
+  const displayedPeople = savedPerson
+    ? [savedPerson, ...people.filter((person) => person.id !== savedPerson.id)]
+    : people;
+
   const crewListReturnTo = (() => {
     const qs = new URLSearchParams();
     if (q) qs.set("q", q);
@@ -80,25 +88,25 @@ export default async function CrewPage({ searchParams }: PageProps) {
         }
       />
 
-      <form
-        method="get"
-        className="mb-8 flex flex-col gap-4 border-b border-border pb-8 lg:flex-row lg:flex-wrap lg:items-end"
-      >
+      {savedPerson ? (
+        <div role="status" className="mb-6 flex flex-wrap items-center justify-between gap-4 border border-border border-l-4 border-l-emerald-600 bg-emerald-50/50 p-4">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 aria-hidden="true" className="h-5 w-5 shrink-0 text-emerald-700" />
+            <div>
+              <p className="font-medium">{createdId ? `${savedPerson.fullName} er opprettet` : `Endringene for ${savedPerson.fullName} er lagret`}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{createdId ? "Personen er lagt til i crewregisteret og vises øverst i listen." : "Profilen er oppdatert og vises øverst i listen."}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <CrewLiveFilterForm>
         <div className="flex min-w-[200px] flex-1 flex-col gap-2">
-          <Label htmlFor="q" className="text-xs text-muted-foreground">
-            Søk
-          </Label>
-          <Input
-            id="q"
-            name="q"
-            defaultValue={q}
-            placeholder="Navn, e-post, telefon, rolle, by…"
-          />
+          <Label htmlFor="q">Søk</Label>
+          <CrewSearchInput defaultValue={q} />
         </div>
         <div className="flex w-full min-w-[140px] flex-col gap-2 sm:w-auto">
-          <Label htmlFor="role" className="text-xs text-muted-foreground">
-            Rolle
-          </Label>
+          <Label htmlFor="role">Rolle</Label>
           <select
             id="role"
             name="role"
@@ -114,9 +122,7 @@ export default async function CrewPage({ searchParams }: PageProps) {
           </select>
         </div>
         <div className="flex w-full min-w-[140px] flex-col gap-2 sm:w-auto">
-          <Label htmlFor="city" className="text-xs text-muted-foreground">
-            By
-          </Label>
+          <Label htmlFor="city">By</Label>
           <select
             id="city"
             name="city"
@@ -132,9 +138,7 @@ export default async function CrewPage({ searchParams }: PageProps) {
           </select>
         </div>
         <div className="flex w-full min-w-[140px] flex-col gap-2 sm:w-auto">
-          <Label htmlFor="active" className="text-xs text-muted-foreground">
-            Status
-          </Label>
+          <Label htmlFor="active">Status</Label>
           <select
             id="active"
             name="active"
@@ -147,9 +151,7 @@ export default async function CrewPage({ searchParams }: PageProps) {
           </select>
         </div>
         <div className="flex w-full min-w-[140px] flex-col gap-2 sm:w-auto">
-          <Label htmlFor="sort" className="text-xs text-muted-foreground">
-            Sorter
-          </Label>
+          <Label htmlFor="sort">Sorter</Label>
           <select
             id="sort"
             name="sort"
@@ -161,64 +163,84 @@ export default async function CrewPage({ searchParams }: PageProps) {
           </select>
         </div>
         <div className="flex gap-2">
-          <Button type="submit">Filtrer</Button>
-          <Button type="button" variant="outline" asChild>
-            <Link href="/crew">Nullstill</Link>
-          </Button>
+          <Button type="reset" variant="outline">Nullstill</Button>
         </div>
-      </form>
+      </CrewLiveFilterForm>
 
-      <div className="divide-y divide-border">
-        {people.map((p) => (
-          <div
-            key={p.id}
-            className="flex min-h-[56px] items-start gap-2 py-4 first:pt-0 sm:items-center"
-          >
-            <Link
-              href={`/crew/${p.id}`}
-              className="flex min-w-0 flex-1 flex-col gap-3 rounded-md px-2 py-1 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between sm:py-2"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-foreground">{p.fullName}</span>
-                  {!p.isActive ? (
-                    <Badge variant="secondary">Inaktiv</Badge>
-                  ) : null}
-                  {p.dietaryPreference !== "none" ? (
-                    <Badge variant="outline">{dietaryLabel(p.dietaryPreference)}</Badge>
-                  ) : null}
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {rolesLabel(p)}
-                  {p.city ? ` · ${p.city}` : ""}
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-col gap-0.5 text-right text-sm sm:min-w-[200px]">
-                <span className="text-muted-foreground">{p.phone ?? "—"}</span>
-                <span className="text-muted-foreground">{p.email ?? "—"}</span>
-                <span className="font-medium text-foreground">
-                  {formatRate(p.defaultRate, p.rateType)}
-                </span>
-              </div>
-            </Link>
-            <div className="no-print shrink-0 pt-1 sm:pt-0">
-              <ConfirmDeleteListItem
-                title="Slette person?"
-                description={`«${p.fullName}» slettes permanent og kan ikke angres.`}
-                formAction={deletePerson.bind(null, p.id)}
-                hiddenFields={
-                  <input type="hidden" name="returnTo" value={crewListReturnTo} />
-                }
-              />
-            </div>
-          </div>
-        ))}
+      <div className="ap-table-wrap">
+        {people.length ? (
+          <table className="ap-table">
+            <thead>
+              <tr>
+                <th>Navn</th>
+                <th>Kontakt</th>
+                <th>Sats</th>
+                <th className="w-[72px]">
+                  <span className="sr-only">Handlinger</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayedPeople.map((p) => (
+                <tr key={p.id} className={p.id === savedPerson?.id ? "crew-created-highlight" : undefined}>
+                  <td>
+                    <Link href={`/crew/${p.id}`} className="block py-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{p.fullName}</span>
+                        {!p.isActive ? (
+                          <Badge variant="secondary">Inaktiv</Badge>
+                        ) : null}
+                        {p.dietaryPreference !== "none" ? (
+                          <Badge variant="outline">
+                            {dietaryLabel(p.dietaryPreference)}
+                          </Badge>
+                        ) : null}
+                      </span>
+                      <span className="mt-0.5 block text-[12px] text-muted-foreground">
+                        {rolesLabel(p)}
+                        {p.city ? ` · ${p.city}` : ""}
+                      </span>
+                    </Link>
+                  </td>
+                  <td>
+                    <span className="ap-code block text-muted-foreground">
+                      {p.phone ?? "—"}
+                    </span>
+                    <span className="ap-code block text-muted-foreground">
+                      {p.email ?? "—"}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="ap-amount">
+                      {formatRate(p.defaultRate, p.rateType)}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="no-print">
+                      <ConfirmDeleteListItem
+                        title="Slette person?"
+                        description={`«${p.fullName}» slettes permanent og kan ikke angres.`}
+                        formAction={deletePerson.bind(null, p.id)}
+                        hiddenFields={
+                          <input
+                            type="hidden"
+                            name="returnTo"
+                            value={crewListReturnTo}
+                          />
+                        }
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="px-4 py-8 text-center text-[13px] text-muted-foreground">
+            Ingen treff. Juster filtre eller legg til en ny person.
+          </p>
+        )}
       </div>
-      {!people.length ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          Ingen treff. Juster filtre eller legg til en ny person.
-        </p>
-      ) : null}
     </>
   );
 }

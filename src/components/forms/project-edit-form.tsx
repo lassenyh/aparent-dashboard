@@ -15,18 +15,27 @@ function toDateInput(d: Date | null): string {
   return x.toISOString().slice(0, 10);
 }
 
+import { ProjectLeadFields } from "@/components/forms/project-lead-fields";
+import type { LeadPerson, ProjectLeads } from "@/lib/project-leads";
+
 type Opt = { id: string; name: string };
 
 export function ProjectEditForm({
   project,
   agencies,
   customers,
+  people,
+  leads,
+  canEditLeads = true,
   onSuccess,
   onCancel,
 }: {
   project: ProjectFormClient;
+  canEditLeads?: boolean;
   agencies: Opt[];
   customers: Opt[];
+  people: LeadPerson[];
+  leads: ProjectLeads;
   onSuccess?: () => void;
   onCancel?: () => void;
 }) {
@@ -49,9 +58,19 @@ export function ProjectEditForm({
         </p>
       ) : null}
 
-      <div className="space-y-2">
-        <Label htmlFor="name">Prosjektnavn</Label>
-        <Input id="name" name="name" required defaultValue={project.name} />
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="space-y-2">
+          <Label htmlFor="internalTitle">Prosjektnummer</Label>
+          <Input
+            id="internalTitle"
+            name="internalTitle"
+            defaultValue={project.internalTitle ?? ""}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="name">Prosjektnavn</Label>
+          <Input id="name" name="name" required defaultValue={project.name} />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -89,14 +108,7 @@ export function ProjectEditForm({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="internalTitle">Internt navn / kode</Label>
-        <Input
-          id="internalTitle"
-          name="internalTitle"
-          defaultValue={project.internalTitle ?? ""}
-        />
-      </div>
+      {canEditLeads && <ProjectLeadFields people={people} producerId={leads.producerId} directorId={leads.directorId} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">

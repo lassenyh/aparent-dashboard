@@ -76,6 +76,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { DEFAULT_SCHEDULE_COLUMN_ORDER } from "@/lib/schedule-columns";
 import {
   getDagsplanEditorStrings,
   getDagsplanLocationStrings,
@@ -146,6 +147,7 @@ export type DagsplanEditorInitial = {
     readyOnSetTime: string;
   }>;
   scheduleRows: ScheduleRow[];
+  imageAssets: Array<{ id: string; url: string; name: string }>;
   departmentRows: Array<{
     departmentName: string;
     info: string;
@@ -1594,6 +1596,9 @@ export function DagsplanEditor({
             <SectionHeading className="mb-0">{t.schedule}</SectionHeading>
           </div>
           <DagsplanScheduleTable
+            projectId={state.projectId}
+            imageAssets={state.imageAssets}
+            onImageAssetCreated={(asset) => setState((s) => ({ ...s, imageAssets: [asset, ...s.imageAssets.filter((item) => item.id !== asset.id)] }))}
             shootDateIso={state.shootDate}
             sunriseTimeOverride={state.sunriseTimeOverride}
             onSunriseTimeOverrideChange={(v) =>
@@ -1604,6 +1609,12 @@ export function DagsplanEditor({
               setState((s) => ({ ...s, sunsetTimeOverride: v }))
             }
             showShotColumn={state.showShotColumn}
+            showInteriorExteriorColumn={true}
+            showDayNightColumn={true}
+            showActorColumn={false}
+            showCostumeColumn={false}
+            columnOrder={DEFAULT_SCHEDULE_COLUMN_ORDER}
+            onColumnOrderChange={() => undefined}
             locale={state.displayLocale}
             rows={state.scheduleRows}
             onRowsChange={(scheduleRows) =>

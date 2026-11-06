@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { DashboardUser, ProjectMembership } from "@prisma/client";
 import { prisma } from "@/lib/db";
@@ -58,9 +59,8 @@ function hasKey(flags: ProjectAccessFlags, key: PermissionKey): boolean {
 }
 
 function membershipToFlags(m: ProjectMembership): ProjectAccessFlags {
-  /** Eksterne brukere skal kun kunne lese prosjektinfo; redigering er kun for interne (FULL_ACCESS). */
-  const canEditProjectInfo = false;
-  const canManageMemberships = m.role === "owner" || m.role === "admin";
+  const canEditProjectInfo = m.canEditProjectInfo;
+  const canManageMemberships = false; // Only internal administrators may grant project access.
   return {
     role: m.role,
     canViewProjectInfo: m.canViewProjectInfo,
@@ -79,25 +79,30 @@ function membershipToFlags(m: ProjectMembership): ProjectAccessFlags {
   };
 }
 
+const loadAccessibleProjectIds = cache(async (userId: string) => {
+  const rows = await prisma.projectMembership.findMany({
+    where: { userId },
+    select: { projectId: true },
+  });
+  return rows.map((r) => r.projectId);
+});
+
 export async function getAccessibleProjectIds(
   user: DashboardUser,
 ): Promise<string[] | null> {
   if (user.isInternal) return null;
-  const rows = await prisma.projectMembership.findMany({
-    where: { userId: user.id },
-    select: { projectId: true },
-  });
-  return rows.map((r) => r.projectId);
+  return loadAccessibleProjectIds(user.id);
 }
 
-export async function getProjectMembership(
+/** Cachet per request (React `cache()`), så gjentatte tilgangssjekker ikke gir nye DB-rundturer. */
+export const getProjectMembership = cache(async (
   userId: string,
   projectId: string,
-): Promise<ProjectMembership | null> {
+): Promise<ProjectMembership | null> => {
   return prisma.projectMembership.findUnique({
     where: { userId_projectId: { userId, projectId } },
   });
-}
+});
 
 export async function getProjectAccessForUser(
   user: DashboardUser,

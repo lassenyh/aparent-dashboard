@@ -1,61 +1,73 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Link2, RefreshCw } from "lucide-react";
+import { Copy, Share2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
   ensureCrewListShare,
   rotateCrewListShareToken,
 } from "@/actions/project-crew-list";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function CrewListSharePanel({
   projectId,
-  shareUrl,
+  shareUrl: initialShareUrl,
 }: {
   projectId: string;
   shareUrl: string | null;
 }) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [shareUrl, setShareUrl] = useState(initialShareUrl);
   const [pending, startTransition] = useTransition();
 
-  function copy() {
+  async function copy() {
     if (!shareUrl) return;
-    void navigator.clipboard.writeText(shareUrl);
-    toast.success("Lenke kopiert");
+    try {
+      await navigator.clipboard.writeText(new URL(shareUrl, window.location.origin).href);
+      toast.success("Lenke kopiert");
+    } catch { toast.error("Kunne ikke kopiere lenken. Kopier den fra feltet."); }
   }
 
   function create() {
     startTransition(async () => {
-      await ensureCrewListShare(projectId);
-      router.refresh();
-      toast.success("Delingslenke er klar");
+      try {
+        const share = await ensureCrewListShare(projectId);
+        setShareUrl(new URL(`/share/crewliste/${share.token}`, window.location.origin).href);
+        router.refresh();
+      } catch { toast.error("Kunne ikke opprette delingslenke. Prøv igjen."); }
     });
   }
 
   function rotate() {
     startTransition(async () => {
-      await rotateCrewListShareToken(projectId);
-      router.refresh();
-      toast.success("Ny lenke — den gamle virker ikke lenger");
+      try {
+        await rotateCrewListShareToken(projectId);
+        const share = await ensureCrewListShare(projectId);
+        setShareUrl(new URL(`/share/crewliste/${share.token}`, window.location.origin).href);
+        router.refresh();
+        toast.success("Ny lenke — den gamle virker ikke lenger");
+      } catch { toast.error("Kunne ikke fornye delingslenken. Prøv igjen."); }
     });
   }
 
   return (
-    <div className="mb-8 rounded-lg border border-border bg-muted/10 p-4">
-      <div className="mb-2 flex items-center gap-2">
-        <Link2 className="h-4 w-4 text-muted-foreground" />
-        <Label className="text-sm font-medium">
-          Delt visning (kun tabell / PDF)
-        </Label>
-      </div>
-      <p className="mb-3 text-xs text-muted-foreground">
-        Mottakere trenger ikke innlogging. Lenken viser samme tabell som
-        PDF-utsnittet og oppdateres når du endrer listen her.
-      </p>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+      <Button type="button" variant="outline" size="sm" onClick={() => { if (!shareUrl && !pending) create(); }}>
+        <Share2 className="h-4 w-4" />
+        Del
+      </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Del crewliste</DialogTitle>
+          <DialogDescription>Mottakere trenger ikke innlogging. Lenken viser crewlisten og oppdateres når du endrer den.</DialogDescription>
+        </DialogHeader>
       {!shareUrl ? (
         <Button
           type="button"
@@ -64,7 +76,7 @@ export function CrewListSharePanel({
           disabled={pending}
           onClick={create}
         >
-          Opprett delingslenke
+          {pending ? "Oppretter lenke…" : "Opprett delingslenke"}
         </Button>
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -106,6 +118,7 @@ export function CrewListSharePanel({
           </div>
         </div>
       )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

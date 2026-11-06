@@ -26,6 +26,7 @@ export default async function NewCallSheetPage({ params }: PageProps) {
         <PageBackLink href={`/projects/${project.id}`}>{project.name}</PageBackLink>
       </div>
       <PageHeader
+        kicker="Call sheet"
         title="Ny call sheet"
         description="Crew fra prosjektets standard crewliste legges inn automatisk (som snapshot). Du kan legge til eller fjerne folk på call sheet etterpå."
       />

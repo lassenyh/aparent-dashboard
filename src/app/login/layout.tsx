@@ -1,22 +1,15 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+
+import { PRODUCT_TAB_TITLE } from "@/lib/product";
 
 export const metadata: Metadata = {
-  title: "Logg inn",
+  title: `Logg inn · ${PRODUCT_TAB_TITLE}`,
 };
-
-const basisGrotesqueMonoMd = localFont({
-  src: "../../../public/font/BasisGrotesqueMonoPro-Md.otf",
-  variable: "--font-production-dashboard",
-  display: "swap",
-});
 
 export default function LoginLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className={basisGrotesqueMonoMd.variable}>{children}</div>
-  );
+  return children;
 }

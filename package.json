@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "postinstall": "prisma generate",
@@ -55,6 +55,7 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hook-form": "^7.72.0",
+    "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "suncalc": "^1.9.0",
     "tailwind-merge": "^3.5.0",

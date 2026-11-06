@@ -1,3 +1,4 @@
+import { requireProjectAccess } from "@/lib/project-access";
 import { notFound } from "next/navigation";
 import { getCallSheetById } from "@/actions/callsheets";
 import { PublicLogoImg } from "@/components/public-logo-img";
@@ -14,10 +15,11 @@ export default async function CallSheetPrintPage({ params }: PageProps) {
   const { id } = await params;
   const sheet = await getCallSheetById(id);
   if (!sheet) notFound();
+  const { flags } = await requireProjectAccess(sheet.projectId);
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 print:max-w-none print:px-8 print:py-6">
-      <PrintToolbar backHref={`/callsheets/${sheet.id}`} />
+      <PrintToolbar backHref={flags.canEditCallSheets ? `/callsheets/${sheet.id}` : `/projects/${sheet.projectId}?tab=callsheets`} backLabel={flags.canEditCallSheets ? "Tilbake til editor" : "Tilbake til prosjektet"} />
 
       <header className="mb-10 border-b border-neutral-200 pb-8">
         <div className="flex flex-wrap items-end justify-between gap-6">

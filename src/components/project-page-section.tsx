@@ -11,32 +11,45 @@ import { cn } from "@/lib/utils";
 export function ProjectPageSection({
   title,
   defaultOpen = false,
+  collapsible = true,
   headerRight,
   children,
   className,
 }: {
   title: string;
   defaultOpen?: boolean;
+  collapsible?: boolean;
   headerRight?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }) {
+  if (!collapsible) {
+    return (
+      <section className={className} aria-label={title}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="ap-section-title">{title}</h2>
+          {headerRight ? <div className="flex flex-wrap items-center gap-2">{headerRight}</div> : null}
+        </div>
+        {children}
+      </section>
+    );
+  }
   return (
     <Collapsible
       defaultOpen={defaultOpen}
-      className={cn("group rounded-lg border border-border", className)}
+      className={cn("group border border-border bg-card", className)}
     >
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <CollapsibleTrigger asChild>
           <button
             type="button"
-            className="flex min-w-0 max-w-full flex-1 items-center gap-2 rounded-md text-left outline-none ring-offset-background hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex min-w-0 max-w-full flex-1 items-center gap-2 text-left outline-none hover:bg-muted/50"
           >
             <ChevronDown
               aria-hidden
               className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
             />
-            <span className="text-[13px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+            <span className="ap-kicker">
               {title}
             </span>
           </button>

@@ -1,9 +1,28 @@
 "use client";
 
-import Link from "next/link";
+import { LocationPlaceSearch } from "@/components/dagsplan/location-place-search";
+
 import { useRouter } from "next/navigation";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Eye, FileDown, GripVertical, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import {
+  closestCenter,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  sortableKeyboardCoordinates,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -15,10 +34,12 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { WeatherIconKind } from "@prisma/client";
 import type { CrewDatabasePersonOption } from "@/actions/dagsplan";
+import { fetchDagsplanWeather } from "@/actions/dagsplan-weather";
 import {
   addDagsplanLocation,
   deleteDagsplan,
   duplicateDagsplan,
+  removeDagsplanLogo,
   removeDagsplanLocation,
   saveDagsplan,
   saveDagsplanLocations,
@@ -30,13 +51,17 @@ import { APARENT_LOGO_PUBLIC_PATH } from "@/lib/dagsplan-defaults";
 import {
   SCHEDULE_CALL_TIME_DEFAULT_ROW_BG,
   SCHEDULE_COMPANY_MOVE_DEFAULT_ROW_BG,
+  SCHEDULE_PRERIGG_DEFAULT_ROW_BG,
+  SCHEDULE_RECORDING_DEFAULT_ROW_BG,
   SCHEDULE_WRAP_DEFAULT_ROW_BG,
 } from "@/lib/schedule-row-colors";
 import {
   emptyScheduleRow,
   inferWorkHoursFromScheduleRows,
+  isScheduleCallTimeRow,
   recalculateScheduleRows,
   rowKindForNewSequentialRow,
+  sumScheduleDurationMinutes,
   SCHEDULE_CALL_TIME_INFO,
   SCHEDULE_INTERIOR_EXTERIOR_TRUCK,
   SCHEDULE_PRE_WRAP_INFO,
@@ -52,10 +77,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { ParkingImageDropzone } from "@/components/dagsplan/parking-image-dropzone";
 import {
   DagsplanScheduleTable,
+  formatTotalScheduleMinutes,
   type ScheduleRow,
 } from "@/components/dagsplan/dagsplan-schedule-table";
 import { PublicLogoImg } from "@/components/public-logo-img";
-import { SectionHeading } from "@/components/section-heading";
+import { DagsplanPdfLoading } from "@/components/dagsplan/dagsplan-pdf-loading";
 import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { PageBackLink } from "@/components/page-back-link";
 import {
@@ -71,14 +97,27 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import {
+  normalizeScheduleColumnOrder,
+  type ScheduleColumnId,
+} from "@/lib/schedule-columns";
+import {
   getDagsplanEditorStrings,
   getDagsplanLocationStrings,
+  getScheduleTableStrings,
   translateCrewDepartmentTitle,
   type DagsplanLocale,
 } from "@/lib/dagsplan-i18n";
@@ -98,6 +137,8 @@ export type DagsplanLocationRowState = {
   locationName: string;
   locationText: string;
   locationMapsUrl: string;
+  latitude: number | null;
+  longitude: number | null;
   parkingText: string;
   parkingMapsUrl: string;
   parkingImageUrl: string;
@@ -111,12 +152,19 @@ export type DagsplanEditorInitial = {
   shootDate: string;
   agencyLogoUrl: string;
   clientLogoUrl: string;
+  extraClientLogoUrl?: string;
+  agencyLogoHidden: boolean;
+  clientLogoHidden: boolean;
   locationRows: DagsplanLocationRowState[];
   infoText: string;
   weatherIcon: WeatherIconKind;
   weatherTempMin: string;
   weatherTempMax: string;
   weatherText: string;
+  weatherLocationName: string;
+  weatherLatitude: number | null;
+  weatherLongitude: number | null;
+  weatherFromMet: boolean;
   emergencyNumbersText: string;
   radioChannelsText: string;
   /** false = ekskludert fra utskrift (ikke vis tabell på utskrift). */
@@ -146,12 +194,19 @@ export type DagsplanEditorInitial = {
     readyOnSetTime: string;
   }>;
   scheduleRows: ScheduleRow[];
+  imageAssets: Array<{ id: string; url: string; name: string }>;
   departmentRows: Array<{
     departmentName: string;
     info: string;
   }>;
   /** Kolonne «Shot» (bilde) mellom varighet og scene — skjules som standard. */
   showShotColumn: boolean;
+  /** Valgfrie timeplankolonner; skjuling beholder alle radverdier. */
+  showInteriorExteriorColumn: boolean;
+  showDayNightColumn: boolean;
+  showActorColumn: boolean;
+  showCostumeColumn: boolean;
+  scheduleColumnOrder: ScheduleColumnId[];
   /** UI og print: norsk eller engelsk. */
   displayLocale: DagsplanLocale;
   /** Fallback for visning når dagsplan-felt er tomt */
@@ -161,10 +216,27 @@ export type DagsplanEditorInitial = {
 
 /** Én linje som standard; blir høyere når innholdet krever det (`field-sizing: content`). */
 const DAGSPLAN_TEXTAREA_AUTO =
-  "[field-sizing:content] max-h-[min(50vh,24rem)] overflow-y-auto";
+  "min-h-9 resize-none [field-sizing:content] max-h-[min(50vh,24rem)] overflow-y-auto";
 
 /** Kompakte tabellfelt (oppmøte, aktører, avdeling). */
 const DAGSPLAN_TABLE_INPUT = "h-7 min-h-7 px-2 text-xs";
+
+const SCHEDULE_ADD_BUTTON_CLASS =
+  "group gap-0 transition-[background,color,border-color,transform,box-shadow] duration-150 motion-safe:hover:-translate-y-0.5 hover:shadow-sm active:translate-y-0 active:shadow-none";
+
+function ScheduleAddButtonLabel({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="inline-flex w-0 overflow-hidden opacity-0 transition-[width,margin,opacity] duration-150 group-hover:mr-1.5 group-hover:w-3.5 group-hover:opacity-100"
+      >
+        <Plus className="h-3.5 w-3.5" />
+      </span>
+      <span>{children}</span>
+    </>
+  );
+}
 
 function parseTempInput(s: string): number | null {
   const t = s.trim();
@@ -183,31 +255,23 @@ function moveRow<T>(rows: T[], index: number, dir: -1 | 1): T[] {
 }
 
 function DagsplanLocationBlock({
+  projectId,
   index,
-  total,
   row,
   loc,
   onChange,
-  onMoveUp,
-  onMoveDown,
   onRemove,
-  disableUp,
-  disableDown,
   onSaveLocations,
   locationSaveDisabled,
   collapsibleOpen,
   onCollapsibleOpenChange,
 }: {
+  projectId: string;
   index: number;
-  total: number;
   row: DagsplanLocationRowState;
   loc: ReturnType<typeof getDagsplanLocationStrings>;
   onChange: (patch: Partial<DagsplanLocationRowState>) => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
   onRemove: () => void;
-  disableUp: boolean;
-  disableDown: boolean;
   onSaveLocations: () => void | Promise<void>;
   locationSaveDisabled: boolean;
   /** Kun når total > 1: kontrollert åpen/lukket for denne raden. */
@@ -218,18 +282,27 @@ function DagsplanLocationBlock({
     () => buildGoogleMapsSearchUrl(row.locationText),
     [row.locationText],
   );
-  const labelSuffix = total > 1 ? ` ${index + 1}` : "";
   const baseId = row.id;
   const summaryLabel = useMemo(() => {
     const name = row.locationName.trim();
     const addr = row.locationText.trim();
     if (name) return name;
     if (addr) return addr.length > 48 ? `${addr.slice(0, 45)}…` : addr;
-    return `Location${labelSuffix}`;
-  }, [row.locationName, row.locationText, labelSuffix]);
+    return "";
+  }, [row.locationName, row.locationText]);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: row.id });
 
   const fields = (
     <div className="grid max-w-3xl gap-4">
+      <LocationPlaceSearch projectId={projectId} onSelect={onChange} />
+
       <div className="space-y-2">
         <Label htmlFor={`${baseId}-locationName`}>{loc.locationName}</Label>
         <Input
@@ -272,7 +345,13 @@ function DagsplanLocationBlock({
           id={`${baseId}-locationText`}
           rows={1}
           value={row.locationText}
-          onChange={(e) => onChange({ locationText: e.target.value })}
+          onChange={(e) =>
+            onChange({
+              locationText: e.target.value,
+              latitude: null,
+              longitude: null,
+            })
+          }
           placeholder={loc.addressPlaceholder}
           className={DAGSPLAN_TEXTAREA_AUTO}
         />
@@ -314,6 +393,7 @@ function DagsplanLocationBlock({
         <ParkingImageDropzone
           locationId={row.id}
           imageUrl={row.parkingImageUrl}
+          onImageUrlChange={(parkingImageUrl) => onChange({ parkingImageUrl })}
         />
       </div>
       <div className="flex justify-end border-t border-border/60 pt-4">
@@ -331,29 +411,58 @@ function DagsplanLocationBlock({
   );
 
   return (
-    <div className="rounded-lg border border-border bg-muted/20 p-2 shadow-sm">
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.55 : undefined,
+      }}
+      className="rounded-lg border border-border bg-muted/20 p-2 shadow-sm"
+    >
       <Collapsible
         open={collapsibleOpen}
         onOpenChange={onCollapsibleOpenChange}
       >
         <div className="flex min-h-8 items-center gap-1.5">
+          <button
+            type="button"
+            className="touch-none rounded-md p-1.5 text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Flytt location ${index + 1}`}
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" aria-hidden />
+          </button>
           <CollapsibleTrigger
             type="button"
             className={cn(
               "group flex h-8 min-h-8 min-w-0 flex-1 items-center justify-between gap-2 rounded-md px-2 text-left text-sm font-semibold leading-none text-foreground outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring",
             )}
           >
-            <span className="truncate">{summaryLabel}</span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="shrink-0 rounded-full border border-border bg-background px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Location {index + 1}
+              </span>
+              {summaryLabel ? (
+                <span className="truncate">{summaryLabel}</span>
+              ) : null}
+            </span>
+            <span className="inline-flex shrink-0 items-center gap-1.5 border border-border px-2 py-1 text-xs font-normal text-muted-foreground">
+              {collapsibleOpen ? loc.collapse : loc.expand}
+              <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </span>
           </CollapsibleTrigger>
-          <RowActions
-            inline
-            onMoveUp={onMoveUp}
-            onMoveDown={onMoveDown}
-            onRemove={onRemove}
-            disableUp={disableUp}
-            disableDown={disableDown}
-          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 shrink-0 px-0 text-muted-foreground"
+            onClick={onRemove}
+            aria-label={`Slett location ${index + 1}`}
+          >
+            ×
+          </Button>
         </div>
         <CollapsibleContent className="overflow-hidden">
           <div className="pt-3">{fields}</div>
@@ -381,8 +490,100 @@ export function DagsplanEditor({
     workStartTime: initial.workStartTime ?? "",
     workEndTime: initial.workEndTime ?? "",
     showShotColumn: initial.showShotColumn ?? false,
+    showInteriorExteriorColumn: initial.showInteriorExteriorColumn ?? true,
+    showDayNightColumn: initial.showDayNightColumn ?? true,
+    showActorColumn: initial.showActorColumn ?? false,
+    showCostumeColumn: initial.showCostumeColumn ?? false,
+    scheduleColumnOrder: normalizeScheduleColumnOrder(initial.scheduleColumnOrder),
     displayLocale: initial.displayLocale ?? "no",
   }));
+  const handleScheduleRowsChange = useCallback((scheduleRows: ScheduleRow[]) => {
+    setState((current) => ({ ...current, scheduleRows }));
+  }, []);
+  const handleSunriseTimeOverrideChange = useCallback((value: string) => {
+    setState((current) => ({ ...current, sunriseTimeOverride: value }));
+  }, []);
+  const handleSunsetTimeOverrideChange = useCallback((value: string) => {
+    setState((current) => ({ ...current, sunsetTimeOverride: value }));
+  }, []);
+  const draftStorageKey = `wrapup:dagsplan-draft:${initial.id}`;
+  const draftHydratedRef = useRef(false);
+  const [draftReady, setDraftReady] = useState(false);
+  const [crewOnSetTimeForAll, setCrewOnSetTimeForAll] = useState("");
+
+  useEffect(() => {
+    if (draftHydratedRef.current) return;
+    draftHydratedRef.current = true;
+
+    try {
+      const rawDraft = window.sessionStorage.getItem(draftStorageKey);
+      if (!rawDraft) return;
+      const parsedDraft: unknown = JSON.parse(rawDraft);
+      if (
+        !parsedDraft ||
+        typeof parsedDraft !== "object" ||
+        !("id" in parsedDraft) ||
+        parsedDraft.id !== initial.id ||
+        !("scheduleRows" in parsedDraft) ||
+        !Array.isArray(parsedDraft.scheduleRows)
+      ) {
+        window.sessionStorage.removeItem(draftStorageKey);
+        return;
+      }
+
+      const restored = parsedDraft as DagsplanEditorInitial;
+      const restoredCrewRows = Array.isArray(restored.crewRows)
+        ? restored.crewRows
+        : [];
+      const restoredProjectCrewIds = new Set(
+        restoredCrewRows.flatMap((row) =>
+          row.linkedProjectCrewId ? [row.linkedProjectCrewId] : [],
+        ),
+      );
+      const restoredPersonIds = new Set(
+        restoredCrewRows.flatMap((row) =>
+          row.linkedPersonId ? [row.linkedPersonId] : [],
+        ),
+      );
+      const newlySyncedCrewRows = initial.crewRows.filter(
+        (row) =>
+          (!row.linkedProjectCrewId ||
+            !restoredProjectCrewIds.has(row.linkedProjectCrewId)) &&
+          (!row.linkedPersonId || !restoredPersonIds.has(row.linkedPersonId)),
+      );
+      setState({
+        ...restored,
+        crewRows: sortDagsplanCrewRowsByDepartmentOrder([
+          ...restoredCrewRows,
+          ...newlySyncedCrewRows,
+        ]),
+        imageAssets: Array.isArray(restored.imageAssets)
+          ? restored.imageAssets
+          : initial.imageAssets,
+        scheduleRows: restored.scheduleRows.map((row) => ({
+          ...row,
+          shotImageAssetId: row.shotImageAssetId ?? "",
+          shotImageZoom: row.shotImageZoom ?? 1,
+          shotImagePositionX: row.shotImagePositionX ?? 50,
+          shotImagePositionY: row.shotImagePositionY ?? 50,
+          shotImageFit: row.shotImageFit === "cover" ? "cover" : "contain",
+        })),
+      });
+      toast.info("Ulagrede endringer ble gjenopprettet.");
+    } catch {
+      window.sessionStorage.removeItem(draftStorageKey);
+    } finally {
+      setDraftReady(true);
+    }
+  }, [draftStorageKey, initial.crewRows, initial.id, initial.imageAssets]);
+
+  const clearLocalDraft = useCallback(() => {
+    try {
+      window.sessionStorage.removeItem(draftStorageKey);
+    } catch {
+      // Ingen handling nødvendig når nettleserlagring er utilgjengelig.
+    }
+  }, [draftStorageKey]);
 
   const t = useMemo(
     () => getDagsplanEditorStrings(state.displayLocale),
@@ -392,15 +593,58 @@ export function DagsplanEditor({
     () => getDagsplanLocationStrings(state.displayLocale),
     [state.displayLocale],
   );
+  const scheduleStrings = useMemo(
+    () => getScheduleTableStrings(state.displayLocale),
+    [state.displayLocale],
+  );
+  const totalScheduleMinutes = useMemo(
+    () => sumScheduleDurationMinutes(state.scheduleRows),
+    [state.scheduleRows],
+  );
   const [saveState, setSaveState] = useState<string | null>(null);
   const [autoSaveState, setAutoSaveState] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [uploading, setUploading] = useState<"agency" | "client" | null>(null);
+  const [uploading, setUploading] = useState<"agency" | "client" | "extraClient" | null>(null);
   const [locationSavePending, setLocationSavePending] = useState(false);
+  const [weatherPending, setWeatherPending] = useState(false);
+  const [weatherSuggestion, setWeatherSuggestion] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewLoadError, setPreviewLoadError] = useState(false);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
+  const [pdfDownloadPending, setPdfDownloadPending] = useState(false);
+  const [crewWarningOpen, setCrewWarningOpen] = useState(false);
+  const [removingLogo, setRemovingLogo] = useState<"agency" | "client" | "extraClient" | null>(null);
+  const locationSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
   /** Hvilken location-rad som er utvidet. `null` = alle lukket (standard ved åpning av siden). */
   const [openLocationId, setOpenLocationId] = useState<string | null>(null);
   const [companyMoveOpen, setCompanyMoveOpen] = useState(false);
   const [companyMoveManualText, setCompanyMoveManualText] = useState("");
+
+  const handleLocationDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setState((current) => {
+      const oldIndex = current.locationRows.findIndex(
+        (location) => location.id === active.id,
+      );
+      const newIndex = current.locationRows.findIndex(
+        (location) => location.id === over.id,
+      );
+      if (oldIndex < 0 || newIndex < 0) return current;
+      return {
+        ...current,
+        locationRows: arrayMove(current.locationRows, oldIndex, newIndex),
+      };
+    });
+  }, []);
 
   useEffect(() => {
     if (
@@ -421,6 +665,9 @@ export function DagsplanEditor({
       JSON.stringify({
         agencyLogoUrl: initial.agencyLogoUrl,
         clientLogoUrl: initial.clientLogoUrl,
+        extraClientLogoUrl: initial.extraClientLogoUrl,
+        agencyLogoHidden: initial.agencyLogoHidden,
+        clientLogoHidden: initial.clientLogoHidden,
         locations: initial.locationRows.map((r) => ({
           id: r.id,
           parkingImageUrl: r.parkingImageUrl,
@@ -428,11 +675,19 @@ export function DagsplanEditor({
         schedule: initial.scheduleRows.map((r) => ({
           id: r.id,
           shotImageUrl: r.shotImageUrl,
+          shotImageAssetId: r.shotImageAssetId || null,
+          shotImageZoom: r.shotImageZoom,
+          shotImagePositionX: r.shotImagePositionX,
+          shotImagePositionY: r.shotImagePositionY,
+          shotImageFit: r.shotImageFit,
         })),
       }),
     [
       initial.agencyLogoUrl,
       initial.clientLogoUrl,
+      initial.extraClientLogoUrl,
+      initial.agencyLogoHidden,
+      initial.clientLogoHidden,
       initial.locationRows,
       initial.scheduleRows,
     ],
@@ -443,6 +698,9 @@ export function DagsplanEditor({
       ...s,
       agencyLogoUrl: initial.agencyLogoUrl,
       clientLogoUrl: initial.clientLogoUrl,
+      extraClientLogoUrl: initial.extraClientLogoUrl,
+      agencyLogoHidden: initial.agencyLogoHidden,
+      clientLogoHidden: initial.clientLogoHidden,
       locationRows: s.locationRows.map((row) => {
         const fresh = initial.locationRows.find((r) => r.id === row.id);
         if (!fresh) return row;
@@ -457,21 +715,22 @@ export function DagsplanEditor({
         return {
           ...row,
           shotImageUrl: fresh.shotImageUrl,
+          shotImageAssetId: fresh.shotImageAssetId,
+          shotImageZoom: fresh.shotImageZoom,
+          shotImagePositionX: fresh.shotImagePositionX,
+          shotImagePositionY: fresh.shotImagePositionY,
+          shotImageFit: fresh.shotImageFit,
         };
       }),
     }));
   }, [initialServerAssetKey]);
 
-  const displayAgencyLogo =
-    state.agencyLogoUrl.trim() ||
-    initial.agencyLogoUrl.trim() ||
-    initial.projectAgencyLogoUrl ||
-    "";
-  const displayClientLogo =
-    state.clientLogoUrl.trim() ||
-    initial.clientLogoUrl.trim() ||
-    initial.projectClientLogoUrl ||
-    "";
+  const displayAgencyLogo = state.agencyLogoHidden
+    ? ""
+    : state.agencyLogoUrl.trim() || initial.projectAgencyLogoUrl || "";
+  const displayClientLogo = state.clientLogoHidden
+    ? ""
+    : state.clientLogoUrl.trim() || initial.projectClientLogoUrl || "";
 
   const usedProjectCrewIds = useMemo(
     () =>
@@ -552,6 +811,29 @@ export function DagsplanEditor({
     });
   }
 
+  function appendSchedulePresetRow(
+    info: string,
+    rowBgColor: string,
+    durationMinutes = 30,
+  ) {
+    setState((s) => {
+      const id = crypto.randomUUID();
+      const kind = rowKindForNewSequentialRow(
+        s.scheduleRows[s.scheduleRows.length - 1],
+      );
+      const row = {
+        ...emptyScheduleRow(id, kind),
+        info,
+        durationMinutes,
+        rowBgColor,
+      };
+      return {
+        ...s,
+        scheduleRows: recalculateScheduleRows([...s.scheduleRows, row]),
+      };
+    });
+  }
+
   const payload = useMemo(() => {
     const crewRows = state.crewRows.map((r, i) => ({
       ...r,
@@ -575,9 +857,16 @@ export function DagsplanEditor({
       interiorExterior: r.interiorExterior,
       dayNight: r.dayNight,
       sceneSetting: r.sceneSetting,
+      setting: r.setting,
       info: r.info,
       actorNumbers: r.actorNumbers,
+      costume: r.costume,
       shotImageUrl: r.shotImageUrl?.trim() || null,
+      shotImageAssetId: r.shotImageAssetId || null,
+      shotImageZoom: r.shotImageZoom,
+      shotImagePositionX: r.shotImagePositionX,
+      shotImagePositionY: r.shotImagePositionY,
+      shotImageFit: r.shotImageFit,
       rowBgColor: r.rowBgColor?.trim() || null,
       sortOrder: i,
     }));
@@ -600,11 +889,14 @@ export function DagsplanEditor({
       workEndTime: workEndTimeSaved,
       agencyLogoUrl: state.agencyLogoUrl || null,
       clientLogoUrl: state.clientLogoUrl || null,
+      extraClientLogoUrl: state.extraClientLogoUrl || null,
       locationRows: state.locationRows.map((r, i) => ({
         id: r.id,
         locationName: r.locationName || null,
         locationText: r.locationText || null,
         locationMapsUrl: r.locationMapsUrl || null,
+        latitude: r.latitude,
+        longitude: r.longitude,
         parkingText: r.parkingText || null,
         parkingMapsUrl: r.parkingMapsUrl || null,
         parkingImageUrl: r.parkingImageUrl || null,
@@ -615,12 +907,21 @@ export function DagsplanEditor({
       weatherTempMin: parseTempInput(state.weatherTempMin),
       weatherTempMax: parseTempInput(state.weatherTempMax),
       weatherText: state.weatherText || null,
+      weatherLocationName: state.weatherLocationName || null,
+      weatherLatitude: state.weatherLatitude,
+      weatherLongitude: state.weatherLongitude,
+      weatherFromMet: state.weatherFromMet,
       emergencyNumbersText: state.emergencyNumbersText || null,
       radioChannelsText: state.radioChannelsText || null,
       printIncludeActors: state.printIncludeActors,
       printIncludeDepartmentInfo: state.printIncludeDepartmentInfo,
       printIncludeSchedule: state.printIncludeSchedule,
       showShotColumn: state.showShotColumn,
+      showInteriorExteriorColumn: state.showInteriorExteriorColumn,
+      showDayNightColumn: state.showDayNightColumn,
+      showActorColumn: state.showActorColumn,
+      showCostumeColumn: state.showCostumeColumn,
+      scheduleColumnOrder: state.scheduleColumnOrder,
       displayLocale: state.displayLocale,
       sunriseTimeOverride: state.sunriseTimeOverride.trim() || null,
       sunsetTimeOverride: state.sunsetTimeOverride.trim() || null,
@@ -634,28 +935,73 @@ export function DagsplanEditor({
   const latestPayloadRef = useRef(payload);
   const latestFingerprintRef = useRef(payloadFingerprint);
   const lastSavedFingerprintRef = useRef(payloadFingerprint);
+  const [lastSavedFingerprint, setLastSavedFingerprint] = useState(
+    payloadFingerprint,
+  );
   const autosaveInFlightRef = useRef(false);
+  const hasUnsavedChanges = payloadFingerprint !== lastSavedFingerprint;
+
+  useEffect(() => {
+    if (!draftReady) return;
+    if (!hasUnsavedChanges) {
+      clearLocalDraft();
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      try {
+        window.sessionStorage.setItem(draftStorageKey, JSON.stringify(state));
+      } catch {
+        // Skjemaet fungerer fortsatt selv om nettleseren ikke tillater sessionStorage.
+      }
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    clearLocalDraft,
+    draftReady,
+    draftStorageKey,
+    hasUnsavedChanges,
+    state,
+  ]);
 
   useEffect(() => {
     latestPayloadRef.current = payload;
     latestFingerprintRef.current = payloadFingerprint;
   }, [payload, payloadFingerprint]);
 
+  useEffect(() => {
+    if (!previewOpen || !previewLoading) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setPreviewLoading(false);
+      setPreviewLoadError(true);
+    }, 20_000);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [previewAttempt, previewOpen, previewLoading]);
+
   const save = useCallback(() => {
     setSaveState(null);
     setAutoSaveState(null);
     startTransition(async () => {
+      try {
       const res = await saveDagsplan(null, payload);
       if (res?.error) {
         toast.error(res.error);
         setSaveState(res.error);
       } else {
         lastSavedFingerprintRef.current = payloadFingerprint;
+        setLastSavedFingerprint(payloadFingerprint);
+        clearLocalDraft();
         toast.success(t.toastSaved);
-        router.refresh();
+      }
+      } catch {
+        const message = "Kunne ikke lagre. Endringene er fortsatt i skjemaet. Prøv igjen.";
+        toast.error(message);
+        setSaveState(message);
       }
     });
-  }, [payload, payloadFingerprint, router, t]);
+  }, [clearLocalDraft, payload, payloadFingerprint, t]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -671,6 +1017,8 @@ export function DagsplanEditor({
           setAutoSaveState(`Autosave feilet: ${res.error}`);
         } else {
           lastSavedFingerprintRef.current = latestFingerprintRef.current;
+          setLastSavedFingerprint(latestFingerprintRef.current);
+          clearLocalDraft();
           setAutoSaveState(
             `Autosist lagret ${new Intl.DateTimeFormat("nb-NO", {
               hour: "2-digit",
@@ -678,13 +1026,15 @@ export function DagsplanEditor({
             }).format(new Date())}`,
           );
         }
-      })().finally(() => {
+      })().catch(() => {
+        setAutoSaveState("Autosave feilet. Endringene er fortsatt i skjemaet. Prøv å lagre igjen.");
+      }).finally(() => {
         autosaveInFlightRef.current = false;
       });
     }, 5 * 60 * 1000);
 
     return () => window.clearInterval(interval);
-  }, [locationSavePending, pending, uploading]);
+  }, [clearLocalDraft, locationSavePending, pending, uploading]);
 
   const saveLocations = useCallback(async () => {
     setLocationSavePending(true);
@@ -697,6 +1047,8 @@ export function DagsplanEditor({
           locationName: r.locationName,
           locationText: r.locationText,
           locationMapsUrl: r.locationMapsUrl,
+          latitude: r.latitude,
+          longitude: r.longitude,
           parkingText: r.parkingText,
           parkingMapsUrl: r.parkingMapsUrl,
           parkingImageUrl: r.parkingImageUrl,
@@ -710,13 +1062,70 @@ export function DagsplanEditor({
       flushSync(() => {
         setOpenLocationId(null);
       });
+    } catch {
+      toast.error("Kunne ikke lagre location. Endringene er fortsatt i skjemaet. Prøv igjen.");
     } finally {
       setLocationSavePending(false);
     }
   }, [state.id, state.locationRows, t]);
 
+  const fetchWeather = useCallback(async () => {
+    if (state.weatherLatitude == null || state.weatherLongitude == null) {
+      toast.error(t.weatherNeedLocation);
+      return;
+    }
+
+    setWeatherPending(true);
+    try {
+      const result = await fetchDagsplanWeather({
+        dagsplanId: state.id,
+        shootDate: state.shootDate,
+        latitude: state.weatherLatitude,
+        longitude: state.weatherLongitude,
+        workStartTime: state.printIncludeSchedule
+          ? workHoursFromSchedule.workStartTime || null
+          : state.workStartTime || null,
+        workEndTime: state.printIncludeSchedule
+          ? workHoursFromSchedule.workEndTime || null
+          : state.workEndTime || null,
+        locale: state.displayLocale,
+      });
+      if ("error" in result && result.error) {
+        toast.error(result.error);
+        return;
+      }
+      if ("forecast" in result && result.forecast) {
+        const forecast = result.forecast;
+        setState((current) => ({
+          ...current,
+          weatherIcon: forecast.weatherIcon,
+          weatherTempMin: String(forecast.weatherTempMin),
+          weatherTempMax: String(forecast.weatherTempMax),
+          weatherFromMet: true,
+        }));
+        setWeatherSuggestion(forecast.weatherSuggestion);
+        toast.success(t.weatherFetched);
+      }
+    } catch {
+      toast.error(t.weatherFetchError);
+    } finally {
+      setWeatherPending(false);
+    }
+  }, [
+    state.id,
+    state.shootDate,
+    state.printIncludeSchedule,
+    state.workStartTime,
+    state.workEndTime,
+    state.displayLocale,
+    state.weatherLatitude,
+    state.weatherLongitude,
+    t,
+    workHoursFromSchedule,
+  ]);
+
   async function handleLogoUpload(
-    which: "agency" | "client",
+    which: "agency" | "client" | "extraClient",
     formData: FormData,
   ) {
     setUploading(which);
@@ -727,12 +1136,104 @@ export function DagsplanEditor({
         return;
       }
       else {
+        if (r && "publicPath" in r && r.publicPath) {
+          setState((current) => ({
+            ...current,
+            ...(which === "agency"
+              ? { agencyLogoUrl: r.publicPath, agencyLogoHidden: false }
+              : which === "client"
+                ? { clientLogoUrl: r.publicPath, clientLogoHidden: false }
+                : { extraClientLogoUrl: r.publicPath }),
+          }));
+        }
         toast.success(t.toastLogoUploaded);
         router.refresh();
       }
     } finally {
       setUploading(null);
     }
+  }
+
+  async function handleLogoRemove(
+    which: "agency" | "client" | "extraClient",
+  ) {
+    setRemovingLogo(which);
+    try {
+      const result = await removeDagsplanLogo(state.id, which);
+      if (result && "error" in result && result.error) {
+        toast.error(result.error);
+        return;
+      }
+      setState((current) => ({
+        ...current,
+        ...(which === "agency"
+          ? { agencyLogoUrl: "", agencyLogoHidden: true }
+          : which === "client"
+            ? { clientLogoUrl: "", clientLogoHidden: true }
+            : { extraClientLogoUrl: "" }),
+      }));
+      toast.success(
+        state.displayLocale === "en" ? "Logo removed" : "Logo fjernet",
+      );
+      router.refresh();
+    } finally {
+      setRemovingLogo(null);
+    }
+  }
+
+  async function downloadPreviewPdf() {
+    if (pdfDownloadPending) return;
+    setPdfDownloadPending(true);
+    try {
+      const response = await fetch(`/api/dagsplan/${state.id}/pdf`);
+      if (!response.ok) {
+        let message = "Kunne ikke laste ned PDF. Prøv igjen.";
+        try {
+          const payload = (await response.json()) as { error?: string };
+          if (payload.error) message = payload.error;
+        } catch {
+          // Behold generell feilmelding når svaret ikke er JSON.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const utf8Name = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+      const basicName = /filename="([^"]+)"/i.exec(disposition)?.[1];
+      const filename = utf8Name
+        ? decodeURIComponent(utf8Name)
+        : basicName || "dagsplan.pdf";
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 1_000);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Kunne ikke laste ned PDF. Prøv igjen.",
+      );
+    } finally {
+      setPdfDownloadPending(false);
+    }
+  }
+
+  function requestPreviewPdfDownload() {
+    if (availableProjectCrew.length > 0) {
+      setCrewWarningOpen(true);
+      return;
+    }
+    void downloadPreviewPdf();
+  }
+
+  function downloadPreviewPdfDespiteMissingCrew() {
+    setCrewWarningOpen(false);
+    void downloadPreviewPdf();
   }
 
   function addFromCrew(suggestion: CrewSuggestion) {
@@ -786,10 +1287,11 @@ export function DagsplanEditor({
 
       <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          <p className="ap-kicker mb-1.5">Dagsplan</p>
+          <h1 className="ap-page-title">
             {state.projectName} · {state.title}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{state.shootDate}</p>
+          <p className="ap-code mt-1 text-muted-foreground">{state.shootDate}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div
@@ -823,19 +1325,11 @@ export function DagsplanEditor({
               {t.langEn}
             </Button>
           </div>
-          <Button variant="outline" asChild>
-            <Link href={`/dagsplaner/${state.id}/print`} target="_blank">
-              {t.previewPrint}
-            </Link>
-          </Button>
           <form action={duplicateDagsplan.bind(null, state.id)}>
             <Button type="submit" variant="secondary" disabled={pending}>
               {t.duplicate}
             </Button>
           </form>
-          <Button type="button" disabled={pending} onClick={save}>
-            {pending ? t.saving : t.saveAll}
-          </Button>
         </div>
       </header>
 
@@ -855,45 +1349,54 @@ export function DagsplanEditor({
         </p>
       ) : null}
 
+      <div className="pointer-events-none sticky top-4 z-40 mb-6 flex justify-end">
+        <div className="pointer-events-auto flex items-center gap-2 rounded-lg border border-border bg-background/95 p-2 shadow-lg backdrop-blur">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setPreviewLoadError(false);
+              setPreviewAttempt((attempt) => attempt + 1);
+              setPreviewLoading(true);
+              setPreviewOpen(true);
+            }}
+          >
+            <Eye className="h-4 w-4" aria-hidden />
+            {t.previewPrint}
+          </Button>
+          <Button
+            type="button"
+            disabled={pending}
+            onClick={save}
+            className={cn(
+              "text-white [&_svg]:text-white",
+              hasUnsavedChanges
+                ? "border-blue-700 bg-blue-700 hover:bg-blue-800"
+                : "border-seal bg-seal hover:bg-seal/90",
+            )}
+          >
+            <Save className="h-4 w-4" aria-hidden />
+            {pending ? t.saving : hasUnsavedChanges ? t.saveAll : t.save}
+          </Button>
+        </div>
+      </div>
+
       <div className="space-y-10">
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <SectionHeading className="mb-4">{t.branding}</SectionHeading>
-          <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4 sm:gap-6">
-            <div className="flex min-h-[56px] items-center justify-center">
-              {sanitizePublicImageUrl(displayAgencyLogo) ? (
-                <PublicLogoImg
-                  src={displayAgencyLogo}
-                  alt=""
-                  className="max-h-14 max-w-full object-contain"
-                />
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  {t.agencyLogo}
-                </span>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={APARENT_LOGO_PUBLIC_PATH}
-                alt=""
-                className="h-9 w-auto object-contain"
-              />
-            </div>
-            <div className="flex min-h-[56px] items-center justify-center">
-              {sanitizePublicImageUrl(displayClientLogo) ? (
-                <PublicLogoImg
-                  src={displayClientLogo}
-                  alt=""
-                  className="max-h-14 max-w-full object-contain"
-                />
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  {t.clientLogo}
-                </span>
-              )}
-            </div>
-          </div>
+        <DagsplanEditorSection
+          title={t.branding}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+          defaultOpen={false}
+          persistentSummary={
+            <DagsplanLogoPreview
+              agencyLogoUrl={displayAgencyLogo}
+              clientLogoUrl={displayClientLogo}
+              extraClientLogoUrl={state.extraClientLogoUrl}
+              agencyFallbackLabel={t.agencyLogo}
+              clientFallbackLabel={t.clientLogo}
+            />
+          }
+        >
           <div className="flex flex-wrap gap-4">
             <form
               encType="multipart/form-data"
@@ -923,6 +1426,23 @@ export function DagsplanEditor({
               >
                 {uploading === "agency" ? t.uploadEllipsis : t.upload}
               </Button>
+              {displayAgencyLogo ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  disabled={uploading !== null || removingLogo !== null}
+                  onClick={() => void handleLogoRemove("agency")}
+                >
+                  {removingLogo === "agency" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  )}
+                  {removingLogo === "agency" ? t.removingLogo : t.removeLogo}
+                </Button>
+              ) : null}
             </form>
             <form
               encType="multipart/form-data"
@@ -952,12 +1472,82 @@ export function DagsplanEditor({
               >
                 {uploading === "client" ? t.uploadEllipsis : t.upload}
               </Button>
+              {displayClientLogo ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  disabled={uploading !== null || removingLogo !== null}
+                  onClick={() => void handleLogoRemove("client")}
+                >
+                  {removingLogo === "client" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  )}
+                  {removingLogo === "client" ? t.removingLogo : t.removeLogo}
+                </Button>
+              ) : null}
+            </form>
+            <form
+              encType="multipart/form-data"
+              className="flex flex-wrap items-end gap-2"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const fd = new FormData(form);
+                await handleLogoUpload("extraClient", fd);
+                form.reset();
+              }}
+            >
+              <div className="space-y-1">
+                <Label className="text-xs">{state.displayLocale === "en" ? "Upload extra client logo (optional)" : "Last opp ekstra kundelogo (valgfritt)"}</Label>
+                <Input
+                  name="logoFile"
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                  disabled={uploading !== null}
+                />
+              </div>
+              <Button
+                type="submit"
+                size="sm"
+                variant="secondary"
+                disabled={uploading !== null}
+              >
+                {uploading === "extraClient" ? t.uploadEllipsis : t.upload}
+              </Button>
+              {state.extraClientLogoUrl ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive"
+                  disabled={uploading !== null || removingLogo !== null}
+                  onClick={() => void handleLogoRemove("extraClient")}
+                >
+                  {removingLogo === "extraClient" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  )}
+                  {removingLogo === "extraClient" ? t.removingLogo : t.removeLogo}
+                </Button>
+              ) : null}
             </form>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             {t.emptyLogoHint}
           </p>
-          <div className="mt-6 grid max-w-xl gap-4 sm:grid-cols-2">
+        </DagsplanEditorSection>
+
+        <DagsplanEditorSection
+          title={t.planDetails}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+        >
+          <div className="grid max-w-xl gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="title">{t.title}</Label>
               <Input
@@ -1035,41 +1625,69 @@ export function DagsplanEditor({
               </p>
             </div>
           </div>
-        </section>
+        </DagsplanEditorSection>
 
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <SectionHeading className="mb-0">{t.locations}</SectionHeading>
+        <DagsplanEditorSection
+          title={t.locations}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+        >
+          <div className="mb-4 flex justify-end">
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={pending}
               onClick={() => {
+                const temporaryId = `new-${crypto.randomUUID()}`;
+                const temporaryRow: DagsplanLocationRowState = {
+                  id: temporaryId,
+                  locationName: "",
+                  locationText: "",
+                  locationMapsUrl: "",
+                  latitude: null,
+                  longitude: null,
+                  parkingText: "",
+                  parkingMapsUrl: "",
+                  parkingImageUrl: "",
+                };
+                setOpenLocationId(temporaryId);
+                setState((current) => ({
+                  ...current,
+                  locationRows: [...current.locationRows, temporaryRow],
+                }));
+                const rollbackAdd = () => {
+                  setState((current) => ({
+                    ...current,
+                    locationRows: current.locationRows.filter(
+                      (location) => location.id !== temporaryId,
+                    ),
+                  }));
+                  setOpenLocationId(null);
+                };
                 startTransition(async () => {
-                  const r = await addDagsplanLocation(state.id);
-                  if ("error" in r && r.error) {
-                    toast.error(r.error);
-                    return;
-                  }
-                  if ("id" in r) {
-                    setOpenLocationId(r.id);
-                    setState((s) => ({
-                      ...s,
-                      locationRows: [
-                        ...s.locationRows,
-                        {
-                          id: r.id,
-                          locationName: "",
-                          locationText: "",
-                          locationMapsUrl: "",
-                          parkingText: "",
-                          parkingMapsUrl: "",
-                          parkingImageUrl: "",
-                        },
-                      ],
-                    }));
-                    toast.success(t.toastLocationAdded);
+                  try {
+                    const r = await addDagsplanLocation(state.id);
+                    if ("error" in r && r.error) {
+                      rollbackAdd();
+                      toast.error(r.error);
+                      return;
+                    }
+                    if ("id" in r) {
+                      setOpenLocationId(r.id);
+                      setState((current) => ({
+                        ...current,
+                        locationRows: current.locationRows.map((location) =>
+                          location.id === temporaryId
+                            ? { ...location, id: r.id }
+                            : location,
+                        ),
+                      }));
+                      toast.success(t.toastLocationAdded);
+                    }
+                  } catch {
+                    rollbackAdd();
+                    toast.error("Kunne ikke legge til location. Prøv igjen.");
                   }
                 });
               }}
@@ -1077,68 +1695,140 @@ export function DagsplanEditor({
               {t.newLocation}
             </Button>
           </div>
-          <div className="space-y-6">
-            {state.locationRows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t.noLocationsHint}
-              </p>
-            ) : null}
-            {state.locationRows.map((row, i) => (
-              <DagsplanLocationBlock
-                key={row.id}
-                index={i}
-                total={state.locationRows.length}
-                row={row}
-                loc={locStrings}
-                onChange={(patch) =>
-                  setState((s) => {
-                    const locationRows = [...s.locationRows];
-                    locationRows[i] = { ...locationRows[i], ...patch };
-                    return { ...s, locationRows };
-                  })
-                }
-                onMoveUp={() =>
-                  setState((s) => ({
-                    ...s,
-                    locationRows: moveRow(s.locationRows, i, -1),
-                  }))
-                }
-                onMoveDown={() =>
-                  setState((s) => ({
-                    ...s,
-                    locationRows: moveRow(s.locationRows, i, 1),
-                  }))
-                }
-                onRemove={() => {
-                  startTransition(async () => {
-                    const r = await removeDagsplanLocation(row.id);
-                    if ("error" in r && r.error) {
-                      toast.error(r.error);
-                      return;
+          <DndContext
+            id="dagsplan-locations-dnd"
+            sensors={locationSensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleLocationDragEnd}
+          >
+            <SortableContext
+              items={state.locationRows.map((location) => location.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-6">
+                {state.locationRows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t.noLocationsHint}
+                  </p>
+                ) : null}
+                {state.locationRows.map((row, i) => (
+                  <DagsplanLocationBlock
+                    projectId={state.projectId}
+                    key={row.id}
+                    index={i}
+                    row={row}
+                    loc={locStrings}
+                    onChange={(patch) =>
+                      setState((s) => {
+                        const locationRows = [...s.locationRows];
+                        locationRows[i] = { ...locationRows[i], ...patch };
+                        return { ...s, locationRows };
+                      })
                     }
-                    setState((s) => ({
-                      ...s,
-                      locationRows: s.locationRows.filter((_, j) => j !== i),
-                    }));
-                    toast.success(t.toastLocationRemoved);
+                    onRemove={() => {
+                  const removedRow = row;
+                  const removedIndex = i;
+                  const wasOpen = openLocationId === row.id;
+                  setState((current) => ({
+                    ...current,
+                    locationRows: current.locationRows.filter(
+                      (location) => location.id !== row.id,
+                    ),
+                  }));
+                  if (wasOpen) setOpenLocationId(null);
+                  const restoreRemovedRow = () => {
+                    setState((current) => {
+                      if (
+                        current.locationRows.some(
+                          (location) => location.id === removedRow.id,
+                        )
+                      ) {
+                        return current;
+                      }
+                      const locationRows = [...current.locationRows];
+                      locationRows.splice(
+                        Math.min(removedIndex, locationRows.length),
+                        0,
+                        removedRow,
+                      );
+                      return { ...current, locationRows };
+                    });
+                    if (wasOpen) setOpenLocationId(removedRow.id);
+                  };
+                  startTransition(async () => {
+                    try {
+                      const r = await removeDagsplanLocation(row.id);
+                      if ("error" in r && r.error) {
+                        restoreRemovedRow();
+                        toast.error(r.error);
+                        return;
+                      }
+                      toast.success(t.toastLocationRemoved);
+                    } catch {
+                      restoreRemovedRow();
+                      toast.error("Kunne ikke slette location. Prøv igjen.");
+                    }
                   });
-                }}
-                disableUp={i === 0}
-                disableDown={i === state.locationRows.length - 1}
-                onSaveLocations={saveLocations}
-                locationSaveDisabled={locationSavePending || pending}
-                collapsibleOpen={openLocationId === row.id}
-                onCollapsibleOpenChange={(open) =>
-                  setOpenLocationId(open ? row.id : null)
-                }
-              />
-            ))}
-          </div>
-        </section>
+                    }}
+                    onSaveLocations={saveLocations}
+                    locationSaveDisabled={locationSavePending || pending}
+                    collapsibleOpen={openLocationId === row.id}
+                    onCollapsibleOpenChange={(open) =>
+                      setOpenLocationId(open ? row.id : null)
+                    }
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </DagsplanEditorSection>
 
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <SectionHeading className="mb-4">{t.infoWeather}</SectionHeading>
+        <DagsplanEditorSection
+          title={t.infoWeather}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+        >
           <div className="grid max-w-3xl gap-4">
+            <div className="space-y-3 rounded-md border border-border bg-muted/20 p-4">
+              <LocationPlaceSearch
+                projectId={state.projectId}
+                label={t.weatherForecastLocation}
+                placeholder={t.weatherSearchPlaceholder}
+                selectedMessage={t.weatherLocationSelected}
+                action={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-full"
+                    disabled={
+                      state.weatherLatitude == null ||
+                      state.weatherLongitude == null ||
+                      weatherPending
+                    }
+                    onClick={() => void fetchWeather()}
+                  >
+                    {weatherPending ? t.weatherFetching : t.weatherFetch}
+                  </Button>
+                }
+                onSelect={(place) => {
+                  setState((current) => ({
+                    ...current,
+                    weatherLocationName:
+                      place.locationName.trim() || place.locationText.trim(),
+                    weatherLatitude: place.latitude,
+                    weatherLongitude: place.longitude,
+                    weatherFromMet: false,
+                  }));
+                  setWeatherSuggestion(null);
+                }}
+              />
+              <p className="text-sm">
+                <span className="text-muted-foreground">
+                  {t.weatherSelectedLocation}: {" "}
+                </span>
+                {state.weatherLocationName.trim() || t.weatherNoSelectedLocation}
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="infoText">{t.generalInfo}</Label>
               <Textarea
@@ -1159,6 +1849,7 @@ export function DagsplanEditor({
                   setState((s) => ({
                     ...s,
                     weatherIcon: v as WeatherIconKind,
+                    weatherFromMet: false,
                   }))
                 }
               >
@@ -1185,6 +1876,7 @@ export function DagsplanEditor({
                     setState((s) => ({
                       ...s,
                       weatherTempMin: e.target.value,
+                      weatherFromMet: false,
                     }))
                   }
                   placeholder="f.eks. 5"
@@ -1200,12 +1892,40 @@ export function DagsplanEditor({
                     setState((s) => ({
                       ...s,
                       weatherTempMax: e.target.value,
+                      weatherFromMet: false,
                     }))
                   }
                   placeholder="f.eks. 12"
                 />
               </div>
             </div>
+            {weatherSuggestion ? (
+              <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {t.weatherSuggestion}
+                  </p>
+                  <p className="text-sm">{weatherSuggestion}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="shrink-0"
+                  onClick={() => {
+                    setState((current) => ({
+                      ...current,
+                      weatherText: current.weatherText.trim()
+                        ? `${current.weatherText.trim()}\n${weatherSuggestion}`
+                        : weatherSuggestion,
+                    }));
+                    setWeatherSuggestion(null);
+                    toast.success(t.weatherSuggestionAdded);
+                  }}
+                >
+                  {t.weatherAddSuggestion}
+                </Button>
+              </div>
+            ) : null}
             <div className="space-y-2">
               <Label htmlFor="weatherText">{t.weatherNotes}</Label>
               <Textarea
@@ -1231,15 +1951,21 @@ export function DagsplanEditor({
                   weatherTempMin={parseTempInput(state.weatherTempMin)}
                   weatherTempMax={parseTempInput(state.weatherTempMax)}
                   weatherText={state.weatherText}
+                  weatherAttribution={
+                    state.weatherFromMet ? t.weatherAttribution : undefined
+                  }
                 />
               </div>
             ) : null}
           </div>
-        </section>
+        </DagsplanEditorSection>
 
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
+        <DagsplanEditorSection
+          title={t.crewMeet}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+        >
           <div className="mb-4 flex flex-col gap-3">
-            <SectionHeading className="mb-0">{t.crewMeet}</SectionHeading>
             <p className="text-xs text-muted-foreground">
               {t.crewMeetIntro}
             </p>
@@ -1297,6 +2023,43 @@ export function DagsplanEditor({
                   </Select>
                 </div>
               ) : null}
+            </div>
+            <div className="flex flex-wrap items-end gap-2 rounded-md border border-border/70 bg-muted/25 px-3 py-2.5">
+              <div className="space-y-1">
+                <Label htmlFor="crew-on-set-time-for-all" className="text-xs">
+                  {t.crewOnSetAll}
+                </Label>
+                <Input
+                  id="crew-on-set-time-for-all"
+                  className="h-8 w-[7.25rem] tabular-nums"
+                  type="time"
+                  value={crewOnSetTimeForAll}
+                  onChange={(event) => setCrewOnSetTimeForAll(event.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8"
+                disabled={!crewOnSetTimeForAll || state.crewRows.length === 0}
+                onClick={() => {
+                  setState((current) => ({
+                    ...current,
+                    crewRows: current.crewRows.map((row) => ({
+                      ...row,
+                      onSetTime: crewOnSetTimeForAll,
+                    })),
+                  }));
+                  toast.success(
+                    state.displayLocale === "en"
+                      ? `On-set time applied to ${state.crewRows.length} crew members.`
+                      : `På sett-tid lagt inn på ${state.crewRows.length} personer.`,
+                  );
+                }}
+              >
+                {t.crewApplyOnSetAll}
+              </Button>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -1470,12 +2233,13 @@ export function DagsplanEditor({
               </Button>
             )}
           </div>
-        </section>
+        </DagsplanEditorSection>
 
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <div className="mb-4">
-            <SectionHeading className="mb-0">{t.actors}</SectionHeading>
-          </div>
+        <DagsplanEditorSection
+          title={t.actors}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] border-collapse text-sm">
               <thead>
@@ -1587,34 +2351,161 @@ export function DagsplanEditor({
               <span>{t.excludeFromPrint}</span>
             </label>
           </div>
-        </section>
+        </DagsplanEditorSection>
 
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <div className="mb-4">
-            <SectionHeading className="mb-0">{t.schedule}</SectionHeading>
+        <DagsplanEditorSection
+          title={t.schedule}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+        >
+          <label className="mb-3 flex cursor-pointer items-center justify-end gap-2 text-sm text-muted-foreground">
+            <Checkbox
+              checked={state.printIncludeSchedule === false}
+              onCheckedChange={(v) =>
+                setState((s) => {
+                  const excludeFromPrint = v === true;
+                  if (!excludeFromPrint) {
+                    return { ...s, printIncludeSchedule: true };
+                  }
+                  const inf = inferWorkHoursFromScheduleRows(s.scheduleRows);
+                  return {
+                    ...s,
+                    printIncludeSchedule: false,
+                    workStartTime: s.workStartTime.trim() || inf.workStartTime,
+                    workEndTime: s.workEndTime.trim() || inf.workEndTime,
+                  };
+                })
+              }
+            />
+            <span>{t.excludeFromPrint}</span>
+          </label>
+          <div
+            className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/70 bg-muted/25 px-3 py-2.5"
+            role="group"
+            aria-labelledby="schedule-optional-columns-label"
+          >
+            <div className="min-w-0">
+              <p
+                id="schedule-optional-columns-label"
+                className="text-xs font-medium text-foreground"
+              >
+                {t.optionalScheduleColumns}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                {t.optionalScheduleColumnsHint}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={state.showInteriorExteriorColumn}
+                  onCheckedChange={(v) =>
+                    setState((s) => ({
+                      ...s,
+                      showInteriorExteriorColumn: v === true,
+                    }))
+                  }
+                />
+                <span>{t.showInteriorExteriorColumn}</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={state.showDayNightColumn}
+                  onCheckedChange={(v) =>
+                    setState((s) => ({
+                      ...s,
+                      showDayNightColumn: v === true,
+                    }))
+                  }
+                />
+                <span>{t.showDayNightColumn}</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={state.showShotColumn}
+                  onCheckedChange={(v) =>
+                    setState((s) => ({
+                      ...s,
+                      showShotColumn: v === true,
+                    }))
+                  }
+                />
+                <span>{t.showShotColumn}</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={state.showActorColumn}
+                  onCheckedChange={(v) =>
+                    setState((s) => ({
+                      ...s,
+                      showActorColumn: v === true,
+                    }))
+                  }
+                />
+                <span>{t.showActorColumn}</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox
+                  checked={state.showCostumeColumn}
+                  onCheckedChange={(v) =>
+                    setState((s) => ({
+                      ...s,
+                      showCostumeColumn: v === true,
+                    }))
+                  }
+                />
+                <span>{t.showCostumeColumn}</span>
+              </label>
+            </div>
           </div>
           <DagsplanScheduleTable
             shootDateIso={state.shootDate}
+            projectId={state.projectId}
+            imageAssets={state.imageAssets}
+            onImageAssetCreated={(asset) =>
+              setState((current) => ({
+                ...current,
+                imageAssets: current.imageAssets.some((item) => item.id === asset.id)
+                  ? current.imageAssets
+                  : [asset, ...current.imageAssets],
+              }))
+            }
+            sunLocationName={state.weatherLocationName}
+            sunLatitude={state.weatherLatitude}
+            sunLongitude={state.weatherLongitude}
             sunriseTimeOverride={state.sunriseTimeOverride}
-            onSunriseTimeOverrideChange={(v) =>
-              setState((s) => ({ ...s, sunriseTimeOverride: v }))
-            }
+            onSunriseTimeOverrideChange={handleSunriseTimeOverrideChange}
             sunsetTimeOverride={state.sunsetTimeOverride}
-            onSunsetTimeOverrideChange={(v) =>
-              setState((s) => ({ ...s, sunsetTimeOverride: v }))
-            }
+            onSunsetTimeOverrideChange={handleSunsetTimeOverrideChange}
             showShotColumn={state.showShotColumn}
+            showInteriorExteriorColumn={state.showInteriorExteriorColumn}
+            showDayNightColumn={state.showDayNightColumn}
+            showActorColumn={state.showActorColumn}
+            showCostumeColumn={state.showCostumeColumn}
+            columnOrder={state.scheduleColumnOrder}
+            onColumnOrderChange={(scheduleColumnOrder) =>
+              setState((current) => ({ ...current, scheduleColumnOrder }))
+            }
+            showTotal={false}
             locale={state.displayLocale}
             rows={state.scheduleRows}
-            onRowsChange={(scheduleRows) =>
-              setState((s) => ({ ...s, scheduleRows }))
-            }
+            onRowsChange={handleScheduleRowsChange}
           />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="sticky bottom-3 z-30 mt-3 rounded-md border border-border/80 bg-background/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/85">
+            <p className="text-xs font-medium text-muted-foreground">
+              {t.addScheduleRows}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className={SCHEDULE_ADD_BUTTON_CLASS}
+              disabled={state.scheduleRows.some(isScheduleCallTimeRow)}
+              style={{
+                backgroundColor: SCHEDULE_CALL_TIME_DEFAULT_ROW_BG,
+                borderColor: SCHEDULE_CALL_TIME_DEFAULT_ROW_BG,
+              }}
               onClick={() =>
                 setState((s) => {
                   const id = crypto.randomUUID();
@@ -1634,63 +2525,52 @@ export function DagsplanEditor({
                 })
               }
             >
-              {t.addCallTime}
+              <ScheduleAddButtonLabel>{t.addCallTime}</ScheduleAddButtonLabel>
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className={SCHEDULE_ADD_BUTTON_CLASS}
+              style={{
+                backgroundColor: SCHEDULE_PRERIGG_DEFAULT_ROW_BG,
+                borderColor: SCHEDULE_PRERIGG_DEFAULT_ROW_BG,
+              }}
               onClick={() =>
-                setState((s) => {
-                  const id = crypto.randomUUID();
-                  const kind = rowKindForNewSequentialRow(
-                    s.scheduleRows[s.scheduleRows.length - 1],
-                  );
-                  const row = {
-                    ...emptyScheduleRow(id, kind),
-                    info: SCHEDULE_PRE_WRAP_INFO,
-                    durationMinutes: 0,
-                    rowBgColor: SCHEDULE_WRAP_DEFAULT_ROW_BG,
-                  };
-                  return {
-                    ...s,
-                    scheduleRows: recalculateScheduleRows([
-                      ...s.scheduleRows,
-                      row,
-                    ]),
-                  };
-                })
+                appendSchedulePresetRow(
+                  "Prerigg",
+                  SCHEDULE_PRERIGG_DEFAULT_ROW_BG,
+                )
               }
             >
-              {t.addPreWrap}
+              <ScheduleAddButtonLabel>{t.addPrerigg}</ScheduleAddButtonLabel>
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className={SCHEDULE_ADD_BUTTON_CLASS}
+              style={{
+                backgroundColor: SCHEDULE_RECORDING_DEFAULT_ROW_BG,
+                borderColor: SCHEDULE_RECORDING_DEFAULT_ROW_BG,
+              }}
               onClick={() =>
-                setState((s) => {
-                  const id = crypto.randomUUID();
-                  const kind = rowKindForNewSequentialRow(
-                    s.scheduleRows[s.scheduleRows.length - 1],
-                  );
-                  return {
-                    ...s,
-                    scheduleRows: recalculateScheduleRows([
-                      ...s.scheduleRows,
-                      emptyScheduleRow(id, kind),
-                    ]),
-                  };
-                })
+                appendSchedulePresetRow(
+                  "Opptak",
+                  SCHEDULE_RECORDING_DEFAULT_ROW_BG,
+                )
               }
             >
-              {t.addRow}
+              <ScheduleAddButtonLabel>{t.addRecording}</ScheduleAddButtonLabel>
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="text-destructive hover:text-destructive"
+              className={cn(
+                SCHEDULE_ADD_BUTTON_CLASS,
+                "text-destructive hover:text-destructive",
+              )}
               onClick={() =>
                 setState((s) => {
                   const id = crypto.randomUUID();
@@ -1712,7 +2592,50 @@ export function DagsplanEditor({
                 })
               }
             >
-              {t.addLunch}
+              <ScheduleAddButtonLabel>{t.addLunch}</ScheduleAddButtonLabel>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={SCHEDULE_ADD_BUTTON_CLASS}
+              onClick={() =>
+                setState((s) => {
+                  const id = crypto.randomUUID();
+                  const kind = rowKindForNewSequentialRow(
+                    s.scheduleRows[s.scheduleRows.length - 1],
+                  );
+                  return {
+                    ...s,
+                    scheduleRows: recalculateScheduleRows([
+                      ...s.scheduleRows,
+                      emptyScheduleRow(id, kind),
+                    ]),
+                  };
+                })
+              }
+            >
+              <ScheduleAddButtonLabel>{t.addRow}</ScheduleAddButtonLabel>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={SCHEDULE_ADD_BUTTON_CLASS}
+              onClick={() =>
+                setState((s) => {
+                  const row = emptyScheduleRow(crypto.randomUUID(), "untimed");
+                  return {
+                    ...s,
+                    scheduleRows: recalculateScheduleRows([
+                      ...s.scheduleRows,
+                      row,
+                    ]),
+                  };
+                })
+              }
+            >
+              <ScheduleAddButtonLabel>{t.addUntimedRow}</ScheduleAddButtonLabel>
             </Button>
             <Popover
               open={companyMoveOpen}
@@ -1722,8 +2645,19 @@ export function DagsplanEditor({
               }}
             >
               <PopoverTrigger asChild>
-                <Button type="button" variant="outline" size="sm">
-                  {t.addCompanyMove}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={SCHEDULE_ADD_BUTTON_CLASS}
+                  style={{
+                    backgroundColor: SCHEDULE_COMPANY_MOVE_DEFAULT_ROW_BG,
+                    borderColor: SCHEDULE_COMPANY_MOVE_DEFAULT_ROW_BG,
+                  }}
+                >
+                  <ScheduleAddButtonLabel>
+                    {t.addCompanyMove}
+                  </ScheduleAddButtonLabel>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80 p-1" align="start">
@@ -1799,6 +2733,30 @@ export function DagsplanEditor({
               type="button"
               variant="outline"
               size="sm"
+              className={SCHEDULE_ADD_BUTTON_CLASS}
+              style={{
+                backgroundColor: SCHEDULE_WRAP_DEFAULT_ROW_BG,
+                borderColor: SCHEDULE_WRAP_DEFAULT_ROW_BG,
+              }}
+              onClick={() =>
+                appendSchedulePresetRow(
+                  SCHEDULE_PRE_WRAP_INFO,
+                  SCHEDULE_WRAP_DEFAULT_ROW_BG,
+                  0,
+                )
+              }
+            >
+              <ScheduleAddButtonLabel>{t.addPreWrap}</ScheduleAddButtonLabel>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={SCHEDULE_ADD_BUTTON_CLASS}
+              style={{
+                backgroundColor: SCHEDULE_WRAP_DEFAULT_ROW_BG,
+                borderColor: SCHEDULE_WRAP_DEFAULT_ROW_BG,
+              }}
               onClick={() =>
                 setState((s) => {
                   const id = crypto.randomUUID();
@@ -1821,49 +2779,28 @@ export function DagsplanEditor({
                 })
               }
             >
-              {t.addWrap}
+              <ScheduleAddButtonLabel>{t.addWrap}</ScheduleAddButtonLabel>
             </Button>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <Checkbox
-                checked={state.showShotColumn}
-                onCheckedChange={(v) =>
-                  setState((s) => ({
-                    ...s,
-                    showShotColumn: v === true,
-                  }))
-                }
-              />
-              <span>{t.showShotColumn}</span>
-            </label>
-            <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-              <Checkbox
-                checked={state.printIncludeSchedule === false}
-                onCheckedChange={(v) =>
-                  setState((s) => {
-                    const excludeFromPrint = v === true;
-                    if (!excludeFromPrint) {
-                      return { ...s, printIncludeSchedule: true };
-                    }
-                    const inf = inferWorkHoursFromScheduleRows(s.scheduleRows);
-                    return {
-                      ...s,
-                      printIncludeSchedule: false,
-                      workStartTime:
-                        s.workStartTime.trim() || inf.workStartTime,
-                      workEndTime: s.workEndTime.trim() || inf.workEndTime,
-                    };
-                  })
-                }
-              />
-              <span>{t.excludeFromPrint}</span>
-            </label>
+            </div>
           </div>
-        </section>
+          <div className="mt-3 flex flex-wrap items-baseline justify-start gap-x-2 gap-y-1 border-t border-border pt-3 text-sm">
+            <span className="text-muted-foreground">
+              {scheduleStrings.totalPlanned}
+            </span>
+            <span className="font-medium tabular-nums text-foreground">
+              {formatTotalScheduleMinutes(
+                totalScheduleMinutes,
+                scheduleStrings,
+              )}
+            </span>
+          </div>
+        </DagsplanEditorSection>
 
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <div className="mb-4">
-            <SectionHeading className="mb-0">{t.deptInfo}</SectionHeading>
-          </div>
+        <DagsplanEditorSection
+          title={t.deptInfo}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] border-collapse text-sm">
               <thead>
@@ -1970,10 +2907,14 @@ export function DagsplanEditor({
               <span>{t.excludeFromPrint}</span>
             </label>
           </div>
-        </section>
+        </DagsplanEditorSection>
 
-        <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
-          <SectionHeading className="mb-4">{t.emergencyRadio}</SectionHeading>
+        <DagsplanEditorSection
+          title={t.emergencyRadio}
+          collapseLabel={t.collapseSection}
+          expandLabel={t.expandSection}
+          defaultOpen={false}
+        >
           <div className="grid max-w-3xl gap-4">
             <div className="space-y-2">
               <Label htmlFor="emergency">{t.emergency}</Label>
@@ -2003,17 +2944,9 @@ export function DagsplanEditor({
               />
             </div>
           </div>
-        </section>
+        </DagsplanEditorSection>
 
         <div className="flex flex-wrap gap-3 border-t border-border pt-8">
-          <Button variant="outline" asChild>
-            <Link href={`/dagsplaner/${state.id}/print`} target="_blank">
-              {t.previewPrint}
-            </Link>
-          </Button>
-          <Button type="button" disabled={pending} onClick={save}>
-            {pending ? t.saving : t.saveAll}
-          </Button>
           <Button
             type="button"
             variant="outline"
@@ -2034,7 +2967,270 @@ export function DagsplanEditor({
           </Button>
         </div>
       </div>
+
+      <Dialog
+        open={previewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+          if (open) {
+            setPreviewLoadError(false);
+            setPreviewAttempt((attempt) => attempt + 1);
+            setPreviewLoading(true);
+          } else {
+            setPreviewLoading(false);
+            setPreviewLoadError(false);
+          }
+        }}
+      >
+        <DialogContent className="h-[92vh] max-w-[min(96vw,1200px)] grid-rows-[auto_minmax(0,1fr)] gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b border-border px-5 py-4 pr-12">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1.5">
+                <DialogTitle>{t.previewPrint}</DialogTitle>
+                <DialogDescription>{t.previewDialogHint}</DialogDescription>
+              </div>
+              <Button
+                type="button"
+                className="shrink-0 self-start sm:self-center"
+                disabled={pdfDownloadPending}
+                onClick={requestPreviewPdfDownload}
+              >
+                {pdfDownloadPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <FileDown className="h-4 w-4" aria-hidden />
+                )}
+                {pdfDownloadPending
+                  ? t.previewDownloadingPdf
+                  : t.previewDownloadPdf}
+              </Button>
+            </div>
+          </DialogHeader>
+          {previewOpen ? (
+            <div className="relative min-h-0 overflow-hidden bg-muted/40">
+              {previewLoading ? (
+                <DagsplanPdfLoading label={t.previewLoading} />
+              ) : null}
+              {previewLoadError ? (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+                  <p className="max-w-md text-sm text-muted-foreground">
+                    {t.previewLoadError}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setPreviewLoadError(false);
+                      setPreviewAttempt((attempt) => attempt + 1);
+                      setPreviewLoading(true);
+                    }}
+                  >
+                    {t.previewRetry}
+                  </Button>
+                </div>
+              ) : null}
+              <iframe
+                key={previewAttempt}
+                title={t.previewPrint}
+                src={`/dagsplaner/${state.id}/print?previewAttempt=${previewAttempt}`}
+                onLoad={() => {
+                  setPreviewLoadError(false);
+                  setPreviewLoading(false);
+                }}
+                onError={() => {
+                  setPreviewLoading(false);
+                  setPreviewLoadError(true);
+                }}
+                className={cn(
+                  "h-full min-h-0 w-full bg-white transition-opacity duration-200",
+                  previewLoading || previewLoadError
+                    ? "opacity-0"
+                    : "opacity-100",
+                )}
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={crewWarningOpen} onOpenChange={setCrewWarningOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {state.displayLocale === "en"
+                ? "Project crew is missing"
+                : "Prosjektcrew mangler i dagsplanen"}
+            </DialogTitle>
+            <DialogDescription>
+              {state.displayLocale === "en"
+                ? `${availableProjectCrew.length} ${availableProjectCrew.length === 1 ? "person is" : "people are"} not included in the crew list. The PDF can still be downloaded.`
+                : `${availableProjectCrew.length} ${availableProjectCrew.length === 1 ? "person er" : "personer er"} ikke lagt til i stabslisten. PDF-en kan fortsatt lastes ned.`}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-56 space-y-2 overflow-y-auto border-y border-border py-3 text-sm">
+            {availableProjectCrew.map((crew) => (
+              <li
+                key={crew.projectCrewId}
+                className="flex items-baseline justify-between gap-4"
+              >
+                <span className="font-medium text-foreground">
+                  {crew.personName}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {translateCrewDepartmentTitle(
+                    crew.departmentTitle,
+                    state.displayLocale,
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <DialogFooter className="gap-2 sm:space-x-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCrewWarningOpen(false)}
+            >
+              {state.displayLocale === "en" ? "Cancel" : "Avbryt"}
+            </Button>
+            <Button type="button" onClick={downloadPreviewPdfDespiteMissingCrew}>
+              <FileDown className="h-4 w-4" aria-hidden />
+              {state.displayLocale === "en"
+                ? "Download anyway"
+                : "Last ned likevel"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+function DagsplanEditorSection({
+  title,
+  collapseLabel,
+  expandLabel,
+  defaultOpen = true,
+  persistentSummary,
+  children,
+}: {
+  title: string;
+  collapseLabel: string;
+  expandLabel: string;
+  defaultOpen?: boolean;
+  persistentSummary?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible
+      asChild
+      defaultOpen={defaultOpen}
+      className="group/section rounded-lg border border-border bg-card shadow-sm"
+    >
+      <section>
+        <h2 className="m-0">
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
+            >
+              <span className="ap-section-title">{title}</span>
+              <span className="flex shrink-0 items-center gap-2 text-xs font-normal text-muted-foreground">
+                <span className="group-data-[state=open]/section:hidden">
+                  {expandLabel}
+                </span>
+                <span className="group-data-[state=closed]/section:hidden">
+                  {collapseLabel}
+                </span>
+                <ChevronDown
+                  className="h-4 w-4 transition-transform group-data-[state=open]/section:rotate-180"
+                  aria-hidden
+                />
+              </span>
+            </button>
+          </CollapsibleTrigger>
+        </h2>
+        {persistentSummary ? (
+          <div className="px-6 pb-6">{persistentSummary}</div>
+        ) : null}
+        <CollapsibleContent className="px-6 pb-6">
+          {children}
+        </CollapsibleContent>
+      </section>
+    </Collapsible>
+  );
+}
+
+function DagsplanLogoPreview({
+  agencyLogoUrl,
+  clientLogoUrl,
+  extraClientLogoUrl,
+  agencyFallbackLabel,
+  clientFallbackLabel,
+}: {
+  agencyLogoUrl: string;
+  clientLogoUrl: string;
+  extraClientLogoUrl?: string;
+  agencyFallbackLabel: string;
+  clientFallbackLabel: string;
+}) {
+  const agencyLogo = sanitizePublicImageUrl(agencyLogoUrl);
+  const clientLogo = sanitizePublicImageUrl(clientLogoUrl);
+  const extraClientLogo = sanitizePublicImageUrl(extraClientLogoUrl);
+
+  return (
+    <div
+      className={cn(
+        "grid items-center gap-4 sm:gap-6",
+        extraClientLogo
+          ? "grid-cols-4"
+          : "grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
+      )}
+    >
+      <div className="flex min-h-[56px] items-center justify-center">
+        {agencyLogo ? (
+          <PublicLogoImg
+            src={agencyLogo}
+            alt=""
+            className="max-h-14 max-w-full object-contain"
+          />
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {agencyFallbackLabel}
+          </span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center justify-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={APARENT_LOGO_PUBLIC_PATH}
+          alt=""
+          className="h-9 w-auto object-contain"
+        />
+      </div>
+      <div className="flex min-h-[56px] items-center justify-center">
+        {clientLogo ? (
+          <PublicLogoImg
+            src={clientLogo}
+            alt=""
+            className="max-h-14 max-w-full object-contain"
+          />
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {clientFallbackLabel}
+          </span>
+        )}
+      </div>
+      {extraClientLogo ? (
+        <div className="flex min-h-[56px] min-w-0 items-center justify-center">
+          <PublicLogoImg
+            src={extraClientLogo}
+            alt="Ekstra kundelogo"
+            className="max-h-14 max-w-full object-contain"
+          />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

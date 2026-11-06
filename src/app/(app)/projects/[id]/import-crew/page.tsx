@@ -25,6 +25,7 @@ export default async function ProjectImportCrewPage({ params }: PageProps) {
         <PageBackLink href={`/projects/${id}`}>{project.name}</PageBackLink>
       </div>
       <PageHeader
+        kicker="Crew"
         title="Importer crew til databasen og prosjektet"
         description="Samme flyt som under Crew → Importer: PDF eller limt tekst. Nye personer opprettes i crew-databasen og kobles til dette prosjektet (første rolle fra listen brukes som rolle på prosjektet). Duplikater i databasen hoppes over."
       />

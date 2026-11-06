@@ -27,7 +27,7 @@ export default async function CrewDetailPage({ params }: PageProps) {
       <div className="mb-6">
         <PageBackLink href="/crew">Tilbake</PageBackLink>
       </div>
-      <PageHeader title={person.fullName} />
+      <PageHeader kicker="Crew" title={person.fullName} />
       <CrewEditForm
         person={serializePersonForClient(person)}
         sensitiveInitial={sensitive}
@@ -46,7 +46,7 @@ export default async function CrewDetailPage({ params }: PageProps) {
                 href={`/projects/${pc.project.id}`}
                 className="flex min-h-[48px] items-center justify-between gap-4 py-3 transition-colors first:pt-0 hover:bg-muted/40"
               >
-                <span className="font-medium text-foreground">{pc.project.name}</span>
+                <span className="font-medium">{pc.project.name}</span>
                 <Badge variant="outline">{pc.project.status}</Badge>
               </Link>
             ))}

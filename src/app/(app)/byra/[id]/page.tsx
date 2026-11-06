@@ -20,6 +20,7 @@ export default async function AgencyDetailPage({ params }: PageProps) {
         <PageBackLink href="/byra">Byrå</PageBackLink>
       </div>
       <PageHeader
+        kicker="Byrå"
         title={agency.name}
         description={
           agency.orgNumber

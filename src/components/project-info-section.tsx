@@ -1,22 +1,24 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ProjectEditForm } from "@/components/forms/project-edit-form";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { PublicLogoImg } from "@/components/public-logo-img";
+import { Pencil } from "lucide-react";
 import type { ProjectFormClient } from "@/lib/serialize";
 import { formatDateShort } from "@/lib/utils";
+
+import type { LeadPerson, ProjectLeads } from "@/lib/project-leads";
 
 type Opt = { id: string; name: string };
 
 function infoCard(label: string, value: string) {
   return (
-    <div className="rounded-lg border border-border/50 bg-background/90 px-2.5 py-2 shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.06]">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+    <div className="min-w-0">
+      <p className="ap-kicker">
         {label}
       </p>
-      <p className="mt-1 text-sm font-medium leading-tight text-foreground">{value}</p>
+      <p className="mt-1 text-[13px] text-foreground">{value}</p>
     </div>
   );
 }
@@ -24,11 +26,17 @@ function infoCard(label: string, value: string) {
 function ProjectInfoStatic({
   project,
   customerName,
+  customerLogoUrl,
   agencyName,
+  leads,
+  onEdit,
 }: {
   project: ProjectFormClient;
   customerName: string | null;
+  customerLogoUrl?: string | null;
   agencyName: string | null;
+  leads: ProjectLeads;
+  onEdit?: () => void;
 }) {
   const period =
     project.startDate || project.endDate
@@ -41,24 +49,35 @@ function ProjectInfoStatic({
   const internal = project.internalTitle?.trim() || "—";
 
   return (
-    <div className="max-w-xl overflow-hidden rounded-xl border border-border/60 bg-gradient-to-br from-muted/40 via-background to-muted/25 p-3.5 shadow-sm sm:p-4">
-      <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <h2 className="text-balance text-lg font-semibold leading-tight tracking-tight text-foreground sm:text-xl">
+    <div className="max-w-3xl border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="ap-section-title">
           {project.name}
         </h2>
-        <Badge
-          className="w-fit shrink-0 text-[10px] sm:mt-0"
-          variant={project.status === "archived" ? "secondary" : "default"}
-        >
-          {project.status === "archived" ? "Arkivert" : "Aktiv"}
-        </Badge>
+        {onEdit ? (
+          <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={onEdit}>
+            <Pencil className="size-3.5" aria-hidden="true" />
+            Rediger
+          </Button>
+        ) : null}
       </div>
 
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 sm:mt-3.5">
-        {infoCard("Kunde", customerName ?? "—")}
+      <div className="mt-5 grid gap-x-8 gap-y-5 sm:grid-cols-2">
+        <div className="flex min-w-0 items-center gap-3">
+          {customerLogoUrl ? (
+            <PublicLogoImg
+              src={customerLogoUrl}
+              alt=""
+              className="h-14 w-20 shrink-0 border border-border bg-background object-contain p-2"
+            />
+          ) : null}
+          {infoCard("Kunde", customerName ?? "—")}
+        </div>
         {infoCard("Byrå", agencyName ?? "—")}
-        {infoCard("Internt navn", internal)}
+        {infoCard("Prosjektnummer", internal)}
         {infoCard("Periode", period)}
+        {infoCard("Produsent", leads.producerName)}
+        {infoCard("Regissør", leads.directorName)}
       </div>
     </div>
   );
@@ -67,33 +86,41 @@ function ProjectInfoStatic({
 export function ProjectInfoSection({
   project,
   customerName,
+  customerLogoUrl,
   agencyName,
+  leads,
   canEdit,
+  canEditLeads = false,
   agencies,
   customers,
+  people,
 }: {
   project: ProjectFormClient;
   customerName: string | null;
+  customerLogoUrl?: string | null;
   agencyName: string | null;
+  leads: ProjectLeads;
   canEdit: boolean;
+  canEditLeads?: boolean;
   agencies: Opt[];
   customers: Opt[];
+  people: LeadPerson[];
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [formKey, setFormKey] = useState(0);
 
   const onSaved = useCallback(() => {
     setEditing(false);
-    router.refresh();
-  }, [router]);
+  }, []);
 
   if (!canEdit) {
     return (
       <ProjectInfoStatic
         project={project}
         customerName={customerName}
+        customerLogoUrl={customerLogoUrl}
         agencyName={agencyName}
+        leads={leads}
       />
     );
   }
@@ -101,30 +128,26 @@ export function ProjectInfoSection({
   return (
     <div className="space-y-3">
       {!editing ? (
-        <>
-          <ProjectInfoStatic
-            project={project}
-            customerName={customerName}
-            agencyName={agencyName}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setFormKey((k) => k + 1);
-              setEditing(true);
-            }}
-          >
-            Rediger
-          </Button>
-        </>
+        <ProjectInfoStatic
+          project={project}
+          customerName={customerName}
+          customerLogoUrl={customerLogoUrl}
+          agencyName={agencyName}
+          leads={leads}
+          onEdit={() => {
+            setFormKey((k) => k + 1);
+            setEditing(true);
+          }}
+        />
       ) : (
         <ProjectEditForm
           key={formKey}
+          canEditLeads={canEditLeads}
           project={project}
           agencies={agencies}
           customers={customers}
+          people={people}
+          leads={leads}
           onSuccess={onSaved}
           onCancel={() => setEditing(false)}
         />

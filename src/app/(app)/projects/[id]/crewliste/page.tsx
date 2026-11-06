@@ -1,6 +1,9 @@
+import { requireProjectAccess } from "@/lib/project-access";
 import Link from "next/link";
+import { ProjectCrewListWeb } from "@/components/crew/project-crew-list-web";
+import { toCrewListSharePayload } from "@/lib/crew-list-share-payload";
 import { notFound } from "next/navigation";
-import { FileDown, Eye } from "lucide-react";
+import { FileDown } from "lucide-react";
 import {
   getCrewListShareForProject,
   getProjectCrewListPageData,
@@ -23,6 +26,7 @@ type PageProps = { params: Promise<{ id: string }> };
 
 export default async function ProjectCrewListPage({ params }: PageProps) {
   const { id } = await params;
+  const { flags } = await requireProjectAccess(id);
   const data = await getProjectCrewListPageData(id);
   if (!data) notFound();
 
@@ -63,25 +67,16 @@ export default async function ProjectCrewListPage({ params }: PageProps) {
   return (
     <>
       <div className="mb-6">
-        <PageBackLink href={`/projects/${data.project.id}`}>
-          {data.project.name}
+        <PageBackLink href={`/projects/${data.project.id}?tab=crew`}>
+          {data.project.name} · Crew
         </PageBackLink>
       </div>
       <PageHeader
-        title="Standard crewliste"
-        description="Når du legger til folk under Prosjektcrew på prosjektsiden, havner de her (i samme rekkefølge som på prosjektet). Listen endres ikke av seg selv når du bare åpner siden — fjerner du noen her, blir de ikke lagt inn igjen automatisk; bruk nedtrekkslisten for å legge til igjen. Rekkefølgen brukes når du oppretter ny call sheet (snapshot); du kan fortsatt endre crew per call sheet."
+        kicker="Crew"
+        title="Crewliste"
         actions={
           <>
-            <Button variant="outline" size="sm" asChild>
-              <Link
-                href={`/projects/${data.project.id}/crewliste/print`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Eye className="h-4 w-4" />
-                Forhåndsvis PDF
-              </Link>
-            </Button>
+            {flags.canManageMemberships && <CrewListSharePanel projectId={data.project.id} shareUrl={shareUrl} />}
             <Button variant="outline" size="sm" asChild>
               <Link
                 href={`/projects/${data.project.id}/crewliste/print?autoPrint=1`}
@@ -89,18 +84,21 @@ export default async function ProjectCrewListPage({ params }: PageProps) {
                 rel="noopener noreferrer"
               >
                 <FileDown className="h-4 w-4" />
-                Last ned til datamaskin
+                Last ned
               </Link>
             </Button>
           </>
         }
       />
-      <CrewListSharePanel projectId={data.project.id} shareUrl={shareUrl} />
-      <ProjectDefaultCrewListEditor
-        projectId={data.project.id}
-        rows={rows}
-        availableToAdd={availableToAdd}
-      />
+      <div className="mb-6">
+        <ProjectCrewListWeb data={toCrewListSharePayload(data)} />
+      </div>
+      {flags.canEditCrew && <details className="mb-6 rounded-md border border-border">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Rediger crewliste</summary>
+        <div className="border-t border-border p-4">
+          <ProjectDefaultCrewListEditor projectId={data.project.id} rows={rows} availableToAdd={availableToAdd} />
+        </div>
+      </details>}
     </>
   );
 }

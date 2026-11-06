@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 export function PageHeader({
   title,
+  kicker,
   /** Erstatter synlig h1 (f.eks. kundelogo som sidetittel). */
   branding,
   /** Brukes som skjult h1 når `title` er tom eller når `branding` vises. */
@@ -12,6 +13,7 @@ export function PageHeader({
   className,
 }: {
   title?: string;
+  kicker?: ReactNode;
   branding?: ReactNode;
   screenReaderTitle?: string;
   description?: string;
@@ -23,25 +25,24 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
+        "mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end",
         className,
       )}
     >
-      <div className="min-w-0 space-y-2">
+      <div className="min-w-0">
+        {kicker ? <div className="ap-kicker mb-1.5">{kicker}</div> : null}
         {branding ? (
           <>
             <h1 className="sr-only">{sr || "Prosjekt"}</h1>
             <div className="flex flex-col items-start gap-1">{branding}</div>
           </>
         ) : visibleTitle ? (
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-            {visibleTitle}
-          </h1>
+          <h1 className="ap-page-title">{visibleTitle}</h1>
         ) : sr ? (
           <h1 className="sr-only">{sr}</h1>
         ) : null}
         {description?.trim() ? (
-          <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-2 max-w-xl text-[13px] text-muted-foreground">
             {description}
           </p>
         ) : null}

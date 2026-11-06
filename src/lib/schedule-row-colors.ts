@@ -16,6 +16,12 @@ export const SCHEDULE_WRAP_DEFAULT_ROW_BG = "#b27b7b";
 /** Standard radfarge for «Company move» i timeplan (RGB 229, 231, 235). */
 export const SCHEDULE_COMPANY_MOVE_DEFAULT_ROW_BG = "#e5e7eb";
 
+/** Standard radfarge for «Prerigg» (gul). */
+export const SCHEDULE_PRERIGG_DEFAULT_ROW_BG = "#fef9c3";
+
+/** Standard radfarge for «Opptak» (grønn). */
+export const SCHEDULE_RECORDING_DEFAULT_ROW_BG = "#dcfce7";
+
 /** Raske valg inspirert av typisk dagsplan / referanse (call sheet). */
 export const SCHEDULE_ROW_COLOR_PRESETS: ReadonlyArray<{
   label: string;

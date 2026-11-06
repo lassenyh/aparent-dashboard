@@ -4,7 +4,7 @@ import { getProjectCrewListPageDataForShareToken } from "@/actions/project-crew-
 import { toCrewListSharePayload } from "@/lib/crew-list-share-payload";
 import { CrewListShareLive } from "@/components/crew/crew-list-share-live";
 
-type PageProps = { params: Promise<{ token: string }> };
+type PageProps = { params: Promise<{ token: string }>; searchParams: Promise<{ format?: string }> };
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function CrewListSharePage({ params }: PageProps) {
+export default async function CrewListSharePage({ params, searchParams }: PageProps) {
   const { token } = await params;
   if (!token?.trim()) notFound();
 
@@ -22,5 +22,5 @@ export default async function CrewListSharePage({ params }: PageProps) {
 
   const initial = toCrewListSharePayload(data);
 
-  return <CrewListShareLive initial={initial} />;
+  return <CrewListShareLive initial={initial} pdf={(await searchParams).format === "pdf"} />;
 }

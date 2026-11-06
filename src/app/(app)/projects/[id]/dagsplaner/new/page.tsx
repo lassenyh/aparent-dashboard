@@ -24,6 +24,7 @@ export default async function NewDagsplanPage({ params }: PageProps) {
         <PageBackLink href={`/projects/${project.id}`}>{project.name}</PageBackLink>
       </div>
       <PageHeader
+        kicker="Dagsplan"
         title="Ny dagsplan"
         description="Operativ plan for én innspillingsdag. Du kan duplisere og tilpasse senere."
       />

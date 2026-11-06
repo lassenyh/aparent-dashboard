@@ -103,6 +103,7 @@ export async function updateDashboardUserAccess(
     data: { isInternal, isActive },
   });
 
+  if (!isActive) await prisma.dashboardSession.deleteMany({ where: { userId } });
   revalidatePath(USER_ACCESS_PATH);
 }
 
@@ -111,6 +112,9 @@ export async function removeDashboardUser(userId: string): Promise<void> {
   if (!actor.isInternal) return;
   if (actor.id === userId) return;
 
-  await prisma.dashboardUser.delete({ where: { id: userId } });
+  await prisma.$transaction([
+    prisma.projectInvitation.updateMany({ where: { acceptedUserId: userId, status: "accepted" }, data: { status: "revoked" } }),
+    prisma.dashboardUser.delete({ where: { id: userId } }),
+  ]);
   revalidatePath(USER_ACCESS_PATH);
 }

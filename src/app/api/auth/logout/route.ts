@@ -1,9 +1,12 @@
+import { deleteDashboardSession } from "@/lib/auth-session";
 import { NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 
 export const runtime = "nodejs";
 
-export async function POST() {
+export async function POST(request: Request) {
+  if (request.headers.get("origin") !== new URL(request.url).origin) return NextResponse.json({ error: "Ugyldig forespørsel." }, { status: 403 });
+  await deleteDashboardSession();
   const secure =
     process.env.NODE_ENV === "production" || process.env.VERCEL === "1";
 

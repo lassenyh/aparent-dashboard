@@ -15,9 +15,11 @@ import { cn } from "@/lib/utils";
 export function ParkingImageDropzone({
   locationId,
   imageUrl,
+  onImageUrlChange,
 }: {
   locationId: string;
   imageUrl: string;
+  onImageUrlChange?: (imageUrl: string) => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +60,7 @@ export function ParkingImageDropzone({
         setClearedUntilRefresh(false);
         if ("publicPath" in r && r.publicPath) {
           setPendingUploadUrl(r.publicPath);
+          onImageUrlChange?.(r.publicPath);
         }
         toast.success("Bilde lastet opp");
         router.refresh();
@@ -65,7 +68,7 @@ export function ParkingImageDropzone({
         setUploading(false);
       }
     },
-    [locationId, router],
+    [locationId, onImageUrlChange, router],
   );
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -92,6 +95,7 @@ export function ParkingImageDropzone({
       }
       setClearedUntilRefresh(true);
       setPendingUploadUrl(null);
+      onImageUrlChange?.("");
       toast.success("Bilde fjernet");
       router.refresh();
     } finally {

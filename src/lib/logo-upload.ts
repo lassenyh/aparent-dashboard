@@ -125,6 +125,10 @@ export async function saveUploadedLogo(
     };
   }
 
+  console.warn(
+    "[logo-upload] BLOB_READ_WRITE_TOKEN mangler — lagrer lokalt i public/uploads. Filen følger ikke med git/deploy. Kjør `npx vercel env pull .env.local --yes` for å laste opp til Blob.",
+  );
+
   const dir = path.join(process.cwd(), "public", "uploads", ...subParts);
   await mkdir(dir, { recursive: true });
   const abs = path.join(dir, name);

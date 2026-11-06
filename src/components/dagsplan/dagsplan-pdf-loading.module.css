@@ -1,0 +1,28 @@
+.surface { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; overflow: hidden; background: #f7f4ed; color: #17150f; }
+.skeleton { position: absolute; inset: 12px max(20px, 6vw) 0; overflow: hidden; opacity: .48; pointer-events: none; }
+.skeleton i { display: block; height: 9px; background: #d5d0c4; }
+.skeleton::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, #fffdf8cc 50%, transparent 70%); transform: translateX(-100%); animation: sweep 5s ease-in-out infinite; }
+@keyframes sweep { 0%, 8% { transform: translateX(-100%); } 92%, 100% { transform: translateX(100%); } }
+.heading { display: grid; gap: 12px; margin-bottom: 18px; }
+.heading i:first-child { width: 110px; height: 7px; }
+.heading i:last-child { width: 210px; height: 17px; }
+.editor { background: #e7e2d6; padding: 0 22px; }
+.toolbar { display: flex; gap: 12px; padding: 14px 0; }
+.toolbar i { width: 58px; height: 9px; }
+.toolbar i:first-child { width: 92px; }
+.paper { max-width: 620px; min-height: 760px; margin-inline: auto; padding: 36px 10%; background: #fffdf8; }
+.logos { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
+.logos i { width: 24%; height: 18px; }
+.logos i:nth-child(2) { width: 16%; height: 12px; }
+.documentTitle { display: grid; justify-items: center; gap: 12px; margin-bottom: 36px; }
+.documentTitle i:first-child { width: 58%; height: 14px; }
+.documentTitle i:last-child { width: 34%; }
+.section { display: grid; gap: 10px; margin-bottom: 25px; }
+.section i:first-child { width: 36%; height: 11px; margin-bottom: 5px; }
+.section i:nth-child(2) { width: 100%; }
+.section i:nth-child(3) { width: 91%; }
+.section i:last-child { width: 68%; }
+.iconFrame { position: relative; z-index: 1; width: 96px; height: 96px; }
+.icon { transform: scale(.6); transform-origin: top left; }
+@media (max-width: 700px) { .skeleton { inset-inline: 16px; } .editor { padding-inline: 12px; } .paper { padding-inline: 8%; } }
+@media (prefers-reduced-motion: reduce) { .skeleton::after { animation: none; display: none; } }

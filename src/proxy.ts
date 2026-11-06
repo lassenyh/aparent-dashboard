@@ -19,11 +19,11 @@ export function proxy(request: NextRequest) {
   }
 
   /** Ikke redirect /login → / kun fordi cookie finnes (kan være utdatert/ugyldig id). Gyldig sesjon sjekkes i `app/login/page.tsx`. */
-  if (pathname.startsWith("/login")) {
+  if (pathname.startsWith("/login") || pathname === "/auth/complete" || pathname === "/api/auth/complete") {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/share/")) {
+  if (pathname.startsWith("/share/") || pathname.startsWith("/invitasjon/")) {
     return NextResponse.next();
   }
 

@@ -1,10 +1,11 @@
+import Link from "next/link";
+import { ProjectAccessSaveForm } from "@/components/project-access-save-form";
 import {
   listProjectMemberships,
   removeProjectMembership,
-  updateProjectMembership,
 } from "@/actions/project-memberships";
 import type { ProjectAccessFlags } from "@/lib/project-access";
-import { ProjectAccessAddUserForm } from "@/components/project-access-add-user-form";
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ProjectPageSection } from "@/components/project-page-section";
@@ -20,10 +21,13 @@ const permFields: {
   name: keyof Pick<
     ProjectAccessFlags,
     | "canViewProjectInfo"
+    | "canEditProjectInfo"
     | "canViewCrew"
     | "canEditCrew"
     | "canViewDagsplan"
     | "canEditDagsplan"
+    | "canViewCallSheets"
+    | "canEditCallSheets"
     | "canViewSensitiveData"
     | "canViewPayroll"
     | "canEditPayroll"
@@ -32,10 +36,13 @@ const permFields: {
   label: string;
 }[] = [
   { name: "canViewProjectInfo", label: "Se prosjektinfo" },
+  { name: "canEditProjectInfo", label: "Redigere prosjektinfo (navn, datoer m.m.)" },
   { name: "canViewCrew", label: "Se crew" },
   { name: "canEditCrew", label: "Redigere crew" },
   { name: "canViewDagsplan", label: "Se dagsplan" },
   { name: "canEditDagsplan", label: "Redigere dagsplan" },
+  { name: "canViewCallSheets", label: "Se call sheets" },
+  { name: "canEditCallSheets", label: "Redigere call sheets" },
   { name: "canViewSensitiveData", label: "Sensitive personopplysninger" },
   { name: "canViewPayroll", label: "Se lønningslister" },
   { name: "canEditPayroll", label: "Redigere lønningslister" },
@@ -51,9 +58,9 @@ export async function ProjectAccessSection({ projectId, flags }: Props) {
   const rows = await listProjectMemberships(projectId);
 
   return (
-    <ProjectPageSection title="Prosjekttilgang">
+    <ProjectPageSection title="Prosjekttilgang" collapsible={false}>
       <div className="space-y-8 pt-2">
-        <ProjectAccessAddUserForm projectId={projectId} />
+        <Button asChild><Link href={`/brukertilgang/invitasjon?projectId=${projectId}`}>Inviter med e-post</Link></Button>
 
         <div className="divide-y divide-border rounded-md border border-border">
           {rows.map((m) => (
@@ -72,7 +79,7 @@ export async function ProjectAccessSection({ projectId, flags }: Props) {
                   </Button>
                 </form>
               </div>
-              <form action={updateProjectMembership.bind(null, m.id)} className="space-y-3">
+              <ProjectAccessSaveForm membershipId={m.id}>
                 <div className="flex flex-wrap items-center gap-2">
                   <Label className="text-xs">Rolle</Label>
                   <select
@@ -98,10 +105,7 @@ export async function ProjectAccessSection({ projectId, flags }: Props) {
                     </label>
                   ))}
                 </div>
-                <Button type="submit" size="sm">
-                  Lagre
-                </Button>
-              </form>
+              </ProjectAccessSaveForm>
             </div>
           ))}
           {!rows.length ? (

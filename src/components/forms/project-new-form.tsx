@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useCallback, useState } from "react";
 import Link from "next/link";
 import { createProject } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
@@ -8,28 +8,56 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { nativeSelectClassName } from "@/lib/form-classes";
 
+import { CustomerNewForm } from "@/components/forms/customer-new-form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
+import { ProjectLeadFields } from "@/components/forms/project-lead-fields";
+import { isProducerRole, type LeadPerson } from "@/lib/project-leads";
+
 type Opt = { id: string; name: string };
 
 export function ProjectNewForm({
   agencies,
   customers,
+  people,
 }: {
   agencies: Opt[];
   customers: Opt[];
+  people: LeadPerson[];
 }) {
   const [state, action, pending] = useActionState(createProject, null);
 
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [customerPending, setCustomerPending] = useState(false);
+  const [addedCustomers, setAddedCustomers] = useState<Opt[]>([]);
+  const [customerId, setCustomerId] = useState("");
+  const customerOptions = Array.from(new Map([...customers, ...addedCustomers].map((customer) => [customer.id, customer])).values())
+    .sort((a, b) => a.name.localeCompare(b.name, "nb"));
+  const onCustomerCreated = useCallback((customer: Opt) => {
+    setAddedCustomers((existing) => [...existing, customer]);
+    setCustomerId(customer.id);
+    setCustomerOpen(false);
+    setCustomerPending(false);
+  }, []);
+
   return (
+    <>
     <form action={action} className="max-w-lg space-y-6">
       {state?.error ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        <p className="ap-callout ap-error">
           {state.error}
         </p>
       ) : null}
 
-      <div className="space-y-2">
-        <Label htmlFor="name">Prosjektnavn</Label>
-        <Input id="name" name="name" required />
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="space-y-2">
+          <Label htmlFor="internalTitle">Prosjektnummer</Label>
+          <Input id="internalTitle" name="internalTitle" />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="name">Prosjektnavn</Label>
+          <Input id="name" name="name" required />
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -39,18 +67,19 @@ export function ProjectNewForm({
             id="customerId"
             name="customerId"
             className={nativeSelectClassName}
-            defaultValue=""
+            value={customerId}
+            onChange={(event) => setCustomerId(event.target.value)}
           >
             <option value="">Velg kunde…</option>
-            {customers.map((c) => (
+            {customerOptions.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted-foreground">
-            Opprett kunder under «Kunder».
-          </p>
+          <Button type="button" variant="outline" size="sm" disabled={pending} onClick={() => setCustomerOpen(true)}>
+            Ny kunde
+          </Button>
         </div>
         <div className="space-y-2">
           <Label htmlFor="agencyId">Byrå</Label>
@@ -70,10 +99,7 @@ export function ProjectNewForm({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="internalTitle">Internt navn / kode</Label>
-        <Input id="internalTitle" name="internalTitle" />
-      </div>
+      <ProjectLeadFields people={people} producerId={people.find((person) => person.fullName.trim().toLocaleLowerCase("nb") === "lasse nyhaugen" && person.roles.some(isProducerRole))?.id} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
@@ -108,5 +134,15 @@ export function ProjectNewForm({
         </Button>
       </div>
     </form>
+    <Dialog open={customerOpen} onOpenChange={(open) => { if (!customerPending) setCustomerOpen(open); }}>
+      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Ny kunde</DialogTitle>
+          <DialogDescription>Kunden velges automatisk i prosjektet når du lagrer.</DialogDescription>
+        </DialogHeader>
+        <CustomerNewForm onCreated={onCustomerCreated} onCancel={() => setCustomerOpen(false)} onPendingChange={setCustomerPending} />
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

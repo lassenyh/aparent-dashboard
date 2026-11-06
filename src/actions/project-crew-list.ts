@@ -1,5 +1,8 @@
 "use server";
 
+import { redactProjectCrew } from "@/lib/project-data-access";
+import { sortCrewListMembersByDepartmentOrder, departmentOrderRank } from "@/lib/crew-department-order";
+import { resolveRoleForProject } from "@/lib/snapshot";
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
@@ -19,12 +22,17 @@ async function bumpProjectCrewListTimestamp(projectId: string) {
   });
 }
 
-export async function ensureProjectCrewList(projectId: string) {
+async function ensureProjectCrewListCore(projectId: string) {
   return prisma.projectCrewList.upsert({
     where: { projectId },
     create: { projectId },
     update: {},
   });
+}
+
+export async function ensureProjectCrewList(projectId: string) {
+  await requireProjectAccess(projectId);
+  return ensureProjectCrewListCore(projectId);
 }
 
 /** Legger inn aktive prosjektcrew som mangler i standardlisten (respekterer excludedFromDefaultCrewList). */
@@ -83,7 +91,7 @@ async function loadProjectCrewListPageDataCore(projectId: string) {
   });
   if (!project) return null;
 
-  await ensureProjectCrewList(projectId);
+  await ensureProjectCrewListCore(projectId);
 
   const list = await prisma.projectCrewList.findUniqueOrThrow({
     where: { projectId },
@@ -110,7 +118,7 @@ async function loadProjectCrewListPageDataCore(projectId: string) {
     project,
     listId: list.id,
     crewListUpdatedAt: list.updatedAt,
-    members: list.members,
+    members: sortCrewListMembersByDepartmentOrder(list.members),
     availableToAdd,
   };
 }
@@ -118,7 +126,12 @@ async function loadProjectCrewListPageDataCore(projectId: string) {
 export async function getProjectCrewListPageData(projectId: string) {
   const { flags } = await requireProjectAccess(projectId);
   assertPermission(flags, "canViewCrew");
-  return loadProjectCrewListPageDataCore(projectId);
+  const data = await loadProjectCrewListPageDataCore(projectId);
+  if (!data) return null;
+  return { ...data,
+    members: data.members.map(member => ({ ...member, projectCrew: redactProjectCrew(member.projectCrew, flags) })),
+    availableToAdd: data.availableToAdd.map(row => redactProjectCrew(row, flags)),
+  };
 }
 
 /**
@@ -131,7 +144,13 @@ export async function getProjectCrewListPageDataForShareToken(
   if (!t) return null;
   const projectId = await getProjectIdByCrewListShareToken(t);
   if (!projectId) return null;
-  return loadProjectCrewListPageDataCore(projectId);
+  const data = await loadProjectCrewListPageDataCore(projectId);
+  if (!data) return null;
+  const flags = { canViewSensitiveData: false, canViewPayroll: false };
+  return { ...data,
+    members: data.members.map(member => ({ ...member, projectCrew: redactProjectCrew(member.projectCrew, flags) })),
+    availableToAdd: [],
+  };
 }
 
 export async function getProjectIdByCrewListShareToken(
@@ -147,6 +166,7 @@ export async function getProjectIdByCrewListShareToken(
 export async function getCrewListShareForProject(projectId: string) {
   const { flags } = await requireProjectAccess(projectId);
   assertPermission(flags, "canViewCrew");
+  if (!flags.canManageMemberships) return null;
 
   return prisma.projectCrewListShare.findUnique({
     where: { projectId },
@@ -156,7 +176,7 @@ export async function getCrewListShareForProject(projectId: string) {
 
 export async function ensureCrewListShare(projectId: string) {
   const { flags } = await requireProjectAccess(projectId);
-  assertPermission(flags, "canEditCrew");
+  assertPermission(flags, "canManageMemberships");
 
   const row = await prisma.projectCrewListShare.upsert({
     where: { projectId },
@@ -169,7 +189,7 @@ export async function ensureCrewListShare(projectId: string) {
 
 export async function rotateCrewListShareToken(projectId: string) {
   const { flags } = await requireProjectAccess(projectId);
-  assertPermission(flags, "canEditCrew");
+  assertPermission(flags, "canManageMemberships");
 
   const token = newShareToken();
   await prisma.projectCrewListShare.upsert({
@@ -264,18 +284,20 @@ export async function moveProjectCrewListMember(
   const list = await prisma.projectCrewList.findUnique({
     where: { projectId },
     include: {
-      members: { orderBy: { sortOrder: "asc" } },
+      members: { orderBy: { sortOrder: "asc" }, include: { projectCrew: { include: { person: true } } } },
     },
   });
   if (!list?.members.length) return;
 
-  const idx = list.members.findIndex((m) => m.id === memberId);
+  const members = sortCrewListMembersByDepartmentOrder(list.members);
+  const idx = members.findIndex((m) => m.id === memberId);
   if (idx < 0) return;
   const j = direction === "up" ? idx - 1 : idx + 1;
-  if (j < 0 || j >= list.members.length) return;
+  if (j < 0 || j >= members.length) return;
 
-  const a = list.members[idx];
-  const b = list.members[j];
+  const a = members[idx];
+  const b = members[j];
+  if (departmentOrderRank(resolveRoleForProject(a.projectCrew)) !== departmentOrderRank(resolveRoleForProject(b.projectCrew))) return;
   await prisma.$transaction([
     prisma.projectCrewListMember.update({
       where: { id: a.id },

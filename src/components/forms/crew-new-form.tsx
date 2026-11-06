@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useCallback, useState } from "react";
+import { CrewRoleInput } from "@/components/crew/crew-role-input";
 import Link from "next/link";
 import { createPerson } from "@/actions/crew";
 import { VcardDropzone } from "@/components/crew/vcard-dropzone";
@@ -16,13 +17,12 @@ import {
   type VcardParsed,
 } from "@/lib/vcard";
 
-export function CrewNewForm() {
+export function CrewNewForm({ roleOptions = [] }: { roleOptions?: string[] }) {
   const [state, action, pending] = useActionState(createPerson, null);
   const [fields, setFields] = useState<CrewFormFields>(emptyCrewFormFields);
-
   const onVcard = useCallback((v: VcardParsed) => {
     setFields((prev) => mergeVcardIntoCrewFields(prev, v));
-  }, []);
+  }, [setFields]);
 
   return (
     <form action={action} className="max-w-lg space-y-8">
@@ -147,17 +147,17 @@ export function CrewNewForm() {
 
       <div className="space-y-4">
         <div className="space-y-2">
+          <label className="flex items-center gap-2 text-[13px]">
+            <input type="checkbox" checked={fields.roles.split(",").some((role) => ["regissør", "director"].includes(role.trim().toLowerCase()))}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setFields((current) => ({ ...current, roles: [...current.roles.split(",").map((role) => role.trim()).filter((role) => role && !["regissør", "director"].includes(role.toLowerCase())), ...(checked ? ["Regissør"] : [])].join(", ") }));
+              }} />
+            Regissør
+          </label>
           <Label htmlFor="roles">Roller (kommaseparert)</Label>
-          <Input
-            id="roles"
-            name="roles"
-            placeholder="f.eks. DOP, Camera operator"
-            value={fields.roles}
-            onChange={(e) =>
-              setFields((f) => ({ ...f, roles: e.target.value }))
-            }
-          />
-          <p className="text-xs text-muted-foreground">Fritekst — ingen fast liste.</p>
+          <CrewRoleInput id="roles" value={fields.roles} onChange={(roles) => setFields((current) => ({ ...current, roles }))} roleOptions={roleOptions} />
+          <p className="text-xs text-muted-foreground">Skriv for å se rolleforslag. Du kan også skrive en ny rolle. Skill flere roller med komma.</p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="defaultRate">Standard sats pr dag (NOK)</Label>

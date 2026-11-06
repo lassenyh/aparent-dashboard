@@ -65,16 +65,28 @@ export type DagsplanEditorT = {
   langNo: string;
   langEn: string;
   previewPrint: string;
+  previewDialogHint: string;
+  previewDownloadPdf: string;
+  previewDownloadingPdf: string;
+  previewLoading: string;
+  previewLoadError: string;
+  previewRetry: string;
+  collapseSection: string;
+  expandSection: string;
   duplicate: string;
+  save: string;
   saveAll: string;
   saving: string;
   branding: string;
+  planDetails: string;
   agencyLogo: string;
   clientLogo: string;
   uploadAgencyLogo: string;
   uploadClientLogo: string;
   upload: string;
   uploadEllipsis: string;
+  removeLogo: string;
+  removingLogo: string;
   emptyLogoHint: string;
   title: string;
   shootDate: string;
@@ -91,6 +103,21 @@ export type DagsplanEditorT = {
   locationRemoved: string;
   infoWeather: string;
   generalInfo: string;
+  weatherForecastLocation: string;
+  weatherSearchPlaceholder: string;
+  weatherFetch: string;
+  weatherFetching: string;
+  weatherFetched: string;
+  weatherFetchError: string;
+  weatherNeedLocation: string;
+  weatherForecastHint: string;
+  weatherAttribution: string;
+  weatherLocationSelected: string;
+  weatherSelectedLocation: string;
+  weatherNoSelectedLocation: string;
+  weatherSuggestion: string;
+  weatherAddSuggestion: string;
+  weatherSuggestionAdded: string;
   weatherIcon: string;
   pickIcon: string;
   minTemp: string;
@@ -108,6 +135,8 @@ export type DagsplanEditorT = {
   crewMobile: string;
   crewEmail: string;
   crewOnSet: string;
+  crewOnSetAll: string;
+  crewApplyOnSetAll: string;
   crewRow: string;
   /** Oppmøtetid: åpne e-postklient med alle i listen som mottakere */
   sendCrewEmail: string;
@@ -122,9 +151,17 @@ export type DagsplanEditorT = {
   actorMeet: string;
   actorReadyOnSet: string;
   schedule: string;
+  optionalScheduleColumns: string;
+  optionalScheduleColumnsHint: string;
   showShotColumn: string;
+  showInteriorExteriorColumn: string;
+  showDayNightColumn: string;
+  showActorColumn: string;
+  showCostumeColumn: string;
+  addScheduleRows: string;
   addCallTime: string;
   addRow: string;
+  addUntimedRow: string;
   addLunch: string;
   /** Timeplan: legg til rad med forhåndsutfylt info/scene fra valgt location */
   addCompanyMove: string;
@@ -133,6 +170,8 @@ export type DagsplanEditorT = {
   /** Når det ikke finnes locations: forklaring før manuelt felt */
   companyMoveManualHint: string;
   companyMoveManualPlaceholder: string;
+  addPrerigg: string;
+  addRecording: string;
   addPreWrap: string;
   addWrap: string;
   deptInfo: string;
@@ -157,16 +196,29 @@ const editorNo: DagsplanEditorT = {
   langNo: "Norsk",
   langEn: "English",
   previewPrint: "Forhåndsvisning / print",
+  previewDialogHint: "Forhåndsvisning av lagret dagsplan.",
+  previewDownloadPdf: "Last ned PDF",
+  previewDownloadingPdf: "Forbereder PDF…",
+  previewLoading: "Forbereder PDF-forhåndsvisning…",
+  previewLoadError:
+    "Forhåndsvisningen brukte for lang tid eller kunne ikke lastes inn.",
+  previewRetry: "Prøv igjen",
+  collapseSection: "Skjul",
+  expandSection: "Vis",
   duplicate: "Dupliser",
+  save: "Lagre",
   saveAll: "Lagre alle endringer",
   saving: "Lagrer…",
   branding: "Branding",
+  planDetails: "Dagsplaninfo",
   agencyLogo: "Byrålogo",
   clientLogo: "Kundelogo",
   uploadAgencyLogo: "Last opp byrålogo",
   uploadClientLogo: "Last opp kundelogo",
   upload: "Last opp",
   uploadEllipsis: "…",
+  removeLogo: "Fjern logo",
+  removingLogo: "Fjerner…",
   emptyLogoHint:
     "Tom visning bruker prosjektets byrå-/kundelogo som forslag.",
   title: "Tittel",
@@ -185,13 +237,30 @@ const editorNo: DagsplanEditorT = {
   locationRemoved: "Location fjernet",
   infoWeather: "Info og vær",
   generalInfo: "Generell info",
+  weatherForecastLocation: "Lokasjon for værvarsel",
+  weatherSearchPlaceholder: "Søk…",
+  weatherFetch: "Hent værvarsel",
+  weatherFetching: "Henter vær…",
+  weatherFetched: "Værvarselet er hentet",
+  weatherFetchError: "Kunne ikke hente værvarselet. Prøv igjen.",
+  weatherNeedLocation:
+    "Søk og velg en egen værlokasjon først.",
+  weatherForecastHint:
+    "Fyller inn min/maks temperatur og ikon. En valgfri værmerknad foreslås uten å overskrive friteksten.",
+  weatherAttribution: "Værdata fra MET Norway",
+  weatherLocationSelected: "Værlokasjonen er valgt.",
+  weatherSelectedLocation: "Valgt værlokasjon",
+  weatherNoSelectedLocation: "Ingen valgt",
+  weatherSuggestion: "Forslag til værmerknad",
+  weatherAddSuggestion: "Legg til i merknad",
+  weatherSuggestionAdded: "Værmerknaden er lagt til",
   weatherIcon: "Vær (ikon)",
   pickIcon: "Velg ikon",
   minTemp: "Min temp (°C)",
   maxTemp: "Max temp (°C)",
   weatherNotes: "Vær / merknader (fritekst)",
   weatherPreviewHint: "Forhåndsvisning (som på print)",
-  crewMeet: "Oppmøtetid",
+  crewMeet: "Stab og oppmøtetid",
   crewMeetIntro:
     "Stabsliste: funksjon, navn, mobil og e-post (som ved import). Velg fra crew-database eller fra prosjektcrew — eller fyll inn for hånd.",
   addFromCrewDb: "Legg til fra crew-database",
@@ -203,6 +272,8 @@ const editorNo: DagsplanEditorT = {
   crewMobile: "Mobil",
   crewEmail: "E-post",
   crewOnSet: "På sett",
+  crewOnSetAll: "Felles på sett",
+  crewApplyOnSetAll: "Bruk på alle",
   crewRow: "+ Rad",
   sendCrewEmail: "Send e-post",
   sendCrewEmailNeedAddresses:
@@ -216,15 +287,26 @@ const editorNo: DagsplanEditorT = {
   actorMeet: "Oppmøte",
   actorReadyOnSet: "Klar på sett",
   schedule: "Timeplan",
-  showShotColumn: "Vis kolonne Shot (bilde)",
-  addCallTime: "+ Call time",
-  addRow: "+ Rad",
-  addLunch: "+ Lunsj",
+  optionalScheduleColumns: "Valgfrie kolonner",
+  optionalScheduleColumnsHint:
+    "Vis eller skjul kolonner uten å slette innholdet som allerede er lagret.",
+  showShotColumn: "Vis bildekolonne",
+  showInteriorExteriorColumn: "I/E",
+  showDayNightColumn: "D/N",
+  showActorColumn: "Aktører",
+  showCostumeColumn: "Kostyme",
+  addScheduleRows: "Legg til rader",
+  addCallTime: "Call time",
+  addRow: "Rad",
+  addUntimedRow: "Uten tid",
+  addLunch: "Lunsj",
   addCompanyMove: "Company move",
   companyMoveManualOr: "Eller skriv adresse manuelt:",
   companyMoveManualHint:
     "Ingen lagrede locations — skriv adressen i feltet under (scene/adresse på raden).",
   companyMoveManualPlaceholder: "Adresse",
+  addPrerigg: "Prerigg",
+  addRecording: "Opptak",
   addPreWrap: "Pre-wrap",
   addWrap: "Wrap",
   deptInfo: "Avdelingsinfo",
@@ -249,16 +331,28 @@ const editorEn: DagsplanEditorT = {
   langNo: "Norwegian",
   langEn: "English",
   previewPrint: "Preview / print",
+  previewDialogHint: "Preview of the saved day plan.",
+  previewDownloadPdf: "Download PDF",
+  previewDownloadingPdf: "Preparing PDF…",
+  previewLoading: "Preparing PDF preview…",
+  previewLoadError: "The preview took too long or could not be loaded.",
+  previewRetry: "Try again",
+  collapseSection: "Collapse",
+  expandSection: "Expand",
   duplicate: "Duplicate",
+  save: "Save",
   saveAll: "Save all changes",
   saving: "Saving…",
   branding: "Branding",
+  planDetails: "Day plan details",
   agencyLogo: "Agency logo",
   clientLogo: "Client logo",
   uploadAgencyLogo: "Upload agency logo",
   uploadClientLogo: "Upload client logo",
   upload: "Upload",
   uploadEllipsis: "…",
+  removeLogo: "Remove logo",
+  removingLogo: "Removing…",
   emptyLogoHint:
     "When empty, the project’s agency/client logos are used as a fallback.",
   title: "Title",
@@ -277,13 +371,30 @@ const editorEn: DagsplanEditorT = {
   locationRemoved: "Location removed",
   infoWeather: "Info & weather",
   generalInfo: "General info",
+  weatherForecastLocation: "Forecast location",
+  weatherSearchPlaceholder: "Search…",
+  weatherFetch: "Fetch weather forecast",
+  weatherFetching: "Fetching weather…",
+  weatherFetched: "Weather forecast fetched",
+  weatherFetchError: "Could not fetch the weather forecast. Please try again.",
+  weatherNeedLocation:
+    "Search for and select a dedicated weather location first.",
+  weatherForecastHint:
+    "Fills in min/max temperature and icon. An optional weather note is suggested without replacing free text.",
+  weatherAttribution: "Weather data from MET Norway",
+  weatherLocationSelected: "Weather location selected.",
+  weatherSelectedLocation: "Selected weather location",
+  weatherNoSelectedLocation: "None selected",
+  weatherSuggestion: "Suggested weather note",
+  weatherAddSuggestion: "Add to notes",
+  weatherSuggestionAdded: "Weather note added",
   weatherIcon: "Weather (icon)",
   pickIcon: "Choose icon",
   minTemp: "Min temp (°C)",
   maxTemp: "Max temp (°C)",
   weatherNotes: "Weather / notes",
   weatherPreviewHint: "Preview (as on print)",
-  crewMeet: "Call time",
+  crewMeet: "Crew & call times",
   crewMeetIntro:
     "Crew list: role, name, mobile and email (as in import). Pick from crew database or project crew — or type manually.",
   addFromCrewDb: "Add from crew database",
@@ -295,6 +406,8 @@ const editorEn: DagsplanEditorT = {
   crewMobile: "Mobile",
   crewEmail: "Email",
   crewOnSet: "On set",
+  crewOnSetAll: "Shared on-set time",
+  crewApplyOnSetAll: "Apply to all",
   crewRow: "+ Row",
   sendCrewEmail: "Send email",
   sendCrewEmailNeedAddresses:
@@ -308,15 +421,26 @@ const editorEn: DagsplanEditorT = {
   actorMeet: "Call time",
   actorReadyOnSet: "Ready on set",
   schedule: "Schedule",
-  showShotColumn: "Show Shot column (image)",
-  addCallTime: "+ Call time",
-  addRow: "+ Row",
-  addLunch: "+ Lunch",
+  optionalScheduleColumns: "Optional columns",
+  optionalScheduleColumnsHint:
+    "Show or hide columns without deleting content that is already saved.",
+  showShotColumn: "Show image column",
+  showInteriorExteriorColumn: "I/E",
+  showDayNightColumn: "D/N",
+  showActorColumn: "Cast",
+  showCostumeColumn: "Costume",
+  addScheduleRows: "Add rows",
+  addCallTime: "Call time",
+  addRow: "Row",
+  addUntimedRow: "No time",
+  addLunch: "Lunch",
   addCompanyMove: "Company move",
   companyMoveManualOr: "Or type an address manually:",
   companyMoveManualHint:
     "No saved locations — enter the address below (scene/address on the row).",
   companyMoveManualPlaceholder: "Address",
+  addPrerigg: "Pre-rig",
+  addRecording: "Shoot",
   addPreWrap: "Pre-wrap",
   addWrap: "Wrap",
   deptInfo: "Department info",
@@ -354,14 +478,16 @@ export type ScheduleTableT = {
   to: string;
   info: string;
   durationMin: string;
-  sceneSetting: string;
+  scene: string;
   actors: string;
+  costume: string;
   shot: string;
   moveRow: string;
   anchorAuto: string;
   /** Kort merkelapp på fri-rad */
   freeRowShort: string;
   freeRow: string;
+  untimedRow: string;
   totalPlanned: string;
   min: string;
   h: string;
@@ -373,50 +499,54 @@ export type ScheduleTableT = {
 const scheduleNo: ScheduleTableT = {
   sunrise: "Soloppgang",
   sunset: "Solnedgang",
-  useOsloAuto: "Bruk Oslo (automatisk)",
+  useOsloAuto: "Bruk automatisk",
   sunTimesManual: "Manuelle tider — lagres på dagsplanen.",
-  sunTimesAutoBeforeDate: "Automatisk fra Oslo på opptaksdato (",
+  sunTimesAutoBeforeDate: "Automatisk fra {location} på opptaksdato (",
   sunTimesAutoAfterDate: ").",
   from: "Fra",
   to: "Til",
   info: "Info",
   durationMin: "Varighet",
-  sceneSetting: "Scene / setting",
+  scene: "Scene / setting",
   actors: "Aktør(er)",
+  costume: "Kostyme",
   shot: "Shot",
   moveRow: "Flytt og radfarge",
   anchorAuto: "Anker eller auto",
   freeRowShort: "Fri",
   freeRow: "Frifelt",
+  untimedRow: "Uten tid",
   totalPlanned: "Totalt planlagt",
   min: "min",
   h: "t",
-  osloHint: "Standard: Oslo på opptaksdato. Endre ved annen lokasjon.",
+  osloHint: "Automatisk fra valgt værlokasjon. Kan overstyres manuelt.",
   actions: "Handlinger",
 };
 
 const scheduleEn: ScheduleTableT = {
   sunrise: "Sunrise",
   sunset: "Sunset",
-  useOsloAuto: "Use Oslo (auto)",
+  useOsloAuto: "Use automatic",
   sunTimesManual: "Manual times — saved on the day plan.",
-  sunTimesAutoBeforeDate: "Automatic from Oslo on shoot date (",
+  sunTimesAutoBeforeDate: "Automatic from {location} on shoot date (",
   sunTimesAutoAfterDate: ").",
   from: "From",
   to: "To",
   info: "Info",
   durationMin: "Duration",
-  sceneSetting: "Scene / setting",
+  scene: "Scene / setting",
   actors: "Cast",
+  costume: "Costume",
   shot: "Shot",
   moveRow: "Move & row colour",
   anchorAuto: "Anchor or auto",
   freeRowShort: "Free",
   freeRow: "Free row",
+  untimedRow: "No time",
   totalPlanned: "Total planned",
   min: "min",
   h: "h",
-  osloHint: "Default: Oslo on shoot date. Change for other locations.",
+  osloHint: "Automatic from the selected forecast location. Can be overridden manually.",
   actions: "Actions",
 };
 
@@ -436,18 +566,18 @@ export type ShotDropzoneT = {
 const shotNo: ShotDropzoneT = {
   shot: "Shot",
   dropOrClick: "Slipp bilde eller klikk",
-  replace: "Bytt",
-  remove: "×",
-  removeEllipsis: "…",
+  replace: "Bytt bilde",
+  remove: "Fjern bilde",
+  removeEllipsis: "Fjerner…",
   uploading: "…",
 };
 
 const shotEn: ShotDropzoneT = {
   shot: "Shot",
   dropOrClick: "Drop image or click",
-  replace: "Replace",
-  remove: "×",
-  removeEllipsis: "…",
+  replace: "Replace image",
+  remove: "Remove image",
+  removeEllipsis: "Removing…",
   uploading: "…",
 };
 
@@ -508,8 +638,9 @@ export type DagsplanPrintT = {
   from: string;
   to: string;
   duration: string;
-  sceneSetting: string;
+  scene: string;
   actors: string;
+  costume: string;
   shot: string;
   department: string;
   info: string;
@@ -541,7 +672,7 @@ const printNo: DagsplanPrintT = {
   onSet: "PÅ SET",
   cast: "Aktører",
   schedule: "Timeplan",
-  infoWeather: "Info / vær",
+  infoWeather: "Info og vær",
   weather: "Vær",
   deptInfo: "Avdelingsinfo",
   nr: "Nr",
@@ -552,8 +683,9 @@ const printNo: DagsplanPrintT = {
   from: "Fra",
   to: "Til",
   duration: "Varighet",
-  sceneSetting: "Scene / setting",
+  scene: "Scene / setting",
   actors: "Aktør(er)",
+  costume: "Kostyme",
   shot: "Shot",
   department: "Avdeling",
   info: "Info",
@@ -582,7 +714,7 @@ const printEn: DagsplanPrintT = {
   onSet: "ON SET",
   cast: "Cast",
   schedule: "Schedule",
-  infoWeather: "Info / weather",
+  infoWeather: "Info and weather",
   weather: "Weather",
   deptInfo: "Department info",
   nr: "No.",
@@ -593,8 +725,9 @@ const printEn: DagsplanPrintT = {
   from: "From",
   to: "To",
   duration: "Duration",
-  sceneSetting: "Scene / setting",
+  scene: "Scene / setting",
   actors: "Cast",
+  costume: "Costume",
   shot: "Shot",
   department: "Department",
   info: "Info",
@@ -634,6 +767,8 @@ export type LocationBlockT = {
   parkingImage: string;
   parkingImageHint: string;
   save: string;
+  collapse: string;
+  expand: string;
 };
 
 const locationNo: LocationBlockT = {
@@ -653,6 +788,8 @@ const locationNo: LocationBlockT = {
   parkingImageHint:
     "Map, sketch or photo. Prints as a separate page when filled.",
   save: "Lagre",
+  collapse: "Lukk",
+  expand: "Åpne",
 };
 
 const locationEn: LocationBlockT = {
@@ -672,6 +809,8 @@ const locationEn: LocationBlockT = {
   parkingImageHint:
     "Map, sketch or photo. Prints as a separate page when filled.",
   save: "Save",
+  collapse: "Close",
+  expand: "Open",
 };
 
 export function getDagsplanLocationStrings(

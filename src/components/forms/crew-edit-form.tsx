@@ -150,6 +150,14 @@ export function CrewEditForm({
 
       <div className="space-y-4">
         <div className="space-y-2">
+          <label className="flex items-center gap-2 text-[13px]">
+            <input type="checkbox" checked={fields.roles.split(",").some((role) => ["regissør", "director"].includes(role.trim().toLowerCase()))}
+              onChange={(event) => {
+                const checked = event.target.checked;
+                setFields((current) => ({ ...current, roles: [...current.roles.split(",").map((role) => role.trim()).filter((role) => role && !["regissør", "director"].includes(role.toLowerCase())), ...(checked ? ["Regissør"] : [])].join(", ") }));
+              }} />
+            Regissør
+          </label>
           <Label htmlFor="roles">Roller (kommaseparert)</Label>
           <Input
             id="roles"

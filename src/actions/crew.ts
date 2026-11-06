@@ -44,7 +44,7 @@ export async function getCrewFilterOptions() {
     select: { city: true, roles: true },
   });
   const cities = new Set<string>();
-  const roles = new Set<string>();
+  const roles = new Set<string>(["Regissør"]);
   for (const p of people) {
     if (p.city?.trim()) cities.add(p.city.trim());
     for (const r of p.roles) {
@@ -66,7 +66,7 @@ export async function getCrewList(params: CrewListParams = {}) {
     where.city = { equals: params.city, mode: "insensitive" };
   }
   if (params.role) {
-    where.roles = { has: params.role };
+    where.roles = params.role === "Regissør" ? { hasSome: ["Regissør", "regissør", "REGISSØR", "Director", "director", "DIRECTOR"] } : { has: params.role };
   }
 
   const orderBy: Prisma.PersonOrderByWithRelationInput[] =
@@ -177,7 +177,7 @@ export async function createPerson(
   });
 
   revalidatePath("/crew");
-  redirect(`/crew/${person.id}`);
+  redirect(`/crew?created=${encodeURIComponent(person.id)}`);
 }
 
 export async function updatePerson(
@@ -271,7 +271,7 @@ export async function updatePerson(
     revalidatePath(`/projects/${projectId}`);
   }
 
-  return null;
+  redirect(`/crew?updated=${encodeURIComponent(id)}`);
 }
 
 export async function touchPersonLastUsed(personId: string) {
@@ -306,4 +306,32 @@ export async function deletePerson(personId: string, formData?: FormData) {
       ? rawReturn
       : "/crew";
   redirect(redirectTo);
+}
+
+/** Inline creation from a project: category is assigned server-side. */
+async function createLeadPerson(formData: FormData, role: "Regissør" | "Produsent" | "Linjeprodusent"): Promise<{ error?: string; person?: { id: string; fullName: string; roles: string[] } }> {
+  await requireInternalUser();
+  const parsed = z.object({
+    firstName: z.string().trim().min(1, "Fornavn er påkrevd"),
+    lastName: z.string().trim().min(1, "Etternavn er påkrevd"),
+    email: z.union([z.literal(""), z.string().email("Ugyldig e-post")]),
+    phone: z.string().trim(),
+  }).safeParse(Object.fromEntries(["firstName", "lastName", "email", "phone"].map((key) => [key, String(formData.get(key) ?? "").trim()])));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ugyldig data" };
+  const { firstName, lastName, email, phone } = parsed.data;
+  const person = await prisma.person.create({ data: { firstName, lastName, fullName: computeFullName(firstName, lastName), email: email || null, phone: phone || null, roles: [role], isActive: true }, select: { id: true, fullName: true, roles: true } });
+  revalidatePath("/crew");
+  return { person };
+}
+
+export async function createDirector(formData: FormData) {
+  return createLeadPerson(formData, "Regissør");
+}
+
+export async function createProducer(formData: FormData) {
+  const role = formData.get("role");
+  if (role !== "Produsent" && role !== "Linjeprodusent") {
+    return { error: "Velg Produsent eller Linjeprodusent." };
+  }
+  return createLeadPerson(formData, role);
 }

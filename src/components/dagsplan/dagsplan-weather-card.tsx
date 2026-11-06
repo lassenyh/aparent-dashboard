@@ -10,6 +10,7 @@ export function DagsplanWeatherCard({
   weatherTempMin,
   weatherTempMax,
   weatherText,
+  weatherAttribution,
   variant = "editor",
   className,
 }: {
@@ -17,6 +18,7 @@ export function DagsplanWeatherCard({
   weatherTempMin: number | null;
   weatherTempMax: number | null;
   weatherText: string | null | undefined;
+  weatherAttribution?: string;
   variant?: "editor" | "print" | "printInline";
   className?: string;
 }) {
@@ -50,6 +52,11 @@ export function DagsplanWeatherCard({
         ) : null}
         {text ? (
           <span className="min-w-0 whitespace-pre-wrap">{text}</span>
+        ) : null}
+        {weatherAttribution ? (
+          <span className="shrink-0 text-neutral-500">
+            · {weatherAttribution}
+          </span>
         ) : null}
       </span>
     );
@@ -95,6 +102,16 @@ export function DagsplanWeatherCard({
               )}
             >
               {text}
+            </p>
+          ) : null}
+          {weatherAttribution ? (
+            <p
+              className={cn(
+                "text-xs text-muted-foreground",
+                isPrint ? "print:text-[9px]" : undefined,
+              )}
+            >
+              {weatherAttribution}
             </p>
           ) : null}
         </div>

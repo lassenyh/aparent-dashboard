@@ -1,0 +1,409 @@
+/* ---------------------------------------------------------------------------
+   WrapUp · tema «Papir/Blekk/Segl» — overført fra WrapUp Sign
+   Legges som src/app/theme-wrapup.css og importeres ETTER globals.css:
+
+     import "./globals.css";
+     import "./theme-wrapup.css";
+
+   Alt er scoped til [data-theme="wrapup"]. Dette er standardtemaet nå.
+   Skru av:  NEXT_PUBLIC_THEME=legacy  (data-theme fjernes fra <html>)
+   Skru på:  fjern variabelen — wrapup-temaet er standard uten den.
+
+   Print- og PDF-flatene (dagsplan, crewliste, lønningsliste) temes ikke
+   herfra — de beholder dokumentets eget uttrykk.
+--------------------------------------------------------------------------- */
+
+/* 1 · Fonter -----------------------------------------------------------------
+   layout.tsx laster wrapup-snittene:
+
+     Archivo        → --font-wrapup-ui
+     Source Serif 4 → --font-doc
+     IBM Plex Mono  → --font-mono-ui
+
+   Temaet peker --font-ui/--font-display/--font-geist-mono mot dem når
+   data-theme er satt. Selektoren er html[...] fordi next/font legger
+   variablene på en klasse med samme spesifisitet som et attributt.        */
+
+html[data-theme="wrapup"] {
+  --font-ui: var(--font-wrapup-ui);
+  --font-display: var(--font-wrapup-ui);
+  --font-geist-mono: var(--font-mono-ui);
+  --font-sans: var(--font-wrapup-ui);
+  --font-mono: var(--font-mono-ui);
+  --font-heading: var(--font-wrapup-ui);
+}
+
+[data-theme="wrapup"] {
+  /* 2 · Nøytraler og aksent — lys modus */
+  --background: #f7f4ed;   /* papir  */
+  --foreground: #17150f;   /* blekk  */
+  --card: #fffdf8;         /* ark    */
+  --card-foreground: #17150f;
+  --popover: #fffdf8;
+  --popover-foreground: #17150f;
+
+  --primary: #17150f;              /* primærknapp = blekk, ikke teal */
+  --primary-foreground: #f7f4ed;
+  --primary-hover: #2a271d;
+
+  --secondary: #f4f1e8;            /* sidemeny / rolig flate */
+  --secondary-foreground: #17150f;
+  --muted: #f4f1e8;
+  --muted-foreground: #5c574a;
+  --faint: #8a8474;                /* etiketter i kapitéler */
+  --accent: #efebe0;               /* aktiv rad / hover */
+  --accent-foreground: #17150f;
+
+  --seal: #7a2e2a;                 /* eneste aksent — lukker/gjenåpner */
+  --seal-foreground: #f7f4ed;
+  --destructive: #7a2e2a;
+  --destructive-foreground: #f7f4ed;
+
+  --border: #ded8c9;
+  --border-hairline: #efeae0;      /* radskille i tabell */
+  --input: #d3ccb9;
+  --ring: #17150f;
+
+  --sidebar: #f4f1e8;
+  --sidebar-foreground: #17150f;
+  --sidebar-primary: #17150f;
+  --sidebar-primary-foreground: #f7f4ed;
+  --sidebar-accent: #efebe0;
+  --sidebar-accent-foreground: #17150f;
+  --sidebar-border: #ded8c9;
+  --sidebar-ring: #7a2e2a;
+
+  /* 3 · Semantiske statuser */
+  --lamp-neutral: #9a9484;
+  --lamp-pending: #2f4858;
+  --lamp-attention: #8a6a2f;
+  --lamp-positive: #3d6b4f;
+  --lamp-expiring: #b4562b;
+  --lamp-error: #7a2e2a;
+
+  /* 4 · Form — rette hjørner, ingen skygge */
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+}
+
+[data-theme="wrapup"].dark,
+.dark [data-theme="wrapup"] {
+  --background: #14130e;
+  --foreground: #f2eee3;
+  --card: #1c1a14;
+  --card-foreground: #f2eee3;
+  --popover: #1c1a14;
+  --popover-foreground: #f2eee3;
+
+  --primary: #f2eee3;
+  --primary-foreground: #14130e;
+  --primary-hover: #ffffff;
+
+  --secondary: #100f0b;
+  --secondary-foreground: #f2eee3;
+  --muted: #221f19;
+  --muted-foreground: #c4bca8;
+  --faint: #7a7364;
+  --accent: #262319;
+  --accent-foreground: #f2eee3;
+
+  --seal: #c8756b;
+  --seal-foreground: #14130e;
+  --destructive: #d69289;
+  --destructive-foreground: #14130e;
+
+  --border: #2e2b22;
+  --border-hairline: #221f19;
+  --input: #3a3628;
+  --ring: #f2eee3;
+
+  --sidebar: #100f0b;
+  --sidebar-foreground: #f2eee3;
+  --sidebar-primary: #f2eee3;
+  --sidebar-primary-foreground: #14130e;
+  --sidebar-accent: #262319;
+  --sidebar-accent-foreground: #f2eee3;
+  --sidebar-border: #2e2b22;
+  --sidebar-ring: #c8756b;
+
+  --lamp-neutral: #7a7364;
+  --lamp-pending: #9fbecf;
+  --lamp-attention: #d9ba7c;
+  --lamp-positive: #95c4a5;
+  --lamp-expiring: #e9a379;
+  --lamp-error: #d69289;
+}
+
+/* 6 · Komponentlaget — .ap-*-klassene ------------------------------------- */
+
+[data-theme="wrapup"] body,
+[data-theme="wrapup"] {
+  letter-spacing: 0;
+}
+
+[data-theme="wrapup"] .ap-page-title {
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+[data-theme="wrapup"] .ap-dialog-title {
+  font-family: var(--font-doc), Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+[data-theme="wrapup"] .ap-section-title {
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+[data-theme="wrapup"] .ap-kicker {
+  font-family: var(--font-mono-ui), ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+[data-theme="wrapup"] .ap-legend,
+[data-theme="wrapup"] .ap-meta dt,
+[data-theme="wrapup"] .ap-table th {
+  font-family: var(--font-mono-ui), ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+[data-theme="wrapup"] .ap-table-wrap {
+  border-radius: 0;
+  border-color: var(--border);
+  background: var(--card);
+}
+
+[data-theme="wrapup"] .ap-table th {
+  padding: 11px 16px 9px;
+  border-bottom: 1px solid var(--border);
+}
+
+[data-theme="wrapup"] .ap-table td {
+  height: 44px;
+}
+
+[data-theme="wrapup"] .ap-table tbody tr + tr td {
+  border-top: 1px solid var(--border-hairline);
+}
+
+[data-theme="wrapup"] .ap-table tbody tr:hover,
+[data-theme="wrapup"] .ap-table tbody tr[data-selected="true"] {
+  background: var(--accent);
+}
+
+[data-theme="wrapup"] .ap-name {
+  font-family: var(--font-doc), Georgia, serif;
+  font-size: 16.5px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+[data-theme="wrapup"] .ap-amount,
+[data-theme="wrapup"] .ap-code {
+  font-family: var(--font-mono-ui), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: 0;
+}
+
+[data-theme="wrapup"] .ap-callout {
+  border-radius: 0;
+  background: #fbf6ee;
+  border-color: #e2cfc0;
+}
+
+[data-theme="wrapup"].dark .ap-callout {
+  background: #241d16;
+  border-color: #4a3527;
+}
+
+[data-theme="wrapup"] .ap-tabs {
+  gap: 0;
+}
+
+[data-theme="wrapup"] .ap-tabs a,
+[data-theme="wrapup"] .ap-tabs button {
+  height: 34px;
+  font-size: 12.5px;
+  font-weight: 400;
+}
+
+[data-theme="wrapup"] .ap-tabs a[aria-current="page"],
+[data-theme="wrapup"] .ap-tabs a[data-active="true"],
+[data-theme="wrapup"] .ap-tabs button[data-active="true"] {
+  border-bottom-color: var(--seal);
+  font-weight: 500;
+}
+
+[data-theme="wrapup"] .ap-help,
+[data-theme="wrapup"] .ap-error {
+  font-size: 11.5px;
+}
+
+[data-theme="wrapup"] .ap-error {
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  color: var(--seal);
+}
+
+[data-theme="wrapup"] select:not([data-slot]),
+[data-theme="wrapup"] textarea:not([data-slot]) {
+  border-radius: 0;
+  border-color: var(--input);
+  background: #ffffff;
+}
+
+[data-theme="wrapup"].dark select:not([data-slot]),
+[data-theme="wrapup"].dark textarea:not([data-slot]) {
+  background: var(--card);
+}
+
+/* 7 · Primitivene --------------------------------------------------------- */
+
+[data-theme="wrapup"] [data-slot="button"] {
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+[data-theme="wrapup"] [data-slot="button"]:focus-visible,
+[data-theme="wrapup"] [data-slot="input"]:focus-visible,
+[data-theme="wrapup"] [data-slot="textarea"]:focus-visible,
+[data-theme="wrapup"] select:not([data-slot]):focus-visible,
+[data-theme="wrapup"] textarea:not([data-slot]):focus-visible,
+[data-theme="wrapup"] input:focus-visible,
+[data-theme="wrapup"] a:focus-visible {
+  border-color: var(--foreground);
+  box-shadow: inset 0 -2px 0 var(--seal);
+  outline: none;
+  --tw-ring-shadow: 0 0 #0000;
+}
+
+[data-theme="wrapup"] [data-slot="input"],
+[data-theme="wrapup"] [data-slot="textarea"],
+[data-theme="wrapup"] select:not([data-slot]),
+[data-theme="wrapup"] textarea:not([data-slot]) {
+  background: #ffffff;
+}
+
+[data-theme="wrapup"].dark [data-slot="input"],
+[data-theme="wrapup"].dark [data-slot="textarea"],
+[data-theme="wrapup"].dark select:not([data-slot]),
+[data-theme="wrapup"].dark textarea:not([data-slot]) {
+  background: var(--card);
+}
+
+[data-theme="wrapup"] [data-slot="label"] {
+  font-family: var(--font-mono-ui), ui-monospace, monospace;
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+[data-theme="wrapup"] [data-slot="card"] {
+  border-radius: 0;
+  border-color: var(--border);
+}
+
+[data-theme="wrapup"] [data-slot="card-title"] {
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-theme="wrapup"] [data-slot="separator"] {
+  background: var(--border);
+}
+
+[data-theme="wrapup"] [role="menu"],
+[data-theme="wrapup"] [data-slot="popover"],
+[data-theme="wrapup"] [data-slot="popup"],
+[data-theme="wrapup"] [data-slot="dialog"] {
+  border-radius: 0;
+  border: 1px solid var(--foreground);
+  box-shadow: none;
+}
+
+/* 8 · Dokumentflatene — serif bare i selve arket ------------------------ */
+
+[data-theme="wrapup"] .ap-doc {
+  background: var(--card);
+  font-family: var(--font-doc), Georgia, serif;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--foreground);
+}
+
+[data-theme="wrapup"] .ap-doc [data-slot],
+[data-theme="wrapup"] .ap-doc button,
+[data-theme="wrapup"] .ap-doc input,
+[data-theme="wrapup"] .ap-doc select,
+[data-theme="wrapup"] .ap-doc [class*="ap-"] {
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+}
+
+[data-theme="wrapup"] .ap-doc [class*="ap-code"],
+[data-theme="wrapup"] .ap-doc [class*="ap-amount"] {
+  font-family: var(--font-mono-ui), ui-monospace, monospace;
+}
+
+/* 9 · Hjørner og skygger ------------------------------------------------
+   Tokens (§4) dekker rounded-xl/2xl. Vilkårlige verdier må nullstilles
+   eksplisitt. Trenger noe å være rundt — gi det klassen .ap-round.        */
+
+[data-theme="wrapup"] [class*="rounded"]:not(.ap-round) {
+  border-radius: 0;
+}
+
+[data-theme="wrapup"] * {
+  --tw-shadow: 0 0 #0000;
+}
+
+[data-theme="wrapup"] [data-slot="status-lamp-dot"],
+[data-theme="wrapup"] [class*="bg-lamp-"][class*="rounded-full"] {
+  border-radius: 999px;
+}
+
+/* 10 · Sub-merket · wrapup | desk --------------------------------------- */
+
+[data-theme="wrapup"] .ap-lockup {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 5px;
+  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 0.88;
+}
+
+[data-theme="wrapup"] .ap-lockup-rule {
+  width: 1px;
+  height: 0.8em;
+  margin: 0 6px;
+  background: var(--border);
+  flex: none;
+}
+
+[data-theme="wrapup"] .ap-lockup-service {
+  color: var(--seal);
+}

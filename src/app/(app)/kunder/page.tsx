@@ -22,36 +22,48 @@ export default async function CustomersPage() {
         }
       />
 
-      <div className="divide-y divide-border rounded-md border border-border">
-        {customers.map((c) => (
-          <Link
-            key={c.id}
-            href={`/kunder/${c.id}`}
-            className="flex min-h-[48px] items-center justify-between gap-4 px-4 py-3 transition-colors first:rounded-t-md last:rounded-b-md hover:bg-muted/40"
-          >
-            <div className="flex min-w-0 flex-1 items-center gap-4">
-              {sanitizePublicImageUrl(c.logoUrl) ? (
-                <PublicLogoImg
-                  src={c.logoUrl}
-                  alt=""
-                  className="h-8 w-24 shrink-0 object-contain object-left"
-                />
-              ) : null}
-              <div className="min-w-0">
-                <p className="font-semibold text-foreground">{c.name}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {c._count.projects} prosjekt
-                </p>
-              </div>
-            </div>
-          </Link>
-        ))}
+      <div className="ap-table-wrap">
+        {customers.length ? (
+          <table className="ap-table">
+            <thead>
+              <tr>
+                <th>Kunde</th>
+                <th>Prosjekter</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customers.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <Link
+                      href={`/kunder/${c.id}`}
+                      className="flex min-w-0 items-center gap-4 py-1"
+                    >
+                      {sanitizePublicImageUrl(c.logoUrl) ? (
+                        <PublicLogoImg
+                          src={c.logoUrl}
+                          alt=""
+                          className="h-8 w-24 shrink-0 object-contain object-left"
+                        />
+                      ) : null}
+                      <span className="font-medium">{c.name}</span>
+                    </Link>
+                  </td>
+                  <td>
+                    <span className="ap-code text-muted-foreground">
+                      {c._count.projects}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="px-4 py-8 text-[13px] text-muted-foreground">
+            Ingen kunder ennå. Opprett den første.
+          </p>
+        )}
       </div>
-      {!customers.length ? (
-        <p className="py-4 text-sm text-muted-foreground">
-          Ingen kunder ennå. Opprett den første.
-        </p>
-      ) : null}
     </>
   );
 }

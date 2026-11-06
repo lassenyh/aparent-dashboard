@@ -650,7 +650,6 @@ export function PayrollListEditor({
         return;
       }
       toast.success("Lønningsliste lagret");
-      router.refresh();
     });
   }
 
@@ -662,7 +661,6 @@ export function PayrollListEditor({
         return;
       }
       setSubmitted(c);
-      router.refresh();
     });
   }
 

@@ -1,5 +1,8 @@
 "use server";
 
+import { redactProjectCrew } from "@/lib/project-data-access";
+import { sortCrewListMembersByDepartmentOrder } from "@/lib/crew-department-order";
+
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -66,7 +69,7 @@ async function addDefaultCrewListToCallSheet(callSheetId: string) {
       })
     )._max.sortOrder ?? -1;
 
-  for (const m of list.members) {
+  for (const m of sortCrewListMembersByDepartmentOrder(list.members)) {
     const pc = m.projectCrew;
     if (!pc.isActive) continue;
     if (exclude.has(pc.personId)) continue;
@@ -107,7 +110,7 @@ export async function getAvailableProjectCrewForCallSheet(callSheetId: string) {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 
-  return all.filter((pc) => !exclude.has(pc.personId));
+  return all.filter((pc) => !exclude.has(pc.personId)).map(pc => redactProjectCrew(pc, flags));
 }
 
 export async function getCallSheetById(id: string) {
@@ -122,7 +125,7 @@ export async function getCallSheetById(id: string) {
   const flags = await getProjectAccessForUser(sessionUser, sheet.projectId);
   if (!flags?.canViewCallSheets) notFound();
 
-  return prisma.callSheet.findUnique({
+  const result = await prisma.callSheet.findUnique({
     where: { id },
     include: {
       project: {
@@ -137,6 +140,7 @@ export async function getCallSheetById(id: string) {
       },
     },
   });
+  return result ? { ...result, crew: result.crew.map(row => ({ ...row, rateSnapshot: flags.canViewPayroll ? row.rateSnapshot : null })) } : null;
 }
 
 export async function createCallSheet(

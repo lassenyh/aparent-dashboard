@@ -4,27 +4,28 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap border border-transparent text-[13px] font-medium transition-[background,color,border-color] duration-150 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-transparent font-medium text-destructive hover:bg-destructive/10",
         outline:
-          "border border-border bg-background hover:bg-muted hover:text-foreground",
-        secondary: "bg-muted text-foreground hover:bg-muted/80",
-        ghost: "hover:bg-muted hover:text-foreground",
-        /** Samme palett som `AppSidebar` (mørkeblå gradient). */
-        sidebar:
-          "border-0 bg-gradient-to-b from-[#1a2a4a] via-[#152238] to-[#0c1424] text-white shadow-sm hover:brightness-110 focus-visible:ring-white/35 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        link: "text-foreground underline-offset-4 hover:underline",
+          "border-border bg-transparent font-medium text-foreground hover:bg-muted",
+        secondary:
+          "bg-secondary font-medium text-secondary-foreground hover:bg-accent",
+        ghost:
+          "font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+        /** Tidligere mørk sidemeny-knapp — samme blekk som `default`. */
+        sidebar: "bg-primary text-primary-foreground hover:bg-primary-hover",
+        link: "font-medium text-foreground underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-[13px]",
-        lg: "h-10 rounded-md px-6",
-        icon: "h-9 w-9",
+        default: "h-[38px] px-3.5",
+        sm: "h-8 px-2.5 text-[12px]",
+        lg: "h-10 px-4",
+        icon: "size-[38px]",
       },
     },
     defaultVariants: {
@@ -45,6 +46,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
+        data-slot="button"
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
         {...props}

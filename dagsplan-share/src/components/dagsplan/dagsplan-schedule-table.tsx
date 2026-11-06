@@ -153,6 +153,7 @@ function RowActions({
 }
 
 function SortableScheduleRow({
+  projectId, imageAssets, onImageAssetCreated,
   row,
   index,
   total,
@@ -167,6 +168,9 @@ function SortableScheduleRow({
   onMoveDown,
   onRemove,
 }: {
+  projectId: string;
+  imageAssets: Array<{ id: string; url: string; name: string }>;
+  onImageAssetCreated: (asset: { id: string; url: string; name: string }) => void;
   row: ScheduleRow;
   index: number;
   total: number;
@@ -513,11 +517,13 @@ function SortableScheduleRow({
       {showShotColumn ? (
         <td className="w-[7.5rem] min-w-[7.5rem] max-w-[7.5rem] align-middle p-0.5">
           <ScheduleShotDropzone
-            scheduleEntryId={row.id}
-            imageUrl={row.shotImageUrl}
+            projectId={projectId}
+            image={{ assetId: row.shotImageAssetId, url: row.shotImageUrl, zoom: row.shotImageZoom, x: row.shotImagePositionX, y: row.shotImagePositionY, fit: row.shotImageFit }}
+            assets={imageAssets}
             locale={locale}
             strings={shotStrings}
-            onImageUrlChange={(url) => onPatch(row.id, { shotImageUrl: url })}
+            onAssetCreated={onImageAssetCreated}
+            onChange={(next) => onPatch(row.id, { shotImageAssetId: next.assetId, shotImageUrl: next.url, shotImageZoom: next.zoom, shotImagePositionX: next.x, shotImagePositionY: next.y, shotImageFit: next.fit })}
           />
         </td>
       ) : null}
@@ -558,6 +564,7 @@ function SortableScheduleRow({
 }
 
 export function DagsplanScheduleTable({
+  projectId, imageAssets, onImageAssetCreated,
   shootDateIso,
   sunriseTimeOverride,
   onSunriseTimeOverrideChange,
@@ -568,6 +575,9 @@ export function DagsplanScheduleTable({
   rows,
   onRowsChange,
 }: {
+  projectId: string;
+  imageAssets: Array<{ id: string; url: string; name: string }>;
+  onImageAssetCreated: (asset: { id: string; url: string; name: string }) => void;
   shootDateIso: string;
   sunriseTimeOverride: string;
   onSunriseTimeOverrideChange: (value: string) => void;
@@ -788,7 +798,7 @@ export function DagsplanScheduleTable({
                   </th>
                 ) : null}
                 <th className="min-w-0 pb-1.5 pr-1 font-medium">
-                  {st.sceneSetting}
+                  {st.scene}
                 </th>
                 <th
                   className="min-w-[5rem] w-[5rem] pb-1.5 pr-0.5 text-center text-[10px] font-medium leading-none whitespace-nowrap"
@@ -805,6 +815,9 @@ export function DagsplanScheduleTable({
               <SortableContext items={ids} strategy={verticalListSortingStrategy}>
                 {rows.map((row, i) => (
                   <SortableScheduleRow
+                    projectId={projectId}
+                    imageAssets={imageAssets}
+                    onImageAssetCreated={onImageAssetCreated}
                     key={row.id}
                     row={row}
                     index={i}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import {
   deactivateProjectCrew,
@@ -14,17 +14,58 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type Props = { rows: ProjectCrewRowClient[] };
+type Props = {
+  rows: ProjectCrewRowClient[];
+  canEdit?: boolean;
+  canEditRates?: boolean;
+  canOpenProfile?: boolean;
+  /** Fjerner raden fra visningen umiddelbart (kalles inne i form-action-transition). */
+  onOptimisticRemove?: (projectCrewId: string) => void;
+};
 
-export function ProjectCrewList({ rows }: Props) {
+/** Rader lagt til optimistisk har midlertidig id til serveren har svart. */
+const isPendingRow = (row: ProjectCrewRowClient) => row.id.startsWith("optimistic-");
+
+function ProjectRoleField({ row }: { row: ProjectCrewRowClient }) {
+  const id = useId();
+  const roles = [...new Set(row.person.roles.map((role) => role.trim()).filter(Boolean))];
+  const initialIndex = row.roleOverride ? roles.indexOf(row.roleOverride) : -1;
+  const [choice, setChoice] = useState(row.roleOverride ? (initialIndex === 0 ? "inherit" : initialIndex > 0 ? String(initialIndex) : "custom") : "inherit");
+  const [customRole, setCustomRole] = useState(row.roleOverride ?? (roles.length <= 1 ? roles[0] ?? "" : ""));
+
+  if (roles.length <= 1) return <div className="space-y-2">
+    <Label htmlFor={id} className="text-xs text-muted-foreground">Rolle i dette prosjektet</Label>
+    <Input id={id} value={customRole} placeholder="Skriv rollen" onChange={(event) => setCustomRole(event.target.value)} />
+    <input type="hidden" name="roleOverride" value={customRole === (row.roleOverride ?? roles[0] ?? "") ? row.roleOverride ?? "" : customRole} />
+    <p className="text-xs text-muted-foreground">Gjelder kun dette prosjektet.</p>
+  </div>;
+
+  return <div className="space-y-2">
+    <Label htmlFor={id} className="text-xs text-muted-foreground">Rolle i dette prosjektet</Label>
+    <select id={id} className={nativeSelectClassName} value={choice} onChange={(event) => setChoice(event.target.value)}>
+      <option value="inherit">{row.suggestedRolePrimary}</option>
+      {roles.slice(1).map((role, index) => <option key={role} value={String(index + 1)}>{role}</option>)}
+      <option value="custom">Annen rolle…</option>
+    </select>
+    {choice === "custom" ? <>
+      <Label htmlFor={`${id}-custom`} className="sr-only">Egen rolle i prosjektet</Label>
+      <Input id={`${id}-custom`} name="roleOverride" placeholder="Skriv rollen" required value={customRole} onChange={(event) => setCustomRole(event.target.value)} />
+    </> : <input type="hidden" name="roleOverride" value={choice === "inherit" ? "" : roles[Number(choice)] ?? ""} />}
+    <p className="text-xs text-muted-foreground">Gjelder kun dette prosjektet. Crewprofilen og eksisterende dagsplaner beholdes.</p>
+  </div>;
+}
+
+export function ProjectCrewList({ rows, canEdit = false, canEditRates = false, canOpenProfile = false, onOptimisticRemove }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (!rows.length) return null;
+  if (!canEdit) return <div className="divide-y divide-border">{rows.map(row => <div key={row.id} className="flex justify-between gap-4 py-3"><div><p className="font-medium">{row.person.fullName}</p><p className="text-xs text-muted-foreground">{row.effectiveRole} · {row.person.phone || row.person.email || ""}</p></div><span className="text-sm">{row.effectiveRateLabel}</span></div>)}</div>;
 
   return (
     <div className="divide-y divide-border">
       {rows.map((row) => {
-        const isOpen = expandedId === row.id;
+        const pending = isPendingRow(row);
+        const isOpen = !pending && expandedId === row.id;
         const metaParts: string[] = [];
         if (row.person.phone) metaParts.push(row.person.phone);
         if (row.notes?.trim()) metaParts.push("Notat");
@@ -32,10 +73,11 @@ export function ProjectCrewList({ rows }: Props) {
           metaParts.length > 0 ? ` · ${metaParts.join(" · ")}` : "";
 
         return (
-          <div key={row.id}>
+          <div key={row.id} aria-busy={pending || undefined} className={cn(pending && "opacity-60")}>
             <div className="flex min-h-[40px] items-stretch gap-1 py-2">
               <button
                 type="button"
+                disabled={pending}
                 aria-expanded={isOpen}
                 aria-label={
                   isOpen
@@ -84,13 +126,17 @@ export function ProjectCrewList({ rows }: Props) {
               </button>
 
               <form
-                action={deactivateProjectCrew.bind(null, row.id)}
+                action={async () => {
+                  onOptimisticRemove?.(row.id);
+                  await deactivateProjectCrew(row.id);
+                }}
                 className="flex shrink-0 items-center"
               >
                 <Button
                   type="submit"
                   variant="ghost"
                   size="sm"
+                  disabled={pending}
                   className="h-8 px-2 text-xs font-normal text-muted-foreground hover:text-foreground"
                   title="Fjern fra prosjekt"
                 >
@@ -107,13 +153,13 @@ export function ProjectCrewList({ rows }: Props) {
                 <div className="rounded-md bg-muted/25 px-4 py-3">
                   <div className="mb-3 space-y-1.5 text-xs text-muted-foreground">
                     <p>
-                      <Link
+                      {canOpenProfile && <Link
                         href={`/crew/${row.person.id}`}
                         className="inline-flex items-center gap-1 hover:text-foreground"
                       >
                         Åpne profil
                         <ExternalLink className="h-3 w-3" />
-                      </Link>
+                      </Link>}
                     </p>
                     <p>
                       Sats i listen kommer fra «Standard sats pr dag» på
@@ -121,22 +167,14 @@ export function ProjectCrewList({ rows }: Props) {
                     </p>
                   </div>
                   <div className="grid max-w-lg gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Rolle (override)
-                      </Label>
-                      <Input
-                        name="roleOverride"
-                        placeholder={row.suggestedRolePrimary}
-                        defaultValue={row.roleOverride ?? ""}
-                      />
-                    </div>
+                    <ProjectRoleField key={`${row.id}-${row.roleOverride}`} row={row} />
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground">
                         Sats (override, NOK)
                       </Label>
                       <Input
                         name="rateOverride"
+                        disabled={!canEditRates}
                         type="number"
                         min={0}
                         step={1}
@@ -158,6 +196,7 @@ export function ProjectCrewList({ rows }: Props) {
                       </Label>
                       <select
                         name="rateTypeOverride"
+                        disabled={!canEditRates}
                         className={nativeSelectClassName}
                         defaultValue={
                           row.rateTypeOverride != null

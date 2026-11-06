@@ -1,5 +1,8 @@
 "use server";
 
+import { redactProjectCrew } from "@/lib/project-data-access";
+import { isLeadRole, isProducerRole } from "@/lib/project-leads";
+import { syncProjectLeads } from "@/lib/sync-project-leads";
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
@@ -17,10 +20,6 @@ import {
 import { projectListSortKey } from "@/lib/utils";
 import { serializePersonForClient } from "@/lib/serialize";
 import { touchPersonLastUsed } from "@/actions/crew";
-import {
-  addProjectCrewToDefaultList,
-  ensureProjectCrewList,
-} from "@/actions/project-crew-list";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Prosjektnavn er påkrevd"),
@@ -73,33 +72,49 @@ export async function getProjectsList() {
   );
 }
 
-export async function getProjectById(id: string) {
+export type ProjectSections = {
+  crew?: boolean;
+  dagsplaner?: boolean;
+  payrollLists?: boolean;
+  callSheets?: boolean;
+};
+
+/**
+ * Prosjekt med relasjoner. `sections` lar en side hente kun det den viser
+ * (utelatte relasjoner returneres som tomme lister). Standard: alt.
+ */
+export async function getProjectById(id: string, sections: ProjectSections = {}) {
+  const want = {
+    crew: sections.crew ?? true,
+    dagsplaner: sections.dagsplaner ?? true,
+    payrollLists: sections.payrollLists ?? true,
+    callSheets: (sections.callSheets ?? true) && FEATURE_CALL_SHEETS_UI,
+  };
   const sessionUser = await getSessionDashboardUser();
   if (!sessionUser) notFound();
   const flags = await getProjectAccessForUser(sessionUser, id);
   if (!flags) notFound();
 
-  return prisma.project.findUnique({
+  const project = await prisma.project.findUnique({
     where: { id },
     include: {
       agency: true,
       customer: true,
       crew: {
-        where: { isActive: true },
+        where: want.crew && flags.canViewCrew ? { isActive: true } : { id: { in: [] } },
         include: { person: true },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       },
-      ...(FEATURE_CALL_SHEETS_UI
-        ? {
-            callSheets: {
-              orderBy: [{ date: "desc" }, { updatedAt: "desc" }],
-            },
-          }
-        : {}),
+      callSheets: {
+        where: want.callSheets && flags.canViewCallSheets ? undefined : { id: { in: [] } },
+        orderBy: [{ date: "desc" }, { updatedAt: "desc" }],
+      },
       dagsplaner: {
+        where: want.dagsplaner && flags.canViewDagsplan ? undefined : { id: { in: [] } },
         orderBy: [{ shootDate: "desc" }, { updatedAt: "desc" }],
       },
       payrollLists: {
+        where: want.payrollLists && flags.canViewPayroll ? undefined : { id: { in: [] } },
         orderBy: [{ updatedAt: "desc" }],
         select: {
           id: true,
@@ -111,6 +126,28 @@ export async function getProjectById(id: string) {
       },
     },
   });
+  if (!project) return null;
+  return { ...project,
+    crew: project.crew.map(row => redactProjectCrew(row, flags)),
+  };
+}
+
+export async function getProjectLeadOptions() {
+  await requireInternalUser();
+  return prisma.person.findMany({ where: { isActive: true }, select: { id: true, fullName: true, roles: true }, orderBy: { fullName: "asc" } });
+}
+
+async function validateLeadSelection(formData: FormData) {
+  const producerId = String(formData.get("producerId") ?? "").trim();
+  const directorId = String(formData.get("directorId") ?? "").trim();
+  const ids = [...new Set([producerId, directorId].filter(Boolean))];
+  const people = await prisma.person.findMany({ where: { id: { in: ids }, isActive: true }, select: { id: true, roles: true } });
+  const producer = people.find((person) => person.id === producerId);
+  const director = people.find((person) => person.id === directorId);
+  return { producerId, directorId, valid: people.length === ids.length &&
+    (!producerId || !!producer?.roles.some(isProducerRole)) &&
+    (!directorId || !!director?.roles.some((role) => isLeadRole(role, "director"))) };
+
 }
 
 export async function createProject(
@@ -136,7 +173,10 @@ export async function createProject(
   const d = parsed.data;
   await requireInternalUser();
 
-  const p = await prisma.project.create({
+  const leads = await validateLeadSelection(formData);
+  if (!leads.valid) return { error: "Velg en aktiv produsent/linjeprodusent og regissør med riktig rolle i crewregisteret." };
+  const p = await prisma.$transaction(async (tx) => {
+  const created = await tx.project.create({
     data: {
       name: d.name.trim(),
       internalTitle: d.internalTitle || null,
@@ -148,7 +188,9 @@ export async function createProject(
     },
   });
 
-  await ensureProjectCrewList(p.id);
+  await syncProjectLeads(tx, created.id, leads.producerId, leads.directorId);
+  return created;
+  });
 
   revalidatePath("/");
   redirect(`/projects/${p.id}`);
@@ -179,7 +221,12 @@ export async function updateProject(
   const { flags } = await requireProjectAccess(id);
   assertPermission(flags, "canEditProjectInfo");
 
-  await prisma.project.update({
+  const updateLeads = formData.has("producerId") && formData.has("directorId");
+  if (updateLeads) assertPermission(flags, "canEditCrew");
+  const leads = updateLeads ? await validateLeadSelection(formData) : null;
+  if (leads && !leads.valid) return { error: "Velg en aktiv produsent/linjeprodusent og regissør med riktig rolle i crewregisteret." };
+  await prisma.$transaction(async (tx) => {
+  await tx.project.update({
     where: { id },
     data: {
       name: d.name.trim(),
@@ -190,6 +237,9 @@ export async function updateProject(
       agencyId: optionalRelationId(d.agencyId ?? ""),
       customerId: optionalRelationId(d.customerId ?? ""),
     },
+  });
+
+  if (leads?.valid) await syncProjectLeads(tx, id, leads.producerId, leads.directorId);
   });
 
   revalidatePath(`/projects/${id}`);
@@ -205,6 +255,11 @@ export async function deleteProject(projectId: string, _formData?: FormData) {
   redirect("/");
 }
 
+/**
+ * Kobler person til prosjektet og legger den i standard crewliste.
+ * Tilgang må være sjekket av kaller. Uavhengige spørringer kjøres parallelt
+ * (3 DB-rundturer totalt i stedet for ~15 sekvensielle).
+ */
 async function linkPersonToProjectCrew(
   projectId: string,
   personId: string,
@@ -214,45 +269,65 @@ async function linkPersonToProjectCrew(
     rateTypeOverride?: "day" | "hour" | null;
   },
 ) {
-  const existing = await prisma.projectCrew.findUnique({
-    where: { projectId_personId: { projectId, personId } },
-  });
-
-  let projectCrewId: string;
-
-  if (existing) {
-    const updated = await prisma.projectCrew.update({
-      where: { id: existing.id },
-      data: {
-        isActive: true,
-        excludedFromDefaultCrewList: false,
-        roleOverride: opts?.roleOverride ?? undefined,
-        rateOverride: opts?.rateOverride ?? undefined,
-        rateTypeOverride: opts?.rateTypeOverride ?? undefined,
-      },
-    });
-    projectCrewId = updated.id;
-  } else {
-    const max = await prisma.projectCrew.aggregate({
+  const now = new Date();
+  const [existing, list, crewMax, memberMax] = await Promise.all([
+    prisma.projectCrew.findUnique({
+      where: { projectId_personId: { projectId, personId } },
+      select: { id: true },
+    }),
+    prisma.projectCrewList.upsert({
+      where: { projectId },
+      create: { projectId },
+      update: { updatedAt: now },
+      select: { id: true },
+    }),
+    prisma.projectCrew.aggregate({
       where: { projectId },
       _max: { sortOrder: true },
-    });
-    const created = await prisma.projectCrew.create({
-      data: {
-        projectId,
-        personId,
-        roleOverride: opts?.roleOverride ?? null,
-        rateOverride: opts?.rateOverride ?? null,
-        rateTypeOverride: opts?.rateTypeOverride ?? null,
-        sortOrder: (max._max.sortOrder ?? 0) + 1,
-      },
-    });
-    projectCrewId = created.id;
-  }
+    }),
+    prisma.projectCrewListMember.aggregate({
+      where: { projectCrewList: { projectId } },
+      _max: { sortOrder: true },
+    }),
+    touchPersonLastUsed(personId),
+  ]);
 
-  await touchPersonLastUsed(personId);
-  await addProjectCrewToDefaultList(projectId, projectCrewId);
+  const projectCrew = existing
+    ? await prisma.projectCrew.update({
+        where: { id: existing.id },
+        data: {
+          isActive: true,
+          excludedFromDefaultCrewList: false,
+          roleOverride: opts?.roleOverride ?? undefined,
+          rateOverride: opts?.rateOverride ?? undefined,
+          rateTypeOverride: opts?.rateTypeOverride ?? undefined,
+        },
+        select: { id: true },
+      })
+    : await prisma.projectCrew.create({
+        data: {
+          projectId,
+          personId,
+          roleOverride: opts?.roleOverride ?? null,
+          rateOverride: opts?.rateOverride ?? null,
+          rateTypeOverride: opts?.rateTypeOverride ?? null,
+          sortOrder: (crewMax._max.sortOrder ?? 0) + 1,
+        },
+        select: { id: true },
+      });
+
+  // skipDuplicates: allerede i lista (unik på liste + prosjektcrew) → ingen endring.
+  await prisma.projectCrewListMember.createMany({
+    data: {
+      projectCrewListId: list.id,
+      projectCrewId: projectCrew.id,
+      sortOrder: (memberMax._max.sortOrder ?? -1) + 1,
+    },
+    skipDuplicates: true,
+  });
+
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/crewliste`);
   revalidatePath("/");
 }
 
@@ -270,6 +345,10 @@ export async function addPersonToProject(
   const flags = await getProjectAccessForUser(user, projectId);
   if (!flags) notFound();
   if (!user.isInternal && !flags.canEditCrew) notFound();
+  if (!user.isInternal) {
+    const linked = await prisma.projectCrew.findUnique({ where: { projectId_personId: { projectId, personId } } });
+    if (!linked) notFound();
+  }
 
   await linkPersonToProjectCrew(projectId, personId, opts);
 }
@@ -335,14 +414,20 @@ export async function updateProjectCrew(
       roleOverride:
         data.roleOverride === undefined ? undefined : data.roleOverride,
       rateOverride:
-        data.rateOverride === undefined ? undefined : data.rateOverride,
+        !flags.canEditPayroll || data.rateOverride === undefined ? undefined : data.rateOverride,
       rateTypeOverride:
-        data.rateTypeOverride === undefined ? undefined : data.rateTypeOverride,
+        !flags.canEditPayroll || data.rateTypeOverride === undefined ? undefined : data.rateTypeOverride,
       notes: data.notes === undefined ? undefined : data.notes,
       sortOrder: data.sortOrder === undefined ? undefined : data.sortOrder,
       isActive: data.isActive,
     },
   });
+  await prisma.projectCrewList.updateMany({
+    where: { projectId: row.projectId },
+    data: { updatedAt: new Date() },
+  });
+  revalidatePath(`/projects/${row.projectId}/crewliste`);
+  revalidatePath(`/projects/${row.projectId}/crewliste/print`);
   revalidatePath(`/projects/${row.projectId}`);
 }
 
@@ -366,20 +451,22 @@ export async function searchPeopleForProject(
   q: string,
   limit = 12,
 ) {
-  const { flags } = await requireProjectAccess(projectId);
+  const { user, flags } = await requireProjectAccess(projectId);
+  if (!user.isInternal) return [];
   assertPermission(flags, "canEditCrew");
 
-  const assigned = await prisma.projectCrew.findMany({
-    where: { projectId, isActive: true },
-    select: { personId: true },
-  });
+  const [assigned, all] = await Promise.all([
+    prisma.projectCrew.findMany({
+      where: { projectId, isActive: true },
+      select: { personId: true },
+    }),
+    prisma.person.findMany({
+      where: { isActive: true },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      take: 200,
+    }),
+  ]);
   const exclude = new Set(assigned.map((a) => a.personId));
-
-  const all = await prisma.person.findMany({
-    where: { isActive: true },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
-    take: 200,
-  });
 
   const needle = q.trim().toLowerCase();
   const filtered = needle
@@ -404,4 +491,46 @@ export async function searchPeopleForProject(
     : all.filter((p) => !exclude.has(p.id));
 
   return filtered.slice(0, limit).map(serializePersonForClient);
+}
+
+/** Oppretter person og prosjektkobling samlet, så ingen halvferdig opprettelse blir liggende. */
+export async function createPersonForProject(projectId: string, formData: FormData) {
+  const { user, flags } = await requireProjectAccess(projectId);
+  if (!user.isInternal) notFound();
+  assertPermission(flags, "canEditCrew");
+  const parsed = z.object({
+    firstName: z.string().trim().min(1, "Fornavn er påkrevd"),
+    lastName: z.string().trim().min(1, "Etternavn er påkrevd"),
+    email: z.union([z.literal(""), z.string().email("Ugyldig e-post")]),
+    phone: z.string().trim(),
+    roles: z.string().trim(),
+    defaultRate: z.union([z.literal(""), z.coerce.number().min(0, "Satsen må være 0 eller høyere")]),
+  }).safeParse(Object.fromEntries(["firstName", "lastName", "email", "phone", "roles", "defaultRate"].map((key) => [key, String(formData.get(key) ?? "").trim()])));
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Kontroller feltene." };
+  const { firstName, lastName, email, phone, roles, defaultRate } = parsed.data;
+  const person = await prisma.$transaction(async (tx) => {
+    const person = await tx.person.create({ data: {
+      firstName, lastName, fullName: `${firstName} ${lastName}`, email: email || null, phone: phone || null,
+      roles: [...new Set(roles.split(",").map((role) => role.trim()).filter(Boolean))],
+      defaultRate: defaultRate === "" ? null : defaultRate, rateType: "day", isActive: true, lastUsedAt: new Date(),
+    } });
+    const max = await tx.projectCrew.aggregate({ where: { projectId }, _max: { sortOrder: true } });
+    const crew = await tx.projectCrew.create({ data: { projectId, personId: person.id, sortOrder: (max._max.sortOrder ?? 0) + 1 } });
+    const list = await tx.projectCrewList.upsert({ where: { projectId }, create: { projectId }, update: { updatedAt: new Date() } });
+    const listMax = await tx.projectCrewListMember.aggregate({ where: { projectCrewListId: list.id }, _max: { sortOrder: true } });
+    await tx.projectCrewListMember.create({ data: { projectCrewListId: list.id, projectCrewId: crew.id, sortOrder: (listMax._max.sortOrder ?? -1) + 1 } });
+    return { id: person.id, fullName: person.fullName };
+  });
+  revalidatePath("/crew");
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/crewliste`);
+  return { person };
+}
+
+export async function getProjectCrewRoleOptions(projectId: string) {
+  const { user, flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditCrew");
+  const people = await prisma.person.findMany({ where: user.isInternal ? {} : { projectCrews: { some: { projectId } } }, select: { roles: true } });
+  return [...new Set(["Regissør", ...people.flatMap((person) => person.roles).map((role) => role.trim()).filter(Boolean)])]
+    .sort((a, b) => a.localeCompare(b, "nb"));
 }

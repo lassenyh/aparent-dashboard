@@ -1,3 +1,3 @@
-/** Shared native `<select>` styling — matches Input calm treatment */
+/** Shared native `<select>` styling — matches Input wrapup treatment */
 export const nativeSelectClassName =
-  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-[38px] w-full border border-input bg-card px-3 py-2 text-[13px] transition-[border-color,background] duration-150 outline-none focus-visible:border-foreground disabled:cursor-not-allowed disabled:opacity-50";

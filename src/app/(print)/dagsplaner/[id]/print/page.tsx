@@ -1,6 +1,9 @@
-import type { Metadata } from "next";
+import { requireProjectAccess } from "@/lib/project-access";
 import { notFound } from "next/navigation";
-import { getDagsplanById } from "@/actions/dagsplan";
+import {
+  getDagsplanById,
+  getProjectCrewForDagsplan,
+} from "@/actions/dagsplan";
 import { DagsplanWeatherCard } from "@/components/dagsplan/dagsplan-weather-card";
 import { PrintToolbar } from "@/components/print-toolbar";
 import { hasDagsplanWeatherContent } from "@/lib/dagsplan-weather";
@@ -9,6 +12,7 @@ import {
   inferDurationMinutes,
   isScheduleCallTimeRow,
   isScheduleLunchRow,
+  isScheduleUntimedRow,
   isScheduleWrapRow,
 } from "@/lib/schedule-rows";
 import { normalizeScheduleRowBgColor } from "@/lib/schedule-row-colors";
@@ -16,6 +20,7 @@ import {
   crewFunctionForPrint,
   getDagsplanPrintStrings,
   parseDagsplanLocale,
+  type DagsplanLocale,
 } from "@/lib/dagsplan-i18n";
 import {
   effectiveSunriseDisplay,
@@ -24,9 +29,13 @@ import {
 import { Truck } from "lucide-react";
 import { PublicLogoImg } from "@/components/public-logo-img";
 import { sanitizePublicImageUrl } from "@/lib/img-url";
+import { scheduleShotImageStyle } from "@/lib/schedule-shot-framing";
 import { cn, formatDate } from "@/lib/utils";
 
-type PageProps = { params: Promise<{ id: string }> };
+type PageProps = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
 
 /** Tom streng når ingen verdi — ikke bindestrek i ferdig skjema. */
 function fmtTime(s: string | null | undefined): string {
@@ -34,23 +43,43 @@ function fmtTime(s: string | null | undefined): string {
   return s.trim();
 }
 
-/** Varighet per rad — samme logikk som i editoren (fri rad: fra–til). Viser «NN min». */
+function formatDuration(totalMinutes: number, locale: DagsplanLocale): string {
+  const total = Math.max(0, Math.floor(totalMinutes));
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
+  const hourLabel = locale === "en" ? "h" : "t";
+
+  if (hours === 0) return `${minutes} min`;
+  if (minutes === 0) return `${hours} ${hourLabel}`;
+  return `${hours} ${hourLabel} ${minutes} min`;
+}
+
+/** Varighet per rad — samme logikk og format som i editoren (fri rad: fra–til). */
 function fmtScheduleDurationMinutes(r: {
   durationMinutes: number;
   rowKind?: string | null;
   startTime?: string | null;
   endTime?: string | null;
   info?: string | null;
-}): string {
-  if (isScheduleCallTimeRow(r) || isScheduleWrapRow(r)) return "";
+}, locale: DagsplanLocale): string {
+  if (
+    isScheduleCallTimeRow(r) ||
+    isScheduleWrapRow(r) ||
+    isScheduleUntimedRow(r)
+  ) {
+    return "";
+  }
   if (r.rowKind === "free") {
     const a = r.startTime?.trim();
     const b = r.endTime?.trim();
     if (!a && !b) return "";
-    return `${inferDurationMinutes(r.startTime, r.endTime)} min`;
+    return formatDuration(
+      inferDurationMinutes(r.startTime, r.endTime),
+      locale,
+    );
   }
   if (!Number.isFinite(r.durationMinutes)) return "";
-  return `${Math.max(0, Math.floor(r.durationMinutes))} min`;
+  return formatDuration(r.durationMinutes, locale);
 }
 
 function cellText(s: string | number | null | undefined): string {
@@ -249,19 +278,60 @@ const tdScheduleActors = cn(
   "min-w-0 whitespace-normal break-words [overflow-wrap:anywhere]",
 );
 
-export default async function DagsplanPrintPage({ params }: PageProps) {
+export default async function DagsplanPrintPage({ params, searchParams }: PageProps) {
   const { id } = await params;
+  const query = await searchParams;
+  const isPreview = query.previewAttempt !== undefined;
   const d = await getDagsplanById(id);
   if (!d) notFound();
+  const { flags } = await requireProjectAccess(d.projectId);
 
-  const agencyLogo = d.agencyLogoUrl || d.project.agency?.logoUrl || null;
-  const clientLogo = d.clientLogoUrl || d.project.customer?.logoUrl || null;
+  const agencyLogo =
+    d.agencyLogoUrl === ""
+      ? null
+      : d.agencyLogoUrl || d.project.agency?.logoUrl || null;
+  const clientLogo =
+    d.clientLogoUrl === ""
+      ? null
+      : d.clientLogoUrl || d.project.customer?.logoUrl || null;
+  const extraClientLogo = sanitizePublicImageUrl(d.extraClientLogoUrl);
 
   const crewMeetChunks =
     d.crewEntries.length > 0 ? chunkCrewMeetForPrint(d.crewEntries) : [];
   const showShotColumn = d.showShotColumn === true;
+  const showInteriorExteriorColumn = d.showInteriorExteriorColumn !== false;
+  const showDayNightColumn = d.showDayNightColumn !== false;
+  const showActorColumn = d.showActorColumn === true;
+  const showCostumeColumn = d.showCostumeColumn === true;
+  const optionalScheduleWidth =
+    (showShotColumn ? 18 : 0) +
+    (showActorColumn ? 10 : 0) +
+    (showCostumeColumn ? 14 : 0);
+  const scheduleTextWidth =
+    64 +
+    (showInteriorExteriorColumn ? 0 : 6) +
+    (showDayNightColumn ? 0 : 6) -
+    optionalScheduleWidth;
   const printLocale = parseDagsplanLocale(d.displayLocale);
   const pt = getDagsplanPrintStrings(printLocale);
+  const projectCrew = isPreview
+    ? []
+    : await getProjectCrewForDagsplan(d.projectId);
+  const dagsplanProjectCrewIds = new Set(
+    d.crewEntries.flatMap((row) =>
+      row.linkedProjectCrewId ? [row.linkedProjectCrewId] : [],
+    ),
+  );
+  const dagsplanPersonIds = new Set(
+    d.crewEntries.flatMap((row) =>
+      row.linkedPersonId ? [row.linkedPersonId] : [],
+    ),
+  );
+  const missingProjectCrew = projectCrew.filter(
+    (row) =>
+      !dagsplanProjectCrewIds.has(row.projectCrewId) &&
+      !dagsplanPersonIds.has(row.personId),
+  );
   const onSetPrint = pt.onSet.replace(/\s+/g, "\u00A0");
   const showWeather = hasDagsplanWeatherContent({
     weatherIcon: d.weatherIcon,
@@ -271,49 +341,130 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
   });
 
   return (
-    <div className="dagsplan-print mx-auto max-w-[210mm] px-6 py-10 text-[11px] leading-relaxed text-neutral-900 antialiased print:max-w-none print:px-0 print:py-0 print:text-[10px]">
-      <PrintToolbar
-        backHref={`/dagsplaner/${d.id}`}
-        exportHref={`/api/dagsplan/${d.id}/pdf`}
-        exportLabel={pt.downloadPdf}
-      />
+    <div className="dagsplan-print mx-auto max-w-[210mm] px-6 py-10 text-[11px] leading-relaxed text-neutral-900 antialiased print:max-w-none print:px-[2mm] print:py-0 print:text-[10px]">
+      {!isPreview ? (
+        <PrintToolbar
+          backHref={flags.canEditDagsplan ? `/dagsplaner/${d.id}` : `/projects/${d.projectId}?tab=schedule`}
+          backLabel={flags.canEditDagsplan ? "Tilbake til editor" : "Tilbake til prosjektet"}
+          exportHref={`/api/dagsplan/${d.id}/pdf`}
+          exportLabel={pt.downloadPdf}
+          exportWarning={
+            missingProjectCrew.length > 0
+              ? {
+                  title:
+                    printLocale === "en"
+                      ? "Project crew is missing"
+                      : "Prosjektcrew mangler i dagsplanen",
+                  description:
+                    printLocale === "en"
+                      ? `${missingProjectCrew.length} ${missingProjectCrew.length === 1 ? "person is" : "people are"} not included in the crew list. The PDF can still be downloaded.`
+                      : `${missingProjectCrew.length} ${missingProjectCrew.length === 1 ? "person er" : "personer er"} ikke lagt til i stabslisten. PDF-en kan fortsatt lastes ned.`,
+                  items: missingProjectCrew.map((row) => ({
+                    id: row.projectCrewId,
+                    label: row.personName,
+                    detail: crewFunctionForPrint(
+                      row.departmentTitle,
+                      printLocale,
+                    ),
+                  })),
+                  cancelLabel: printLocale === "en" ? "Cancel" : "Avbryt",
+                  proceedLabel:
+                    printLocale === "en"
+                      ? "Download anyway"
+                      : "Last ned likevel",
+                }
+              : undefined
+          }
+        />
+      ) : null}
 
       {/* Rad 1: logoer. Deretter: linje med prosjekt·dagsplan·dato, under det arbeidstid·vær. */}
       <header className="mb-8 border-b border-neutral-200 pb-4 print:mb-6 print:pb-3">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-5 print:gap-4">
-          <div className="flex items-center justify-start">
-            {sanitizePublicImageUrl(agencyLogo) ? (
-              <PublicLogoImg
-                src={agencyLogo}
+        {extraClientLogo ? (
+          <div className="space-y-14 pt-4 print:space-y-12 print:pt-4">
+            <div className="flex items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={APARENT_LOGO_PUBLIC_PATH}
                 alt=""
-                className="max-h-14 max-w-full object-contain object-left print:max-h-12"
+                className="h-10 w-auto object-contain print:h-9"
               />
-            ) : (
-              <span className="text-neutral-300"> </span>
-            )}
+            </div>
+            <div className="grid grid-cols-3 items-center gap-8 print:gap-6">
+              <div className="flex min-w-0 items-center justify-start">
+                {sanitizePublicImageUrl(agencyLogo) ? (
+                  <PublicLogoImg
+                    src={agencyLogo}
+                    alt=""
+                    className="max-h-14 max-w-full object-contain object-left print:max-h-12"
+                  />
+                ) : (
+                  <span className="text-neutral-300"> </span>
+                )}
+              </div>
+              <div className="flex min-w-0 items-center justify-center">
+                {sanitizePublicImageUrl(clientLogo) ? (
+                  <PublicLogoImg
+                    src={clientLogo}
+                    alt=""
+                    className="max-h-14 max-w-full object-contain object-center print:max-h-12"
+                  />
+                ) : (
+                  <span className="text-neutral-300"> </span>
+                )}
+              </div>
+              <div className="flex min-w-0 items-center justify-end">
+                <PublicLogoImg
+                  src={extraClientLogo}
+                  alt=""
+                  className="max-h-14 max-w-full object-contain object-right print:max-h-12"
+                />
+              </div>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={APARENT_LOGO_PUBLIC_PATH}
-              alt=""
-              className="h-10 w-auto object-contain print:h-9"
-            />
-          </div>
-          <div className="flex items-center justify-end">
-            {sanitizePublicImageUrl(clientLogo) ? (
-              <PublicLogoImg
-                src={clientLogo}
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-5 print:gap-4">
+            <div className="flex items-center justify-start">
+              {sanitizePublicImageUrl(agencyLogo) ? (
+                <PublicLogoImg
+                  src={agencyLogo}
+                  alt=""
+                  className="max-h-14 max-w-full object-contain object-left print:max-h-12"
+                />
+              ) : (
+                <span className="text-neutral-300"> </span>
+              )}
+            </div>
+            <div className="flex shrink-0 items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={APARENT_LOGO_PUBLIC_PATH}
                 alt=""
-                className="max-h-14 max-w-full object-contain object-right print:max-h-12"
+                className="h-10 w-auto object-contain print:h-9"
               />
-            ) : (
-              <span className="text-neutral-300"> </span>
-            )}
+            </div>
+            <div className="flex min-w-0 items-center justify-end">
+              {sanitizePublicImageUrl(clientLogo) ? (
+                <PublicLogoImg
+                  src={clientLogo}
+                  alt=""
+                  className="max-h-14 max-w-full object-contain object-right print:max-h-12"
+                />
+              ) : (
+                <span className="text-neutral-300"> </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="mt-[60px] flex flex-col items-center gap-2 text-center text-sm leading-snug text-neutral-600 print:mt-[60px] print:gap-1.5 print:text-[11px]">
+        <div
+          className={cn(
+            "flex flex-col items-center gap-2 text-center text-sm leading-snug text-neutral-600 print:gap-1.5 print:text-[11px]",
+            extraClientLogo
+              ? "mt-10 print:mt-8"
+              : "mt-[60px] print:mt-[60px]",
+          )}
+        >
           {/* Linje 1: prosjekt · dagsplan · dato */}
           <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2.5 gap-y-1 print:gap-x-3">
             <h1 className="min-w-0 max-w-full text-balance font-bold tracking-tight">
@@ -328,34 +479,13 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               {formatDate(d.shootDate)}
             </span>
           </div>
-          {/* Linje 2: arbeidstid · vær */}
-          {d.workStartTime?.trim() ||
-          d.workEndTime?.trim() ||
-          showWeather ? (
+          {/* Linje 2: arbeidstid */}
+          {d.workStartTime?.trim() || d.workEndTime?.trim() ? (
             <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2.5 gap-y-1 print:gap-x-3">
-              {d.workStartTime?.trim() || d.workEndTime?.trim() ? (
-                <span className="shrink-0">
-                  {pt.workHours}: {fmtTime(d.workStartTime)} –{" "}
-                  {fmtTime(d.workEndTime)}
-                </span>
-              ) : null}
-              {showWeather &&
-              (d.workStartTime?.trim() || d.workEndTime?.trim()) ? (
-                <span className="shrink-0 text-neutral-300" aria-hidden>
-                  ·
-                </span>
-              ) : null}
-              {showWeather ? (
-                <span className="inline-flex min-w-0 max-w-full shrink items-center text-neutral-600">
-                  <DagsplanWeatherCard
-                    variant="printInline"
-                    weatherIcon={d.weatherIcon}
-                    weatherTempMin={d.weatherTempMin}
-                    weatherTempMax={d.weatherTempMax}
-                    weatherText={d.weatherText}
-                  />
-                </span>
-              ) : null}
+              <span className="shrink-0">
+                {pt.workHours}: {fmtTime(d.workStartTime)} –{" "}
+                {fmtTime(d.workEndTime)}
+              </span>
             </div>
           ) : null}
         </div>
@@ -557,13 +687,34 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
           </section>
         ) : null}
 
-        {/* Info — over timeplan (vær står i header ved arbeidstid) */}
+        {/* Info og vær — over timeplan */}
         <section className={printSectionPadY}>
           <div className="min-w-0 max-w-none">
-            <h2 className={secTitle}>{pt.info}</h2>
-            <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-800 print:text-[10px]">
-              {cellText(d.infoText)}
-            </p>
+            <h2 className={secTitle}>{pt.infoWeather}</h2>
+            <div className="space-y-2">
+              {cellText(d.infoText) ? (
+                <p className="whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-800 print:text-[10px]">
+                  {cellText(d.infoText)}
+                </p>
+              ) : null}
+              {showWeather ? (
+                <DagsplanWeatherCard
+                  variant="printInline"
+                  className="w-full"
+                  weatherIcon={d.weatherIcon}
+                  weatherTempMin={d.weatherTempMin}
+                  weatherTempMax={d.weatherTempMax}
+                  weatherText={d.weatherText}
+                  weatherAttribution={
+                    d.weatherFromMet
+                      ? printLocale === "no"
+                        ? "Værdata fra MET Norway"
+                        : "Weather data from MET Norway"
+                      : undefined
+                  }
+                />
+              ) : null}
+            </div>
           </div>
         </section>
 
@@ -576,6 +727,8 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               {effectiveSunriseDisplay(
                 d.shootDate.toISOString().slice(0, 10),
                 d.sunriseTimeOverride,
+                d.weatherLatitude,
+                d.weatherLongitude,
               )}
             </span>
             <span className="mx-2 text-neutral-400">·</span>
@@ -584,6 +737,8 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               {effectiveSunsetDisplay(
                 d.shootDate.toISOString().slice(0, 10),
                 d.sunsetTimeOverride,
+                d.weatherLatitude,
+                d.weatherLongitude,
               )}
             </span>
           </p>
@@ -591,28 +746,38 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
             <colgroup>
               <col className="w-[7%]" />
               <col className="w-[7%]" />
-              <col className="w-[6%]" />
-              <col className="w-[6%]" />
-              <col className="w-[15%]" />
+              {showInteriorExteriorColumn ? <col className="w-[6%]" /> : null}
+              {showDayNightColumn ? <col className="w-[6%]" /> : null}
+              <col style={{ width: `${scheduleTextWidth * 0.35}%` }} />
               <col className="w-[10%]" />
               {/* Shot: bred nok kolonne — ellers skaleres bildet ned av smal celle (object-contain). */}
-              {showShotColumn ? <col className="w-[19%]" /> : null}
-              <col className={showShotColumn ? "w-[13%]" : "w-[32%]"} />
-              <col className="w-[17%]" />
+              {showShotColumn ? <col className="w-[18%]" /> : null}
+              <col style={{ width: `${scheduleTextWidth * 0.65}%` }} />
+              {showActorColumn ? <col className="w-[10%]" /> : null}
+              {showCostumeColumn ? <col className="w-[14%]" /> : null}
             </colgroup>
             <thead>
               <tr>
                 <th className={thTime}>{pt.from}</th>
                 <th className={thTime}>{pt.to}</th>
-                <th className={thBase}>I/E</th>
-                <th className={thBase}>D/N</th>
+                {showInteriorExteriorColumn ? (
+                  <th className={thBase}>I/E</th>
+                ) : null}
+                {showDayNightColumn ? (
+                  <th className={thBase}>D/N</th>
+                ) : null}
                 <th className={thBase}>{pt.info}</th>
                 <th className={thNum}>{pt.duration}</th>
                 {showShotColumn ? (
                   <th className={cn(thBase, "text-center")}>{pt.shot}</th>
                 ) : null}
-                <th className={thBase}>{pt.sceneSetting}</th>
-                <th className={cn(thNum, "whitespace-normal")}>{pt.actors}</th>
+                <th className={thBase}>{pt.scene}</th>
+                {showActorColumn ? (
+                  <th className={cn(thNum, "whitespace-normal")}>{pt.actors}</th>
+                ) : null}
+                {showCostumeColumn ? (
+                  <th className={thBase}>{pt.costume}</th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -620,9 +785,14 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                 d.scheduleEntries.map((r) => {
                   const lunch = isScheduleLunchRow(r);
                   const rowBg = normalizeScheduleRowBgColor(r.rowBgColor ?? "");
+                  const combinedSceneSetting = [r.sceneSetting, r.setting]
+                    .map((value) => value?.trim() ?? "")
+                    .filter(Boolean)
+                    .join(" / ");
                   return (
                     <tr
                       key={r.id}
+                      className="dagsplan-print-table-row"
                       style={
                         rowBg ? { backgroundColor: rowBg } : undefined
                       }
@@ -634,7 +804,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                           lunch && lunchPrintTimeBg,
                         )}
                       >
-                        {fmtTime(r.startTime)}
+                        {isScheduleUntimedRow(r) ? "" : fmtTime(r.startTime)}
                       </td>
                       <td
                         className={cn(
@@ -643,10 +813,13 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                           lunch && lunchPrintTimeBg,
                         )}
                       >
-                        {isScheduleCallTimeRow(r) || isScheduleWrapRow(r)
+                        {isScheduleCallTimeRow(r) ||
+                        isScheduleWrapRow(r) ||
+                        isScheduleUntimedRow(r)
                           ? ""
                           : fmtTime(r.endTime)}
                       </td>
+                      {showInteriorExteriorColumn ? (
                       <td
                         className={cn(
                           tdBase,
@@ -664,9 +837,12 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                           cellText(r.interiorExterior)
                         )}
                       </td>
+                      ) : null}
+                      {showDayNightColumn ? (
                       <td className={cn(tdBase, lunch && lunchPrintText)}>
                         {cellText(r.dayNight)}
                       </td>
+                      ) : null}
                       <td className={cn(tdScheduleText, lunch && lunchPrintText)}>
                         {cellText(r.info)}
                       </td>
@@ -676,7 +852,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                           lunch && lunchPrintText,
                         )}
                       >
-                        {fmtScheduleDurationMinutes(r)}
+                        {fmtScheduleDurationMinutes(r, printLocale)}
                       </td>
                       {showShotColumn ? (
                         <td
@@ -687,27 +863,45 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                           )}
                         >
                           {sanitizePublicImageUrl(r.shotImageUrl) ? (
-                            <PublicLogoImg
-                              src={r.shotImageUrl}
-                              alt=""
-                              className="mx-auto block h-auto w-full max-h-80 object-contain object-center"
-                            />
+                            <div className="relative mx-auto aspect-video w-full overflow-hidden bg-white">
+                              <PublicLogoImg
+                                src={r.shotImageUrl}
+                                alt=""
+                                className={cn("absolute inset-0 block h-full w-full", r.shotImageFit === "cover" ? "object-cover" : "object-contain")}
+                                style={scheduleShotImageStyle({ zoom: r.shotImageZoom, x: r.shotImagePositionX, y: r.shotImagePositionY })}
+                                compressForPdf
+                              />
+                            </div>
                           ) : null}
                         </td>
                       ) : null}
                       <td className={cn(tdScheduleText, lunch && lunchPrintText)}>
-                        {cellText(r.sceneSetting)}
+                        {cellText(combinedSceneSetting)}
                       </td>
-                      <td className={cn(tdScheduleActors, lunch && lunchPrintText)}>
-                        {cellText(r.actorNumbers)}
-                      </td>
+                      {showActorColumn ? (
+                        <td className={cn(tdScheduleActors, lunch && lunchPrintText)}>
+                          {cellText(r.actorNumbers)}
+                        </td>
+                      ) : null}
+                      {showCostumeColumn ? (
+                        <td className={cn(tdScheduleText, lunch && lunchPrintText)}>
+                          {cellText(r.costume)}
+                        </td>
+                      ) : null}
                     </tr>
                   );
                 })
               ) : (
                 <tr>
                   <td
-                    colSpan={showShotColumn ? 9 : 8}
+                    colSpan={
+                      5 +
+                      Number(showInteriorExteriorColumn) +
+                      Number(showDayNightColumn) +
+                      Number(showShotColumn) +
+                      Number(showActorColumn) +
+                      Number(showCostumeColumn)
+                    }
                     className={tdBase}
                   />
                 </tr>
@@ -730,7 +924,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
               <tbody>
                 {d.departmentInfos.length ? (
                   d.departmentInfos.map((r) => (
-                    <tr key={r.id}>
+                    <tr key={r.id} className="dagsplan-print-table-row">
                       <td className={cn(tdBase, "font-medium text-neutral-950")}>
                         {cellText(r.departmentName)}
                       </td>
@@ -775,7 +969,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
         sanitizePublicImageUrl(loc.parkingImageUrl) ? (
           <section
             key={loc.id}
-            className="dagsplan-print-parking-attachment mx-auto max-w-[210mm] px-6 py-10 print:max-w-none print:px-0 print:py-0"
+            className="dagsplan-print-parking-attachment mx-auto max-w-[210mm] px-6 py-10 print:max-w-none print:px-[2mm] print:py-0"
             aria-label={
               d.locations.length > 1
                 ? pt.parkingAttachmentAriaLocationTemplate.replace(
@@ -799,6 +993,7 @@ export default async function DagsplanPrintPage({ params }: PageProps) {
                   src={loc.parkingImageUrl}
                   alt="Parking"
                   className="max-h-[min(1000px,calc(100vh-120px))] w-full max-w-full object-contain object-center print:max-h-[calc(297mm-40mm)]"
+                  compressForPdf
                 />
               </div>
             </div>

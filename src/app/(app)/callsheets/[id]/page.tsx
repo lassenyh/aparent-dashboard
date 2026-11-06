@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { requireProjectAccess } from "@/lib/project-access";
+import { notFound, redirect } from "next/navigation";
 import { Copy, Printer } from "lucide-react";
 import {
   deleteCallSheet,
@@ -31,6 +32,9 @@ export default async function CallSheetEditorPage({ params }: PageProps) {
   const sheet = await getCallSheetById(id);
   if (!sheet) notFound();
 
+  const { flags } = await requireProjectAccess(sheet.projectId);
+  if (!flags.canEditCallSheets) redirect(`/callsheets/${id}/print`);
+
   const available = await getAvailableProjectCrewForCallSheet(id);
   const addOptions = available.map((pc) => ({
     projectCrewId: pc.id,
@@ -49,6 +53,7 @@ export default async function CallSheetEditorPage({ params }: PageProps) {
       </div>
 
       <PageHeader
+        kicker="Call sheet"
         title={sheet.name}
         description={`${sheet.project.name} · Snapshot-basert crewliste.`}
         actions={
