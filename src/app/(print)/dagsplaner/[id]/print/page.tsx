@@ -28,6 +28,7 @@ import {
 } from "@/lib/sunrise-oslo";
 import { Truck } from "lucide-react";
 import { PublicLogoImg } from "@/components/public-logo-img";
+import { DagsplanLogoGrid } from "@/components/dagsplan/dagsplan-logo-grid";
 import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { scheduleShotImageStyle } from "@/lib/schedule-shot-framing";
 import { cn, formatDate } from "@/lib/utils";
@@ -380,91 +381,16 @@ export default async function DagsplanPrintPage({ params, searchParams }: PagePr
 
       {/* Rad 1: logoer. Deretter: linje med prosjekt·dagsplan·dato, under det arbeidstid·vær. */}
       <header className="mb-8 border-b border-neutral-200 pb-4 print:mb-6 print:pb-3">
-        {extraClientLogo ? (
-          <div className="space-y-14 pt-4 print:space-y-12 print:pt-4">
-            <div className="flex items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={APARENT_LOGO_PUBLIC_PATH}
-                alt=""
-                className="h-10 w-auto object-contain print:h-9"
-              />
-            </div>
-            <div className="grid grid-cols-3 items-center gap-8 print:gap-6">
-              <div className="flex min-w-0 items-center justify-start">
-                {sanitizePublicImageUrl(agencyLogo) ? (
-                  <PublicLogoImg
-                    src={agencyLogo}
-                    alt=""
-                    className="max-h-14 max-w-full object-contain object-left print:max-h-12"
-                  />
-                ) : (
-                  <span className="text-neutral-300"> </span>
-                )}
-              </div>
-              <div className="flex min-w-0 items-center justify-center">
-                {sanitizePublicImageUrl(clientLogo) ? (
-                  <PublicLogoImg
-                    src={clientLogo}
-                    alt=""
-                    className="max-h-14 max-w-full object-contain object-center print:max-h-12"
-                  />
-                ) : (
-                  <span className="text-neutral-300"> </span>
-                )}
-              </div>
-              <div className="flex min-w-0 items-center justify-end">
-                <PublicLogoImg
-                  src={extraClientLogo}
-                  alt=""
-                  className="max-h-14 max-w-full object-contain object-right print:max-h-12"
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 sm:gap-5 print:gap-4">
-            <div className="flex items-center justify-start">
-              {sanitizePublicImageUrl(agencyLogo) ? (
-                <PublicLogoImg
-                  src={agencyLogo}
-                  alt=""
-                  className="max-h-14 max-w-full object-contain object-left print:max-h-12"
-                />
-              ) : (
-                <span className="text-neutral-300"> </span>
-              )}
-            </div>
-            <div className="flex shrink-0 items-center justify-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={APARENT_LOGO_PUBLIC_PATH}
-                alt=""
-                className="h-10 w-auto object-contain print:h-9"
-              />
-            </div>
-            <div className="flex min-w-0 items-center justify-end">
-              {sanitizePublicImageUrl(clientLogo) ? (
-                <PublicLogoImg
-                  src={clientLogo}
-                  alt=""
-                  className="max-h-14 max-w-full object-contain object-right print:max-h-12"
-                />
-              ) : (
-                <span className="text-neutral-300"> </span>
-              )}
-            </div>
-          </div>
-        )}
+        <DagsplanLogoGrid
+          logos={[
+            { key: "agency", src: agencyLogo, alt: d.project.agency?.name ?? "" },
+            { key: "aparent", src: APARENT_LOGO_PUBLIC_PATH, alt: "Aparent" },
+            { key: "client", src: clientLogo, alt: d.project.customer?.name ?? "" },
+            { key: "extraClient", src: extraClientLogo, alt: "" },
+          ]}
+        />
 
-        <div
-          className={cn(
-            "flex flex-col items-center gap-2 text-center text-sm leading-snug text-neutral-600 print:gap-1.5 print:text-[11px]",
-            extraClientLogo
-              ? "mt-10 print:mt-8"
-              : "mt-[60px] print:mt-[60px]",
-          )}
-        >
+        <div className="mt-[60px] flex flex-col items-center gap-2 text-center text-sm leading-snug text-neutral-600 print:gap-1.5 print:text-[11px]">
           {/* Linje 1: prosjekt · dagsplan · dato */}
           <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2.5 gap-y-1 print:gap-x-3">
             <h1 className="min-w-0 max-w-full text-balance font-bold tracking-tight">

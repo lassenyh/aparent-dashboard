@@ -80,9 +80,8 @@ import {
   formatTotalScheduleMinutes,
   type ScheduleRow,
 } from "@/components/dagsplan/dagsplan-schedule-table";
-import { PublicLogoImg } from "@/components/public-logo-img";
+import { DagsplanLogoGrid } from "@/components/dagsplan/dagsplan-logo-grid";
 import { DagsplanPdfLoading } from "@/components/dagsplan/dagsplan-pdf-loading";
-import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { PageBackLink } from "@/components/page-back-link";
 import {
   Select,
@@ -1392,8 +1391,8 @@ export function DagsplanEditor({
               agencyLogoUrl={displayAgencyLogo}
               clientLogoUrl={displayClientLogo}
               extraClientLogoUrl={state.extraClientLogoUrl}
-              agencyFallbackLabel={t.agencyLogo}
-              clientFallbackLabel={t.clientLogo}
+              agencyAlt={t.agencyLogo}
+              clientAlt={t.clientLogo}
             />
           }
         >
@@ -3165,72 +3164,25 @@ function DagsplanLogoPreview({
   agencyLogoUrl,
   clientLogoUrl,
   extraClientLogoUrl,
-  agencyFallbackLabel,
-  clientFallbackLabel,
+  agencyAlt,
+  clientAlt,
 }: {
   agencyLogoUrl: string;
   clientLogoUrl: string;
   extraClientLogoUrl?: string;
-  agencyFallbackLabel: string;
-  clientFallbackLabel: string;
+  agencyAlt: string;
+  clientAlt: string;
 }) {
-  const agencyLogo = sanitizePublicImageUrl(agencyLogoUrl);
-  const clientLogo = sanitizePublicImageUrl(clientLogoUrl);
-  const extraClientLogo = sanitizePublicImageUrl(extraClientLogoUrl);
-
+  // Samme grid som print-siden/PDF-en, slik at forhåndsvisningen viser det som blir skrevet ut.
   return (
-    <div
-      className={cn(
-        "grid items-center gap-4 sm:gap-6",
-        extraClientLogo
-          ? "grid-cols-4"
-          : "grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]",
-      )}
-    >
-      <div className="flex min-h-[56px] items-center justify-center">
-        {agencyLogo ? (
-          <PublicLogoImg
-            src={agencyLogo}
-            alt=""
-            className="max-h-14 max-w-full object-contain"
-          />
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {agencyFallbackLabel}
-          </span>
-        )}
-      </div>
-      <div className="flex shrink-0 items-center justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={APARENT_LOGO_PUBLIC_PATH}
-          alt=""
-          className="h-9 w-auto object-contain"
-        />
-      </div>
-      <div className="flex min-h-[56px] items-center justify-center">
-        {clientLogo ? (
-          <PublicLogoImg
-            src={clientLogo}
-            alt=""
-            className="max-h-14 max-w-full object-contain"
-          />
-        ) : (
-          <span className="text-xs text-muted-foreground">
-            {clientFallbackLabel}
-          </span>
-        )}
-      </div>
-      {extraClientLogo ? (
-        <div className="flex min-h-[56px] min-w-0 items-center justify-center">
-          <PublicLogoImg
-            src={extraClientLogo}
-            alt="Ekstra kundelogo"
-            className="max-h-14 max-w-full object-contain"
-          />
-        </div>
-      ) : null}
-    </div>
+    <DagsplanLogoGrid
+      logos={[
+        { key: "agency", src: agencyLogoUrl, alt: agencyAlt },
+        { key: "aparent", src: APARENT_LOGO_PUBLIC_PATH, alt: "Aparent" },
+        { key: "client", src: clientLogoUrl, alt: clientAlt },
+        { key: "extraClient", src: extraClientLogoUrl, alt: "" },
+      ]}
+    />
   );
 }
 
