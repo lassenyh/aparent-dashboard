@@ -15,7 +15,8 @@ export type DagsplanHeaderLogo = {
  *
  * Fast grid: én kolonne per logo, like brede kolonner og fast mellomrom. Hver logo
  * skaleres inn i en boks med lik høyde og maksbredde (`object-fit: contain`), sentrert
- * både horisontalt og vertikalt. Logoer uten URL utelates, så rutenettet tilpasser seg
+ * både horisontalt og vertikalt. Boksen (`--logo-w`) er smalere enn kolonnen
+ * (`--logo-cell-max`), slik at det alltid er luft mellom logoene. Logoer uten URL utelates, så rutenettet tilpasser seg
  * 1–4 logoer. Gridet får maksbredde = antall kolonner × maks cellebredde, slik at
  * to logoer ikke dyttes helt ut til kantene.
  */
@@ -40,7 +41,7 @@ export function DagsplanLogoGrid({
   return (
     <div
       className={cn(
-        "dagsplan-logo-grid mx-auto grid w-full items-center [--logo-cell-max:12rem] [--logo-gap:2.5rem] [--logo-h:3rem] gap-x-(--logo-gap)",
+        "dagsplan-logo-grid mx-auto grid w-full items-center [--logo-cell-max:12rem] [--logo-gap:2.5rem] [--logo-h:2.25rem] [--logo-w:9rem] gap-x-(--logo-gap)",
         className,
       )}
       style={style}
@@ -53,7 +54,7 @@ export function DagsplanLogoGrid({
           <PublicLogoImg
             src={logo.src}
             alt={logo.alt}
-            className="block h-full w-full max-w-(--logo-cell-max) object-contain object-center"
+            className="block h-full w-full max-w-(--logo-w) object-contain object-center"
           />
         </div>
       ))}
