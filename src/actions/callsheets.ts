@@ -181,9 +181,9 @@ export async function createCallSheet(
 
   await addDefaultCrewListToCallSheet(sheet.id);
 
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath("/");
-  redirect(`/callsheets/${sheet.id}`);
+  revalidatePath(`/desk/projects/${projectId}`);
+  revalidatePath("/desk");
+  redirect(`/desk/callsheets/${sheet.id}`);
 }
 
 export async function updateCallSheet(
@@ -224,9 +224,9 @@ export async function updateCallSheet(
     },
   });
 
-  revalidatePath(`/callsheets/${id}`);
-  revalidatePath(`/projects/${existing.projectId}`);
-  revalidatePath("/");
+  revalidatePath(`/desk/callsheets/${id}`);
+  revalidatePath(`/desk/projects/${existing.projectId}`);
+  revalidatePath("/desk");
   return null;
 }
 
@@ -242,9 +242,9 @@ export async function deleteCallSheet(id: string, _formData?: FormData) {
   assertPermission(flags, "canEditCallSheets");
 
   await prisma.callSheet.delete({ where: { id } });
-  revalidatePath(`/projects/${sheet.projectId}`);
-  revalidatePath("/");
-  redirect(`/projects/${sheet.projectId}`);
+  revalidatePath(`/desk/projects/${sheet.projectId}`);
+  revalidatePath("/desk");
+  redirect(`/desk/projects/${sheet.projectId}`);
 }
 
 export async function addProjectCrewToCallSheet(
@@ -292,8 +292,8 @@ export async function addProjectCrewToCallSheet(
   });
 
   await touchPersonLastUsed(pc.personId);
-  revalidatePath(`/callsheets/${callSheetId}`);
-  revalidatePath(`/projects/${sheet.projectId}`);
+  revalidatePath(`/desk/callsheets/${callSheetId}`);
+  revalidatePath(`/desk/projects/${sheet.projectId}`);
   return { ok: true };
 }
 
@@ -332,7 +332,7 @@ export async function updateCallSheetCrewRow(
     },
   });
 
-  revalidatePath(`/callsheets/${row.callSheetId}`);
+  revalidatePath(`/desk/callsheets/${row.callSheetId}`);
   return { ok: true };
 }
 
@@ -347,8 +347,8 @@ export async function removeCallSheetCrewRow(rowId: string) {
   assertPermission(flags, "canEditCallSheets");
 
   await prisma.callSheetCrew.delete({ where: { id: rowId } });
-  revalidatePath(`/callsheets/${row.callSheetId}`);
-  revalidatePath(`/projects/${row.callSheet.projectId}`);
+  revalidatePath(`/desk/callsheets/${row.callSheetId}`);
+  revalidatePath(`/desk/projects/${row.callSheet.projectId}`);
 }
 
 export async function reorderCallSheetCrew(
@@ -371,7 +371,7 @@ export async function reorderCallSheetCrew(
       }),
     ),
   );
-  revalidatePath(`/callsheets/${callSheetId}`);
+  revalidatePath(`/desk/callsheets/${callSheetId}`);
 }
 
 export async function duplicateCallSheet(callSheetId: string) {
@@ -425,7 +425,7 @@ export async function duplicateCallSheet(callSheetId: string) {
     return sheet;
   });
 
-  revalidatePath(`/projects/${original.projectId}`);
-  revalidatePath("/");
-  redirect(`/callsheets/${created.id}`);
+  revalidatePath(`/desk/projects/${original.projectId}`);
+  revalidatePath("/desk");
+  redirect(`/desk/callsheets/${created.id}`);
 }

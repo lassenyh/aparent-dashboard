@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@/generated/prisma/client";
 import { membershipPermissions } from "./permissions";
 
 /** Atomically consume an invitation and grant exactly its stored project permissions. */

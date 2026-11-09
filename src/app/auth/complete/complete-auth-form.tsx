@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ProductLockup } from "@/components/product-mark";
+import { ProductLockup } from "@/components/wrapup/product-mark";
 
 type Tokens = { access_token: string; refresh_token: string };
 export function CompleteAuthForm() {

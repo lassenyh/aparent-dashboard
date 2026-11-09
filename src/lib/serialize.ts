@@ -4,7 +4,7 @@ import type {
   Person,
   Project,
   ProjectCrew,
-} from "@prisma/client";
+} from "@/generated/prisma/client";
 import { primaryRole } from "@/lib/person";
 import {
   effectiveRateSourceForProject,

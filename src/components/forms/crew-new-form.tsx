@@ -232,7 +232,7 @@ export function CrewNewForm({ roleOptions = [] }: { roleOptions?: string[] }) {
           {pending ? "Lagrer…" : "Opprett person"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href="/crew">Avbryt</Link>
+          <Link href="/desk/crew">Avbryt</Link>
         </Button>
       </div>
     </form>

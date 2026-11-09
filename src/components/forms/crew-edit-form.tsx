@@ -249,7 +249,7 @@ export function CrewEditForm({
             {pending ? "Lagrer…" : "Lagre endringer"}
           </Button>
           <Button type="button" variant="outline" asChild>
-            <Link href="/crew">Tilbake</Link>
+            <Link href="/desk/crew">Tilbake</Link>
           </Button>
         </div>
       </div>

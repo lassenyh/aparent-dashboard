@@ -76,7 +76,7 @@ export function CallSheetNewForm({ projectId }: { projectId: string }) {
           {pending ? "Oppretter…" : "Opprett call sheet"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href={`/projects/${projectId}`}>Avbryt</Link>
+          <Link href={`/desk/projects/${projectId}`}>Avbryt</Link>
         </Button>
       </div>
     </form>

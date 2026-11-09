@@ -56,7 +56,7 @@ export async function createCustomer(
   formData: FormData,
 ): Promise<{ error?: string }> {
   const result = await createCustomerInline(null, formData);
-  if (result.customer) redirect(`/kunder/${result.customer.id}`);
+  if (result.customer) redirect(`/desk/kunder/${result.customer.id}`);
   return { error: result.error };
 }
 
@@ -103,7 +103,7 @@ export async function createCustomerInline(
     });
   }
 
-  revalidatePath("/kunder");
+  revalidatePath("/desk/kunder");
   return { customer: { id: c.id, name: c.name } };
 }
 
@@ -166,9 +166,9 @@ export async function updateCustomer(
     });
   }
 
-  revalidatePath("/kunder");
-  revalidatePath(`/kunder/${id}`);
-  revalidatePath("/");
+  revalidatePath("/desk/kunder");
+  revalidatePath(`/desk/kunder/${id}`);
+  revalidatePath("/desk");
   return { savedAt: Date.now() };
 }
 
@@ -177,7 +177,7 @@ export async function deleteCustomer(id: string) {
   const row = await prisma.customer.findUnique({ where: { id } });
   if (row?.logoUrl) await removePublicUploadFile(row.logoUrl);
   await prisma.customer.delete({ where: { id } });
-  revalidatePath("/kunder");
-  revalidatePath("/");
-  redirect("/kunder");
+  revalidatePath("/desk/kunder");
+  revalidatePath("/desk");
+  redirect("/desk/kunder");
 }

@@ -246,9 +246,9 @@ export async function batchImportCrewListRows(
   }
 
   if (created > 0) {
-    revalidatePath("/crew");
+    revalidatePath("/desk/crew");
     if (projectId) {
-      revalidatePath(`/projects/${projectId}`);
+      revalidatePath(`/desk/projects/${projectId}`);
     }
   }
 

@@ -66,7 +66,7 @@ export async function CrewListDialogContent({
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link
-            href={`/projects/${projectId}/crewliste/print?autoPrint=1`}
+            href={`/desk/projects/${projectId}/crewliste/print?autoPrint=1`}
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { Person, ProjectCrew } from "@prisma/client";
+import type { Person, ProjectCrew } from "../src/generated/prisma/client";
 import { sortCrewListMembersByDepartmentOrder, sortDagsplanCrewRowsByDepartmentOrder } from "../src/lib/crew-department-order";
 
 test("crew list matches dagsplan hierarchy, preserves manual order within roles and uses overrides", () => {

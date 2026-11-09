@@ -132,7 +132,7 @@ export function CrewListImportClient({ projectId = null }: Props) {
               ? ` Hoppet over ${res.skippedDuplicates} duplikat(er).`
               : ""),
         );
-        router.push(pid ? `/projects/${pid}` : "/crew");
+        router.push(pid ? `/desk/projects/${pid}` : "/desk/crew");
         router.refresh();
       } else if (!res.errors.length) {
         toast.message(
@@ -413,7 +413,7 @@ export function CrewListImportClient({ projectId = null }: Props) {
 
       <div className="flex gap-3">
         <Button variant="outline" asChild>
-          <Link href="/crew">Tilbake til crew</Link>
+          <Link href="/desk/crew">Tilbake til crew</Link>
         </Button>
       </div>
     </div>

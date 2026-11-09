@@ -32,7 +32,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
-import { WeatherIconKind } from "@prisma/client";
+import { WeatherIconKind } from "@/generated/prisma/enums";
 import type { CrewDatabasePersonOption } from "@/actions/dagsplan";
 import { fetchDagsplanWeather } from "@/actions/dagsplan-weather";
 import {
@@ -1279,7 +1279,7 @@ export function DagsplanEditor({
   return (
     <>
       <div className="mb-6">
-        <PageBackLink href={`/projects/${state.projectId}`}>
+        <PageBackLink href={`/desk/projects/${state.projectId}`}>
           {state.projectName}
         </PageBackLink>
       </div>
@@ -3031,7 +3031,7 @@ export function DagsplanEditor({
               <iframe
                 key={previewAttempt}
                 title={t.previewPrint}
-                src={`/dagsplaner/${state.id}/print?previewAttempt=${previewAttempt}`}
+                src={`/desk/dagsplaner/${state.id}/print?previewAttempt=${previewAttempt}`}
                 onLoad={() => {
                   setPreviewLoadError(false);
                   setPreviewLoading(false);

@@ -74,11 +74,11 @@ const rowInputSchema = z.object({
 const saveSchema = z.array(rowInputSchema);
 
 function revalidatePayrollPaths(projectId: string, listId?: string) {
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/lonningsliste`);
+  revalidatePath(`/desk/projects/${projectId}`);
+  revalidatePath(`/desk/projects/${projectId}/lonningsliste`);
   if (listId) {
-    revalidatePath(`/projects/${projectId}/lonningsliste/${listId}`);
-    revalidatePath(`/projects/${projectId}/lonningsliste/${listId}/print`);
+    revalidatePath(`/desk/projects/${projectId}/lonningsliste/${listId}`);
+    revalidatePath(`/desk/projects/${projectId}/lonningsliste/${listId}/print`);
   }
 }
 
@@ -106,7 +106,7 @@ export async function createPayrollListFormAction(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const res = await createPayrollList(projectId, title || undefined);
   if ("error" in res) return;
-  redirect(`/projects/${projectId}/lonningsliste/${res.id}`);
+  redirect(`/desk/projects/${projectId}/lonningsliste/${res.id}`);
 }
 
 export async function deletePayrollList(projectId: string, listId: string) {
@@ -448,7 +448,7 @@ export async function duplicatePayrollList(projectId: string, listId: string) {
     include: { rows: { orderBy: { sortOrder: "asc" } } },
   });
   if (!list) {
-    redirect(`/projects/${projectId}/lonningsliste`);
+    redirect(`/desk/projects/${projectId}/lonningsliste`);
   }
 
   const { flags } = await requireProjectAccess(projectId);
@@ -495,7 +495,7 @@ export async function duplicatePayrollList(projectId: string, listId: string) {
   }
 
   revalidatePayrollPaths(projectId, newList.id);
-  redirect(`/projects/${projectId}/lonningsliste/${newList.id}`);
+  redirect(`/desk/projects/${projectId}/lonningsliste/${newList.id}`);
 }
 
 /**
@@ -635,7 +635,7 @@ export async function createPersonForPayrollList(
     rateTypeOverride: "day",
   });
 
-  revalidatePath("/crew");
+  revalidatePath("/desk/crew");
   revalidatePayrollPaths(projectId, listId);
 
   return { ok: true, personId: person.id };

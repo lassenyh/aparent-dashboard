@@ -60,7 +60,7 @@ export async function ProjectAccessSection({ projectId, flags }: Props) {
   return (
     <ProjectPageSection title="Prosjekttilgang" collapsible={false}>
       <div className="space-y-8 pt-2">
-        <Button asChild><Link href={`/brukertilgang/invitasjon?projectId=${projectId}`}>Inviter med e-post</Link></Button>
+        <Button asChild><Link href={`/desk/brukertilgang/invitasjon?projectId=${projectId}`}>Inviter med e-post</Link></Button>
 
         <div className="divide-y divide-border rounded-md border border-border">
           {rows.map((m) => (

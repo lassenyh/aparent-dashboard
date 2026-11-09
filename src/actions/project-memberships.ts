@@ -135,7 +135,7 @@ export async function addUserToProject(
     },
   });
 
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/desk/projects/${projectId}`);
   return null;
 }
 
@@ -199,7 +199,7 @@ export async function updateProjectMembership(
     },
   });
 
-  revalidatePath(`/projects/${row.projectId}`);
+  revalidatePath(`/desk/projects/${row.projectId}`);
   return { success: true };
 }
 
@@ -221,6 +221,6 @@ export async function removeProjectMembership(
     prisma.projectMembership.delete({ where: { id: membershipId } }),
     prisma.projectInvitation.updateMany({ where: { projectId: row.projectId, acceptedUserId: row.userId, status: "accepted" }, data: { status: "revoked" } }),
   ]);
-  revalidatePath("/brukertilgang/invitasjon");
-  revalidatePath(`/projects/${row.projectId}`);
+  revalidatePath("/desk/brukertilgang/invitasjon");
+  revalidatePath(`/desk/projects/${row.projectId}`);
 }

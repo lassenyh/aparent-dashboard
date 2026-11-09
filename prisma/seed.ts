@@ -1,12 +1,16 @@
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import {
   PrismaClient,
   DietaryPreference,
   RateType,
   ProjectStatus,
   CallSheetStatus,
-} from "@prisma/client";
+} from "../src/generated/prisma/client";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+});
 
 async function main() {
   await prisma.callSheetCrew.deleteMany();

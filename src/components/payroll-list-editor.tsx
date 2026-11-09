@@ -46,7 +46,7 @@ import type { PayrollContractExtract } from "@/lib/payroll-contract-pdf-parse";
 import { validatePayrollRowsForSave } from "@/lib/payroll-row-validation";
 import { dietaryLabel } from "@/lib/dietary";
 import { cn } from "@/lib/utils";
-import type { DietaryPreference } from "@prisma/client";
+import type { DietaryPreference } from "@/generated/prisma/client";
 import { z } from "zod";
 
 export type PayrollSegment = "crew" | "cast";
@@ -1454,7 +1454,7 @@ export function PayrollListEditor({
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
               <Link
-                href={`/projects/${projectId}/lonningsliste/${listId}/print?preview=1`}
+                href={`/desk/projects/${projectId}/lonningsliste/${listId}/print?preview=1`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

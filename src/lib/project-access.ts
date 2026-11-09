@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
-import type { DashboardUser, ProjectMembership } from "@prisma/client";
+import type { DashboardUser, ProjectMembership } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { requireSessionDashboardUser } from "@/lib/auth-session";
 

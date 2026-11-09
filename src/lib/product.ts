@@ -45,7 +45,7 @@ export const SERVICE_META: Record<
   },
   planner: {
     label: "Fremdriftsplaner",
-    color: "#7a2e2a",
+    color: "#2b4c7e",
     url: process.env.NEXT_PUBLIC_WRAPUP_PLANNER_URL || "https://wrapup-planner.vercel.app",
     status: "live",
   },

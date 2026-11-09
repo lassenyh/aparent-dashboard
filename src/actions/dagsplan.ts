@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
-import { WeatherIconKind } from "@prisma/client";
+import { WeatherIconKind } from "@/generated/prisma/client";
 import { z } from "zod";
 import { getSessionDashboardUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";
@@ -388,8 +388,8 @@ export async function createDagsplan(
     return created;
   });
 
-  revalidatePath(`/projects/${projectId}`);
-  redirect(`/dagsplaner/${d.id}`);
+  revalidatePath(`/desk/projects/${projectId}`);
+  redirect(`/desk/dagsplaner/${d.id}`);
 }
 
 export async function saveDagsplan(
@@ -550,9 +550,9 @@ export async function saveDagsplan(
     }
   });
 
-  revalidatePath(`/projects/${existing.projectId}`);
-  revalidatePath(`/dagsplaner/${d.id}`);
-  revalidatePath(`/dagsplaner/${d.id}/print`);
+  revalidatePath(`/desk/projects/${existing.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${d.id}`);
+  revalidatePath(`/desk/dagsplaner/${d.id}/print`);
   return null;
 }
 
@@ -691,8 +691,8 @@ export async function duplicateDagsplan(id: string, _formData?: FormData) {
     return d;
   });
 
-  revalidatePath(`/projects/${src.projectId}`);
-  redirect(`/dagsplaner/${created.id}`);
+  revalidatePath(`/desk/projects/${src.projectId}`);
+  redirect(`/desk/dagsplaner/${created.id}`);
 }
 
 export async function deleteDagsplan(id: string, _formData?: FormData) {
@@ -727,8 +727,8 @@ export async function deleteDagsplan(id: string, _formData?: FormData) {
     }
   }
   await prisma.dagsplan.delete({ where: { id } });
-  revalidatePath(`/projects/${row.projectId}`);
-  redirect(`/projects/${row.projectId}`);
+  revalidatePath(`/desk/projects/${row.projectId}`);
+  redirect(`/desk/projects/${row.projectId}`);
 }
 
 export async function uploadDagsplanLogo(
@@ -764,9 +764,9 @@ export async function uploadDagsplanLogo(
         : which === "client" ? { clientLogoUrl: saved.publicPath } : { extraClientLogoUrl: saved.publicPath },
   });
 
-  revalidatePath(`/dagsplaner/${dagsplanId}`);
-  revalidatePath(`/dagsplaner/${dagsplanId}/print`);
-  revalidatePath(`/projects/${d.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${d.projectId}`);
   return { ok: true as const, publicPath: saved.publicPath };
 }
 
@@ -808,9 +808,9 @@ export async function removeDagsplanLogo(
           : { extraClientLogoUrl: null },
   });
 
-  revalidatePath(`/dagsplaner/${dagsplanId}`);
-  revalidatePath(`/dagsplaner/${dagsplanId}/print`);
-  revalidatePath(`/projects/${d.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${d.projectId}`);
   return { ok: true as const };
 }
 
@@ -856,9 +856,9 @@ export async function uploadDagsplanLocationParkingImage(
     }),
   ]);
 
-  revalidatePath(`/dagsplaner/${loc.dagsplanId}`);
-  revalidatePath(`/dagsplaner/${loc.dagsplanId}/print`);
-  revalidatePath(`/projects/${loc.dagsplan.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${loc.dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${loc.dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${loc.dagsplan.projectId}`);
   return { ok: true as const, publicPath: saved.publicPath };
 }
 
@@ -889,9 +889,9 @@ export async function removeDagsplanLocationParkingImage(locationId: string) {
       data: { updatedAt: new Date() },
     }),
   ]);
-  revalidatePath(`/dagsplaner/${loc.dagsplanId}`);
-  revalidatePath(`/dagsplaner/${loc.dagsplanId}/print`);
-  revalidatePath(`/projects/${loc.dagsplan.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${loc.dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${loc.dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${loc.dagsplan.projectId}`);
   return { ok: true as const };
 }
 
@@ -913,7 +913,7 @@ export async function uploadDagsplanImageAsset(
     update: { name: file.name },
     select: { id: true, url: true, name: true },
   });
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/desk/projects/${projectId}`);
   return { ok: true as const, asset };
 }
 
@@ -959,9 +959,9 @@ export async function uploadDagsplanScheduleShot(
     }),
   ]);
 
-  revalidatePath(`/dagsplaner/${row.dagsplanId}`);
-  revalidatePath(`/dagsplaner/${row.dagsplanId}/print`);
-  revalidatePath(`/projects/${row.dagsplan.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${row.dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${row.dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${row.dagsplan.projectId}`);
   return { ok: true as const, publicPath: saved.publicPath };
 }
 
@@ -992,9 +992,9 @@ export async function removeDagsplanScheduleShot(scheduleEntryId: string) {
       data: { updatedAt: new Date() },
     }),
   ]);
-  revalidatePath(`/dagsplaner/${row.dagsplanId}`);
-  revalidatePath(`/dagsplaner/${row.dagsplanId}/print`);
-  revalidatePath(`/projects/${row.dagsplan.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${row.dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${row.dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${row.dagsplan.projectId}`);
   return { ok: true as const };
 }
 
@@ -1060,9 +1060,9 @@ export async function saveDagsplanLocations(
     });
   });
 
-  revalidatePath(`/projects/${dp.projectId}`);
-  revalidatePath(`/dagsplaner/${dagsplanId}`);
-  revalidatePath(`/dagsplaner/${dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${dp.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${dagsplanId}/print`);
   return null;
 }
 
@@ -1095,9 +1095,9 @@ export async function addDagsplanLocation(dagsplanId: string) {
     });
     return loc;
   });
-  revalidatePath(`/dagsplaner/${dagsplanId}`);
-  revalidatePath(`/dagsplaner/${dagsplanId}/print`);
-  revalidatePath(`/projects/${dp.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${dp.projectId}`);
   return { id: created.id };
 }
 
@@ -1122,9 +1122,9 @@ export async function removeDagsplanLocation(locationId: string) {
       data: { updatedAt: new Date() },
     }),
   ]);
-  revalidatePath(`/dagsplaner/${loc.dagsplanId}`);
-  revalidatePath(`/dagsplaner/${loc.dagsplanId}/print`);
-  revalidatePath(`/projects/${loc.dagsplan.projectId}`);
+  revalidatePath(`/desk/dagsplaner/${loc.dagsplanId}`);
+  revalidatePath(`/desk/dagsplaner/${loc.dagsplanId}/print`);
+  revalidatePath(`/desk/projects/${loc.dagsplan.projectId}`);
   if (isPublicUploadPath(loc.parkingImageUrl)) {
     const parkingImageUrl = loc.parkingImageUrl;
     after(async () => {

@@ -1,4 +1,4 @@
-import type { DietaryPreference } from "@prisma/client";
+import type { DietaryPreference } from "@/generated/prisma/client";
 
 const labels: Record<DietaryPreference, string> = {
   none: "Ingen",

@@ -183,7 +183,7 @@ export async function ensureCrewListShare(projectId: string) {
     create: { projectId, token: newShareToken() },
     update: {},
   });
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/desk/projects/${projectId}`);
   return row;
 }
 
@@ -197,7 +197,7 @@ export async function rotateCrewListShareToken(projectId: string) {
     create: { projectId, token },
     update: { token },
   });
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/desk/projects/${projectId}`);
 }
 
 export async function addProjectCrewToDefaultList(
@@ -245,7 +245,7 @@ export async function addProjectCrewToDefaultList(
 
   await bumpProjectCrewListTimestamp(projectId);
 
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/desk/projects/${projectId}`);
 }
 
 export async function removeProjectCrewListMember(memberId: string) {
@@ -268,7 +268,7 @@ export async function removeProjectCrewListMember(memberId: string) {
     data: { excludedFromDefaultCrewList: true },
   });
   await bumpProjectCrewListTimestamp(projectId);
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/desk/projects/${projectId}`);
 }
 
 export async function moveProjectCrewListMember(
@@ -309,5 +309,5 @@ export async function moveProjectCrewListMember(
 
   await bumpProjectCrewListTimestamp(projectId);
 
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/desk/projects/${projectId}`);
 }

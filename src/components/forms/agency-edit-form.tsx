@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { updateAgency } from "@/actions/agencies";
-import type { Agency } from "@prisma/client";
+import type { Agency } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
 import { LogoField } from "@/components/forms/logo-field";
 import { SaveButton } from "@/components/save-button";
@@ -44,7 +44,7 @@ export function AgencyEditForm({ agency }: { agency: Agency }) {
       <div className="flex gap-3 pt-2">
         <SaveButton pending={pending} savedAt={state?.savedAt ?? null} failed={!!state?.error}>
           <Button type="button" variant="outline" asChild>
-            <Link href="/byra">Tilbake</Link>
+            <Link href="/desk/byra">Tilbake</Link>
           </Button>
         </SaveButton>
       </div>

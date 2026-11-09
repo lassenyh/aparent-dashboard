@@ -47,7 +47,7 @@ export function CustomerNewForm({ onCreated, onCancel, onPendingChange }: {
           {pending ? "Oppretter…" : "Opprett kunde"}
         </Button>
         {onCancel ? <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>Avbryt</Button> : (
-          <Button type="button" variant="outline" asChild><Link href="/kunder">Avbryt</Link></Button>
+          <Button type="button" variant="outline" asChild><Link href="/desk/kunder">Avbryt</Link></Button>
         )}
       </div>
     </form>

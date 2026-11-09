@@ -49,7 +49,7 @@ export function DagsplanNewForm({ projectId }: { projectId: string }) {
           {pending ? "Oppretter…" : "Opprett og rediger"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href={`/projects/${projectId}`}>Avbryt</Link>
+          <Link href={`/desk/projects/${projectId}`}>Avbryt</Link>
         </Button>
       </div>
     </form>

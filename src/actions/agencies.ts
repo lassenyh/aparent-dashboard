@@ -98,8 +98,8 @@ export async function createAgency(
     });
   }
 
-  revalidatePath("/byra");
-  redirect(`/byra/${a.id}`);
+  revalidatePath("/desk/byra");
+  redirect(`/desk/byra/${a.id}`);
 }
 
 export async function updateAgency(
@@ -165,9 +165,9 @@ export async function updateAgency(
     });
   }
 
-  revalidatePath("/byra");
-  revalidatePath(`/byra/${id}`);
-  revalidatePath("/");
+  revalidatePath("/desk/byra");
+  revalidatePath(`/desk/byra/${id}`);
+  revalidatePath("/desk");
   return { savedAt: Date.now() };
 }
 
@@ -176,7 +176,7 @@ export async function deleteAgency(id: string) {
   const row = await prisma.agency.findUnique({ where: { id } });
   if (row?.logoUrl) await removePublicUploadFile(row.logoUrl);
   await prisma.agency.delete({ where: { id } });
-  revalidatePath("/byra");
-  revalidatePath("/");
-  redirect("/byra");
+  revalidatePath("/desk/byra");
+  revalidatePath("/desk");
+  redirect("/desk/byra");
 }

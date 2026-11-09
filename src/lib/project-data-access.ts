@@ -1,4 +1,4 @@
-import type { Person, ProjectCrew } from "@prisma/client";
+import type { Person, ProjectCrew } from "@/generated/prisma/client";
 import type { ProjectAccessFlags } from "./project-access";
 
 /** Redact before returning data from callable server actions, not just in the UI. */

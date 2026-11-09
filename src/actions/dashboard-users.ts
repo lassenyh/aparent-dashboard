@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireSessionDashboardUser } from "@/lib/auth-session";
 import { requireInternalUser } from "@/lib/project-access";
 
-const USER_ACCESS_PATH = "/brukertilgang";
+const USER_ACCESS_PATH = "/desk/brukertilgang";
 
 export async function listDashboardUsers() {
   await requireInternalUser();

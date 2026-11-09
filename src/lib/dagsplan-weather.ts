@@ -1,4 +1,4 @@
-import type { WeatherIconKind } from "@prisma/client";
+import type { WeatherIconKind } from "@/generated/prisma/client";
 
 export function formatDagsplanWeatherTempLine(
   min: number | null,
