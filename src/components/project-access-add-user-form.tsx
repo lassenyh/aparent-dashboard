@@ -78,7 +78,7 @@ export function ProjectAccessAddUserForm({ projectId }: { projectId: string }) {
           <Input id="pa-fullname" name="fullName" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="pa-email">E-post</Label>
+          <Label htmlFor="pa-email">E-post (kun ny bruker, brukes til innlogging)</Label>
           <Input id="pa-email" name="email" type="email" />
         </div>
       </div>
