@@ -21,7 +21,7 @@ export function CrewLiveFilterForm({ children }: { children: ReactNode }) {
     for (const [key, value] of new FormData(form)) {
       if (typeof value === "string" && value.trim()) params.set(key, value.trim());
     }
-    startTransition(() => router.replace(`/crew?${params}`, { scroll: false }));
+    startTransition(() => router.replace(`/desk/crew?${params}`, { scroll: false }));
   }
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export function CrewLiveFilterForm({ children }: { children: ReactNode }) {
           control.value = name === "active" ? "all" : name === "sort" ? "name" : "";
         }
       }
-      startTransition(() => router.replace("/crew", { scroll: false }));
+      startTransition(() => router.replace("/desk/crew", { scroll: false }));
     }}
   >
     {children}

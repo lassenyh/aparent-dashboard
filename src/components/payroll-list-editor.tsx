@@ -1454,7 +1454,7 @@ export function PayrollListEditor({
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" asChild>
               <Link
-                href={`/projects/${projectId}/lonningsliste/${listId}/print?preview=1`}
+                href={`/desk/projects/${projectId}/lonningsliste/${listId}/print?preview=1`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

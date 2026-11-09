@@ -35,7 +35,7 @@ export function CustomerEditForm({ customer }: { customer: Customer }) {
       <div className="flex gap-3 pt-2">
         <SaveButton pending={pending} savedAt={state?.savedAt ?? null} failed={!!state?.error}>
           <Button type="button" variant="outline" asChild>
-            <Link href="/kunder">Tilbake</Link>
+            <Link href="/desk/kunder">Tilbake</Link>
           </Button>
         </SaveButton>
       </div>

@@ -104,7 +104,7 @@ export async function GET(
     return NextResponse.json({ error: "Ingen tilgang" }, { status: 403 });
   }
 
-  const printUrl = `${request.nextUrl.origin}/dagsplaner/${id}/print`;
+  const printUrl = `${request.nextUrl.origin}/desk/dagsplaner/${id}/print`;
   const cookie = request.headers.get("cookie");
 
   let browser: Awaited<ReturnType<typeof launchChromiumForPdf>> | undefined;

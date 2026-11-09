@@ -112,7 +112,7 @@ export async function savePersonSensitiveData(
     data: { bankAccountEncrypted, nationalIdEncrypted },
   });
 
-  revalidatePath("/crew");
-  revalidatePath(`/crew/${personId}`);
+  revalidatePath("/desk/crew");
+  revalidatePath(`/desk/crew/${personId}`);
   return { success: true };
 }

@@ -161,7 +161,7 @@ function CrewRowForm({
         <div className="mb-3 space-y-1.5 text-xs text-muted-foreground">
           <p>
             {canOpenProfile && <Link
-              href={`/crew/${row.person.id}`}
+              href={`/desk/crew/${row.person.id}`}
               className="inline-flex items-center gap-1 hover:text-foreground"
             >
               Åpne profil

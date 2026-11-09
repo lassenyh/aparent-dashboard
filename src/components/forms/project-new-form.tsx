@@ -130,7 +130,7 @@ export function ProjectNewForm({
           {pending ? "Oppretter…" : "Opprett prosjekt"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href="/">Avbryt</Link>
+          <Link href="/desk">Avbryt</Link>
         </Button>
       </div>
     </form>

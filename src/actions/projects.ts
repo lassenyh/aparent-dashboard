@@ -192,8 +192,8 @@ export async function createProject(
   return created;
   });
 
-  revalidatePath("/");
-  redirect(`/projects/${p.id}`);
+  revalidatePath("/desk");
+  redirect(`/desk/projects/${p.id}`);
 }
 
 export async function updateProject(
@@ -242,8 +242,8 @@ export async function updateProject(
   if (leads?.valid) await syncProjectLeads(tx, id, leads.producerId, leads.directorId);
   });
 
-  revalidatePath(`/projects/${id}`);
-  revalidatePath("/");
+  revalidatePath(`/desk/projects/${id}`);
+  revalidatePath("/desk");
   return { success: true };
 }
 
@@ -251,8 +251,8 @@ export async function deleteProject(projectId: string, _formData?: FormData) {
   void _formData;
   await requireInternalUser();
   await prisma.project.delete({ where: { id: projectId } });
-  revalidatePath("/");
-  redirect("/");
+  revalidatePath("/desk");
+  redirect("/desk");
 }
 
 /**
@@ -326,8 +326,8 @@ async function linkPersonToProjectCrew(
     skipDuplicates: true,
   });
 
-  revalidatePath(`/projects/${projectId}`);
-  revalidatePath("/");
+  revalidatePath(`/desk/projects/${projectId}`);
+  revalidatePath("/desk");
 }
 
 export async function addPersonToProject(
@@ -427,9 +427,9 @@ export async function updateProjectCrew(
     where: { projectId: row.projectId },
     data: { updatedAt: new Date() },
   });
-  revalidatePath(`/projects/${row.projectId}`);
-  revalidatePath(`/projects/${row.projectId}/crewliste/print`);
-  revalidatePath(`/projects/${row.projectId}`);
+  revalidatePath(`/desk/projects/${row.projectId}`);
+  revalidatePath(`/desk/projects/${row.projectId}/crewliste/print`);
+  revalidatePath(`/desk/projects/${row.projectId}`);
 }
 
 export async function deactivateProjectCrew(projectCrewId: string) {
@@ -443,7 +443,7 @@ export async function deactivateProjectCrew(projectCrewId: string) {
   await prisma.projectCrewListMember.deleteMany({
     where: { projectCrewId },
   });
-  revalidatePath(`/projects/${row.projectId}`);
+  revalidatePath(`/desk/projects/${row.projectId}`);
 }
 
 export async function searchPeopleForProject(
@@ -521,8 +521,8 @@ export async function createPersonForProject(projectId: string, formData: FormDa
     await tx.projectCrewListMember.create({ data: { projectCrewListId: list.id, projectCrewId: crew.id, sortOrder: (listMax._max.sortOrder ?? -1) + 1 } });
     return { id: person.id, fullName: person.fullName };
   });
-  revalidatePath("/crew");
-  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/desk/crew");
+  revalidatePath(`/desk/projects/${projectId}`);
   return { person };
 }
 

@@ -1279,7 +1279,7 @@ export function DagsplanEditor({
   return (
     <>
       <div className="mb-6">
-        <PageBackLink href={`/projects/${state.projectId}`}>
+        <PageBackLink href={`/desk/projects/${state.projectId}`}>
           {state.projectName}
         </PageBackLink>
       </div>
@@ -3031,7 +3031,7 @@ export function DagsplanEditor({
               <iframe
                 key={previewAttempt}
                 title={t.previewPrint}
-                src={`/dagsplaner/${state.id}/print?previewAttempt=${previewAttempt}`}
+                src={`/desk/dagsplaner/${state.id}/print?previewAttempt=${previewAttempt}`}
                 onLoad={() => {
                   setPreviewLoadError(false);
                   setPreviewLoading(false);

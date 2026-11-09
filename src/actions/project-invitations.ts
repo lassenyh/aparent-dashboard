@@ -60,10 +60,10 @@ export async function sendProjectInvitation(_previous: InvitationActionState, fo
     if (!sent.count) return { error: "Invitasjonen ble trukket tilbake under sending og gir ikke tilgang." };
   } catch {
     await prisma.projectInvitation.updateMany({ where: { id: invitation.id, tokenHash, status: "sending" }, data: { status: "failed" } });
-    revalidatePath("/brukertilgang/invitasjon");
+    revalidatePath("/desk/brukertilgang/invitasjon");
     return { error: "E-posten kunne ikke bekreftes sendt. Kontroller Resend og prøv igjen. En ny sending erstatter den gamle lenken." };
   }
-  revalidatePath("/brukertilgang/invitasjon");
+  revalidatePath("/desk/brukertilgang/invitasjon");
   return { success: `Invitasjonen til ${input.email} er sendt. Den er gyldig i 7 dager.` };
 }
 
@@ -77,8 +77,8 @@ export async function revokeProjectInvitation(id: string) {
     if (invite.acceptedUserId) await tx.projectMembership.deleteMany({ where: { projectId: invite.projectId, userId: invite.acceptedUserId } });
     await tx.projectInvitation.update({ where: { id }, data: { status: "revoked" } });
   });
-  revalidatePath("/brukertilgang");
-  revalidatePath("/brukertilgang/invitasjon");
+  revalidatePath("/desk/brukertilgang");
+  revalidatePath("/desk/brukertilgang/invitasjon");
   revalidatePath("/", "layout");
 }
 
@@ -134,7 +134,7 @@ export async function acceptInvitation(token: string, _previous: InvitationActio
   if (!accepted) return { error: "Invitasjonen er ikke lenger gyldig. Kontakt avsender." };
   const sessionToken = await createDashboardSession(user.id);
   (await cookies()).set(AUTH_COOKIE_NAME, sessionToken, sessionCookieOptions);
-  revalidatePath("/brukertilgang");
-  revalidatePath("/brukertilgang/invitasjon");
-  redirect(`/projects/${invite.projectId}`);
+  revalidatePath("/desk/brukertilgang");
+  revalidatePath("/desk/brukertilgang/invitasjon");
+  redirect(`/desk/projects/${invite.projectId}`);
 }

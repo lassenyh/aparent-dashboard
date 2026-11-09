@@ -94,7 +94,7 @@ export function CallSheetHeaderForm({
           {pending ? "Lagrer…" : "Lagre"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href={`/projects/${projectId}`}>Til prosjekt</Link>
+          <Link href={`/desk/projects/${projectId}`}>Til prosjekt</Link>
         </Button>
       </div>
     </form>

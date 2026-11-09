@@ -176,8 +176,8 @@ export async function createPerson(
     },
   });
 
-  revalidatePath("/crew");
-  redirect(`/crew?created=${encodeURIComponent(person.id)}`);
+  revalidatePath("/desk/crew");
+  redirect(`/desk/crew?created=${encodeURIComponent(person.id)}`);
 }
 
 export async function updatePerson(
@@ -259,8 +259,8 @@ export async function updatePerson(
     data,
   });
 
-  revalidatePath("/crew");
-  revalidatePath(`/crew/${id}`);
+  revalidatePath("/desk/crew");
+  revalidatePath(`/desk/crew/${id}`);
 
   const projectLinks = await prisma.projectCrew.findMany({
     where: { personId: id, isActive: true },
@@ -268,10 +268,10 @@ export async function updatePerson(
     distinct: ["projectId"],
   });
   for (const { projectId } of projectLinks) {
-    revalidatePath(`/projects/${projectId}`);
+    revalidatePath(`/desk/projects/${projectId}`);
   }
 
-  redirect(`/crew?updated=${encodeURIComponent(id)}`);
+  redirect(`/desk/crew?updated=${encodeURIComponent(id)}`);
 }
 
 export async function touchPersonLastUsed(personId: string) {
@@ -295,16 +295,16 @@ export async function deletePerson(personId: string, formData?: FormData) {
     await tx.person.delete({ where: { id: personId } });
   });
 
-  revalidatePath("/crew");
+  revalidatePath("/desk/crew");
   revalidatePath("/", "layout");
-  revalidatePath("/callsheets", "layout");
+  revalidatePath("/desk/callsheets", "layout");
 
   const rawReturn = formData?.get("returnTo");
   const redirectTo =
     typeof rawReturn === "string" &&
-    (rawReturn === "/crew" || rawReturn.startsWith("/crew?"))
+    (rawReturn === "/desk/crew" || rawReturn.startsWith("/desk/crew?"))
       ? rawReturn
-      : "/crew";
+      : "/desk/crew";
   redirect(redirectTo);
 }
 
@@ -320,7 +320,7 @@ async function createLeadPerson(formData: FormData, role: "Regissør" | "Produse
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Ugyldig data" };
   const { firstName, lastName, email, phone } = parsed.data;
   const person = await prisma.person.create({ data: { firstName, lastName, fullName: computeFullName(firstName, lastName), email: email || null, phone: phone || null, roles: [role], isActive: true }, select: { id: true, fullName: true, roles: true } });
-  revalidatePath("/crew");
+  revalidatePath("/desk/crew");
   return { person };
 }
 

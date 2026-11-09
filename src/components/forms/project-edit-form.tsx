@@ -154,7 +154,7 @@ export function ProjectEditForm({
           </Button>
         ) : (
           <Button type="button" variant="outline" asChild>
-            <Link href="/">Tilbake</Link>
+            <Link href="/desk">Tilbake</Link>
           </Button>
         )}
       </div>

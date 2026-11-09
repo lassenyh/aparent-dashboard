@@ -45,7 +45,7 @@ export function AgencyNewForm() {
           {pending ? "Oppretter…" : "Opprett byrå"}
         </Button>
         <Button type="button" variant="outline" asChild>
-          <Link href="/byra">Avbryt</Link>
+          <Link href="/desk/byra">Avbryt</Link>
         </Button>
       </div>
     </form>

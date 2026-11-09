@@ -45,20 +45,20 @@ function getSidebarPreferenceServerSnapshot() {
 }
 
 const navInternal: Array<{ href: string; label: string; icon: LucideIcon }> = [
-  { href: "/", label: "Prosjekter", icon: FolderKanban },
-  { href: "/crew", label: "Crew", icon: Users },
-  { href: "/kunder", label: "Kunder", icon: Building2 },
-  { href: "/byra", label: "Byrå", icon: BriefcaseBusiness },
-  { href: "/brukertilgang", label: "Brukertilgang", icon: ShieldCheck },
+  { href: "/desk", label: "Prosjekter", icon: FolderKanban },
+  { href: "/desk/crew", label: "Crew", icon: Users },
+  { href: "/desk/kunder", label: "Kunder", icon: Building2 },
+  { href: "/desk/byra", label: "Byrå", icon: BriefcaseBusiness },
+  { href: "/desk/brukertilgang", label: "Brukertilgang", icon: ShieldCheck },
 ];
 
 const navExternal: Array<{ href: string; label: string; icon: LucideIcon }> = [
-  { href: "/", label: "Prosjekter", icon: FolderKanban },
+  { href: "/desk", label: "Prosjekter", icon: FolderKanban },
 ];
 
 function isActive(pathname: string, href: string) {
-  if (href === "/") {
-    return pathname === "/" || pathname.startsWith("/projects");
+  if (href === "/desk") {
+    return pathname === "/desk" || pathname.startsWith("/desk/projects");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -106,7 +106,7 @@ export function AppSidebar({ isInternal }: { isInternal: boolean }) {
   );
   const collapsed = savedCollapsed
     ? savedCollapsed === "true"
-    : pathname.startsWith("/dagsplaner/");
+    : pathname.startsWith("/desk/dagsplaner/");
   const mark = WRAPUP_THEME_ACTIVE ? (
     <ServiceSwitcher />
   ) : (
@@ -246,7 +246,7 @@ export function AppMobileNav({ isInternal }: { isInternal: boolean }) {
         {WRAPUP_THEME_ACTIVE ? (
           <div className="flex items-center">{mark}</div>
         ) : (
-          <Link href="/" className="flex items-center" aria-label={PRODUCT_NAME}>
+          <Link href="/desk" className="flex items-center" aria-label={PRODUCT_NAME}>
             {mark}
           </Link>
         )}

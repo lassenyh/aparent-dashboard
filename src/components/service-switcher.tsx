@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type CSSProperties, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpRight, ChevronsUpDown } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, ChevronsUpDown, LayoutGrid } from "lucide-react";
 import { ProductLockup } from "@/components/product-mark";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -14,10 +15,10 @@ import {
 import { cn } from "@/lib/utils";
 import styles from "./service-handoff.module.css";
 
-const HANDOFF_MS = 1400;
+export const HANDOFF_MS = 1400;
 
 /** Bare lanserte tjenester vises i velgeren. */
-const LIVE_SERVICES = PRODUCT_SERVICES.filter((s) => SERVICE_META[s].status === "live");
+export const LIVE_SERVICES = PRODUCT_SERVICES.filter((s) => SERVICE_META[s].status === "live");
 
 const accentStyle = (service: ProductService) =>
   ({ "--mark-accent": SERVICE_META[service].color }) as CSSProperties;
@@ -130,6 +131,15 @@ export function ServiceSwitcher({ className }: { className?: string }) {
               );
             })}
           </ul>
+          <div className="mt-1.5 border-t border-border pt-1.5">
+            <Link
+              href="/"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LayoutGrid aria-hidden className="size-3.5" /> Alle apper
+            </Link>
+          </div>
         </PopoverContent>
       </Popover>
 
@@ -140,8 +150,11 @@ export function ServiceSwitcher({ className }: { className?: string }) {
   );
 }
 
-/** Fullskjerm-overgangen: merket tar én runde og firkanten bytter til neste tjenestes farge. */
-function ServiceHandoff({ to }: { to: ProductService }) {
+/**
+ * Fullskjerm-overgangen: merket tar én runde og firkanten bytter til neste tjenestes farge.
+ * `fromColor` overstyrer startfargen (startsiden starter fra nøytralt blekk).
+ */
+export function ServiceHandoff({ to, fromColor }: { to: ProductService; fromColor?: string }) {
   return (
     <div
       role="status"
@@ -149,7 +162,7 @@ function ServiceHandoff({ to }: { to: ProductService }) {
       className={styles.overlay}
       style={
         {
-          "--handoff-from": SERVICE_META[PRODUCT_SERVICE].color,
+          "--handoff-from": fromColor ?? SERVICE_META[PRODUCT_SERVICE].color,
           "--handoff-to": SERVICE_META[to].color,
           "--handoff-duration": `${HANDOFF_MS}ms`,
         } as CSSProperties
