@@ -4,7 +4,7 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
-import { HANDOFF_MS, LIVE_SERVICES, ServiceHandoff } from "@/components/service-switcher";
+import { HANDOFF_MS, LIVE_SERVICES, ServiceHandoff } from "@/components/wrapup/service-switcher";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PRODUCT_SERVICE, SERVICE_META, type ProductService } from "@/lib/product";
 import styles from "./app-launcher.module.css";

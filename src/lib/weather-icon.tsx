@@ -1,6 +1,6 @@
 "use client";
 
-import type { WeatherIconKind } from "@prisma/client";
+import type { WeatherIconKind } from "@/generated/prisma/client";
 import type { LucideProps } from "lucide-react";
 import {
   Cloud,

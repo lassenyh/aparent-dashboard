@@ -14,8 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useSyncExternalStore } from "react";
-import { ProductWordmark } from "@/components/product-mark";
-import { ServiceSwitcher } from "@/components/service-switcher";
+import { ProductWordmark } from "@/components/wrapup/product-mark";
+import { ServiceSwitcher } from "@/components/wrapup/service-switcher";
 import { Button } from "@/components/ui/button";
 import { PRODUCT_NAME, WRAPUP_THEME_ACTIVE } from "@/lib/product";
 import { cn } from "@/lib/utils";

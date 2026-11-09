@@ -1,6 +1,6 @@
 "use client";
 
-import type { WeatherIconKind } from "@prisma/client";
+import type { WeatherIconKind } from "@/generated/prisma/client";
 import { formatDagsplanWeatherTempLine } from "@/lib/dagsplan-weather";
 import { WeatherIconGlyph } from "@/lib/weather-icon";
 import { cn } from "@/lib/utils";

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { updateCustomer } from "@/actions/customers";
-import type { Customer } from "@prisma/client";
+import type { Customer } from "@/generated/prisma/client";
 import { Button } from "@/components/ui/button";
 import { LogoField } from "@/components/forms/logo-field";
 import { SaveButton } from "@/components/save-button";

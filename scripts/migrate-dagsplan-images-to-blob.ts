@@ -1,10 +1,13 @@
 import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { put } from "@vercel/blob";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+});
 
 function isLocalUpload(url: string): boolean {
   return url.startsWith("/uploads/dagsplan/schedule-shot/");

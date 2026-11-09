@@ -4,7 +4,7 @@ import { useEffect, useState, type CSSProperties, type MouseEvent } from "react"
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { ArrowUpRight, ChevronsUpDown, LayoutGrid } from "lucide-react";
-import { ProductLockup } from "@/components/product-mark";
+import { ProductLockup } from "@/components/wrapup/product-mark";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   PRODUCT_SERVICE,

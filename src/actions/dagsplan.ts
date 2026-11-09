@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
-import { WeatherIconKind } from "@prisma/client";
+import { WeatherIconKind } from "@/generated/prisma/client";
 import { z } from "zod";
 import { getSessionDashboardUser } from "@/lib/auth-session";
 import { prisma } from "@/lib/db";

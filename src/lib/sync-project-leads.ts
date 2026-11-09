@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { crewRoles, isLeadRole } from "@/lib/project-leads";
 
 /** Called inside the same transaction as the project update. Never deletes crew history. */

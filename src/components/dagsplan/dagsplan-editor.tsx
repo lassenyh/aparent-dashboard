@@ -32,7 +32,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
-import { WeatherIconKind } from "@prisma/client";
+import { WeatherIconKind } from "@/generated/prisma/enums";
 import type { CrewDatabasePersonOption } from "@/actions/dagsplan";
 import { fetchDagsplanWeather } from "@/actions/dagsplan-weather";
 import {

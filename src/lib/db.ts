@@ -1,74 +1,32 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@/generated/prisma/client";
 
-/** Etter strukturert adresse på PayrollRow — gammel generert klient mangler felt og gir «Unknown argument addressLine». */
-const PAYROLL_ROW_HAS_STRUCTURED_ADDRESS =
-  "addressLine" in Prisma.PayrollRowScalarFieldEnum;
+/**
+ * Bump når genererte Prisma-felt endres, så `next dev` ikke beholder en
+ * gammel global klient over HMR («Unknown argument …»).
+ */
+const PRISMA_CLIENT_EPOCH = "prisma7-v1";
 
-if (!PAYROLL_ROW_HAS_STRUCTURED_ADDRESS) {
-  throw new Error(
-    "[Prisma] Generert klient matcher ikke schema (mangler PayrollRow.addressLine). Kjør: npx prisma generate — deretter slett .next og start next dev på nytt.",
-  );
-}
-
-/** Etter durationMinutes på timeplan-rader — gammel klient gir «Unknown argument durationMinutes». */
-const SCHEDULE_ENTRY_HAS_DURATION =
-  "durationMinutes" in Prisma.DagsplanScheduleEntryScalarFieldEnum;
-
-if (!SCHEDULE_ENTRY_HAS_DURATION) {
-  throw new Error(
-    "[Prisma] Generert klient matcher ikke schema (mangler DagsplanScheduleEntry.durationMinutes). Kjør: npx prisma generate — deretter slett .next og start next dev på nytt.",
-  );
-}
-
-type GlobalPrisma = typeof globalThis & {
+const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
-  /** Én gang i dev: bytt ut gammel singleton etter `prisma generate` uten omstart. */
-  __prismaClientReloaded?: boolean;
+  prismaEpoch?: string;
 };
 
-const globalForPrisma = globalThis as GlobalPrisma;
-
 function createPrismaClient() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL is not set");
   return new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    adapter: new PrismaPg({ connectionString }),
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }
 
-function getPrisma(): PrismaClient {
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = createPrismaClient();
-  }
-
-  const c = globalForPrisma.prisma as {
-    payrollList?: { upsert: unknown };
-    dashboardUser?: { findFirst: unknown };
-  };
-  const hasPayroll = typeof c.payrollList?.upsert === "function";
-  const hasDashboardUser =
-    typeof c.dashboardUser?.findFirst === "function";
-
-  if (
-    process.env.NODE_ENV !== "production" &&
-    (!hasPayroll || !hasDashboardUser) &&
-    !globalForPrisma.__prismaClientReloaded
-  ) {
-    globalForPrisma.__prismaClientReloaded = true;
-    void globalForPrisma.prisma.$disconnect();
-    globalForPrisma.prisma = createPrismaClient();
-  }
-
-  return globalForPrisma.prisma;
-}
-
-export const prisma = getPrisma();
-
-if (typeof prisma.dashboardUser?.findFirst !== "function") {
-  throw new Error(
-    "[Prisma] Generert klient mangler dashboardUser (tilgangsbrukere). Kjør: npx prisma generate — deretter slett .next og start next dev på nytt.",
-  );
-}
+export const prisma =
+  globalForPrisma.prisma && globalForPrisma.prismaEpoch === PRISMA_CLIENT_EPOCH
+    ? globalForPrisma.prisma
+    : createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
+  globalForPrisma.prismaEpoch = PRISMA_CLIENT_EPOCH;
 }

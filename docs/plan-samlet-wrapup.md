@@ -204,7 +204,9 @@ Hver fase kan deployes for seg og lar appene virke underveis.
 - Startsiden ligger på `/`, med ikoner for desk, sign og planner og samme overgang som tjenestevelgeren.
 - Desk er flyttet til `/desk`. Gamle adresser (`/projects/…`, `/crew`, `/kunder`, `/byra`, `/brukertilgang`, `/dagsplaner/…`, `/callsheets/…`, `/design/…`) videresendes permanent.
 - Tjenestevelgeren har fått «Alle apper», som går til startsiden.
-- **Gjenstår:** Oppgradering til Next.js 16.3 og Prisma 7, felles designmappe, domenet `wrapup.aparent.tv` og Planner under `/planner`.
+- Desk er oppgradert til Next.js 16.3.8, React 19.2.8 og Prisma 7.9.1, samme versjoner som Sign. Prisma-klienten genereres nå i `src/generated/prisma` og kobler til med `@prisma/adapter-pg`. Desk bygger fortsatt med Turbopack.
+- Felles WrapUp-design (merke, lås, tjenestevelger, overgang, startside og lasteanimasjon) ligger i `src/components/wrapup/`.
+- **Gjenstår:** Domenet `wrapup.aparent.tv`, som Lasse oppretter. Planner under `/planner` gjøres etter fase 2, fordi delt økt med Planner krever at Desk bruker samme Supabase-innlogging. Det krever også `basePath: "/planner"` i Planner-repoet, med videresending av dagens adresser og delingslenker.
 
 ## 9. Beslutninger som trengs
 

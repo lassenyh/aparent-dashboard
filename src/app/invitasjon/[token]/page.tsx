@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ProductLockup } from "@/components/product-mark";
+import { ProductLockup } from "@/components/wrapup/product-mark";
 import { InvitationAcceptForm } from "@/components/invitation-accept-form";
 import { prisma } from "@/lib/db";
 import { hashAuthToken, validAuthToken } from "@/lib/auth-token";

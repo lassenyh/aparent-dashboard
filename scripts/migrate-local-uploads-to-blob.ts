@@ -1,12 +1,15 @@
 import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { put } from "@vercel/blob";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { access, readFile } from "node:fs/promises";
 import path from "node:path";
 
 type Row = { id: string; value: string | null };
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+});
 const DRY_RUN = process.argv.includes("--dry-run");
 const CWD = process.cwd();
 

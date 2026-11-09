@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import { WeatherIconKind } from "@prisma/client";
+import { WeatherIconKind } from "@/generated/prisma/client";
 import { requireProjectAccess } from "@/lib/project-access";
 import { notFound, redirect } from "next/navigation";
 import {

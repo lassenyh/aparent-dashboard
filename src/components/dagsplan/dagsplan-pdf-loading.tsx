@@ -1,4 +1,4 @@
-import { WrapupLoader } from "@/components/wrapup-loader";
+import { WrapupLoader } from "@/components/wrapup/wrapup-loader";
 import styles from "./dagsplan-pdf-loading.module.css";
 
 export function DagsplanPdfLoading({ label }: { label: string }) {

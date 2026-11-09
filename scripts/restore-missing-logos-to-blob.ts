@@ -1,10 +1,13 @@
 import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { put } from "@vercel/blob";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+});
 
 const CUSTOMER_FILES: Record<string, string> = {
   Gilde: "public/Kundelogoer/Gilde_standard.png",

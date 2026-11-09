@@ -1,4 +1,4 @@
-import type { Person } from "@prisma/client";
+import type { Person } from "@/generated/prisma/client";
 
 export function computeFullName(firstName: string, lastName: string): string {
   return `${firstName.trim()} ${lastName.trim()}`.replace(/\s+/g, " ").trim();

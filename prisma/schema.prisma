@@ -1,19 +1,13 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
   /// Henter include/select-relasjoner med JOIN i én SQL-spørring i stedet for én spørring per relasjon.
   previewFeatures = ["relationJoins"]
 }
 
 datasource db {
-  provider  = "postgresql"
-  /**
-   * App (Neon: gjerne pooled / -pooler)
-   */
-  url       = env("DATABASE_URL")
-  /**
-   * Migrasjoner: må være direkte til Postgres — pooler støtter ikke pg_advisory_lock. Neon: «Direct»-streng uten -pooler.
-   */
-  directUrl = env("DIRECT_URL")
+  /// Prisma 7: tilkobling settes i prisma.config.ts (migreringer, direkte) og i src/lib/db.ts (appen, pooled via @prisma/adapter-pg).
+  provider = "postgresql"
 }
 
 enum RateType {

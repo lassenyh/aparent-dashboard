@@ -1,4 +1,4 @@
-import type { Person, ProjectCrew } from "@prisma/client";
+import type { Person, ProjectCrew } from "@/generated/prisma/client";
 import { resolveRoleForProject } from "@/lib/snapshot";
 
 /**

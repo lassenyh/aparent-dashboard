@@ -46,7 +46,7 @@ import type { PayrollContractExtract } from "@/lib/payroll-contract-pdf-parse";
 import { validatePayrollRowsForSave } from "@/lib/payroll-row-validation";
 import { dietaryLabel } from "@/lib/dietary";
 import { cn } from "@/lib/utils";
-import type { DietaryPreference } from "@prisma/client";
+import type { DietaryPreference } from "@/generated/prisma/client";
 import { z } from "zod";
 
 export type PayrollSegment = "crew" | "cast";

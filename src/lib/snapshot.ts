@@ -3,7 +3,7 @@ import type {
   Person,
   ProjectCrew,
   RateType,
-} from "@prisma/client";
+} from "@/generated/prisma/client";
 import { primaryRole } from "@/lib/person";
 
 type ProjectCrewWithPerson = ProjectCrew & { person: Person };

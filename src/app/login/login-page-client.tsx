@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { ProductLockup, ProductWordmark } from "@/components/product-mark";
+import { ProductLockup, ProductWordmark } from "@/components/wrapup/product-mark";
 import { PRODUCT_SERVICE, WRAPUP_THEME_ACTIVE } from "@/lib/product";
 import { safeLoginRedirect } from "@/lib/login-redirect";
 import { LoginForm } from "./login-form";

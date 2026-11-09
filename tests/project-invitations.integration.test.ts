@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../src/generated/prisma/client";
 import { randomUUID } from "node:crypto";
 import { acceptProjectInvitation } from "../src/lib/invitations/accept";
 
 // Explicit opt-in: temporary, isolated records are always removed in finally.
 test("database: invitations are single-use, scoped, expiring, revocable and identity-bound", { skip: process.env.RUN_INVITATION_DB_TESTS !== "1" }, async () => {
-  const db = new PrismaClient();
+  const db = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }) });
   const suffix = randomUUID();
   const email = `invitation-test-${suffix}@example.invalid`;
   const permissions = { crew: "read", dagsplan: "read", callSheets: "none", payroll: "none" } as const;
