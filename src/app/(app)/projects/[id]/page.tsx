@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { Mail, Plus } from "lucide-react";
+import { CrewListDialog } from "@/components/crew/crew-list-dialog";
+import { CrewListDialogContent } from "@/components/crew/crew-list-dialog-content";
 import { notFound } from "next/navigation";
 import { getAgencyOptions } from "@/actions/agencies";
 import { getCustomerOptions } from "@/actions/customers";
@@ -88,24 +91,10 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
         description={[agencyName, project.status === "archived" ? "Arkivert" : "Aktiv"].filter(Boolean).join(" · ")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {flags.canViewCrew ? (
-              <Button variant="outline" asChild>
-                <Link href={`/projects/${project.id}/crewliste`}>
-                  Crewliste
-                </Link>
-              </Button>
-            ) : null}
             {FEATURE_CALL_SHEETS_UI && flags.canEditCallSheets ? (
               <Button variant="sidebar" asChild>
                 <Link href={`/projects/${project.id}/callsheets/new`}>
                   Ny call sheet
-                </Link>
-              </Button>
-            ) : null}
-            {flags.canEditDagsplan ? (
-              <Button variant="sidebar" asChild>
-                <Link href={`/projects/${project.id}/dagsplaner/new`}>
-                  Ny dagsplan
                 </Link>
               </Button>
             ) : null}
@@ -148,6 +137,18 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           <div className="pt-2">
             <ProjectCrewSection
               projectId={project.id}
+              actions={
+                <>
+                  <CrewListDialog>
+                    <CrewListDialogContent projectId={project.id} flags={flags} />
+                  </CrewListDialog>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/projects/${project.id}/befaring`}>
+                      <Mail aria-hidden /> Teknisk befaring
+                    </Link>
+                  </Button>
+                </>
+              }
               canAdd={user.isInternal && flags.canEditCrew}
               canEdit={flags.canEditCrew}
               canEditRates={flags.canEditPayroll}
@@ -159,18 +160,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
         ) : null}
 
         {activeTab === "schedule" && flags.canViewDagsplan ? (
-        <ProjectPageSection collapsible={false}
-          title="Dagsplaner"
-          headerRight={
-            flags.canEditDagsplan ? (
-            <Button variant="sidebar" size="sm" asChild>
-              <Link href={`/projects/${project.id}/dagsplaner/new`}>
-                Ny dagsplan
-              </Link>
-            </Button>
-            ) : null
-          }
-        >
+        <ProjectPageSection collapsible={false} title="Dagsplaner">
           {project.dagsplaner.length ? (
           <ul className="mt-2 overflow-hidden border border-border bg-card shadow-sm">
             {project.dagsplaner.map((dp, index) => (
@@ -228,9 +218,18 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
           </ul>
           ) : null}
           {!project.dagsplaner.length ? (
-            <p className="py-4 text-sm text-muted-foreground">
+            <p className="pt-10 text-center text-sm text-muted-foreground">
               Ingen dagsplaner ennå. Opprett en for hver innspillingsdag.
             </p>
+          ) : null}
+          {flags.canEditDagsplan ? (
+            <div className={project.dagsplaner.length ? "flex justify-center pt-6" : "flex justify-center pt-4"}>
+              <Button variant="sidebar" asChild>
+                <Link href={`/projects/${project.id}/dagsplaner/new`}>
+                  <Plus aria-hidden /> Ny dagsplan
+                </Link>
+              </Button>
+            </div>
           ) : null}
         </ProjectPageSection>
         ) : null}

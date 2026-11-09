@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { listDashboardUsers, removeDashboardUser, updateDashboardUserAccess } from "@/actions/dashboard-users";
+import { listDashboardUsers, removeDashboardUser } from "@/actions/dashboard-users";
+import { UserAccessForm } from "@/components/user-access-form";
 import { revokeProjectInvitation } from "@/actions/project-invitations";
 import { DashboardUserAddForm } from "@/components/dashboard-user-add-form";
 import { PageHeader } from "@/components/page-header";
@@ -126,31 +127,7 @@ export default async function UserAccessPage({
                       <Button type="submit" variant="ghost" size="sm" className="text-destructive">Fjern</Button>
                     </form>}
                   </div>
-                <form action={updateDashboardUserAccess.bind(null, u.id)} className="space-y-3">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        name="isInternal"
-                        defaultChecked={u.isInternal}
-                        disabled={isSelf}
-                      />
-                      Admin-tilgang (hele dashboardet)
-                    </label>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        name="isActive"
-                        defaultChecked={u.isActive}
-                        disabled={isSelf}
-                      />
-                      Aktiv bruker
-                    </label>
-                  </div>
-                  <Button type="submit" size="sm" disabled={isSelf}>
-                    Lagre
-                  </Button>
-                </form>
+                <UserAccessForm userId={u.id} isInternal={u.isInternal} isActive={u.isActive} isSelf={isSelf} />
                 {!u.isInternal ? (
                   <div className="mt-4 bg-muted/40 p-3">
                     <p className="ap-kicker mb-2">Prosjekter</p>

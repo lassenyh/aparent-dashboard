@@ -11,7 +11,7 @@ export function ProjectCrewListDocument({ data }: { data: CrewListSharePayload }
         <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-neutral-500">Crewliste</p>
         <AparentLogo className="w-[140px] shrink-0 object-right" />
       </div>
-      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 print:text-xl">{data.project.name}</h1>
+      <h1 className="mt-2 text-2xl font-semibold tracking-tight text-neutral-900 print:text-xl">{[data.project.customerName, data.project.name].filter(Boolean).join(" · ")}</h1>
       <p className="mt-2 text-sm text-neutral-600">{formatProjectDisplayName(data.project)}</p>
     </header>
     <ProjectCrewListReadonlyTable rows={data.rows} />

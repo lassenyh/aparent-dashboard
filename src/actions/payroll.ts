@@ -703,13 +703,18 @@ export async function searchPeopleForPayroll(
 }
 
 /** Editors without sensitive-data access can change fees without touching hidden details. */
-export async function updatePayrollFees(projectId: string, listId: string, form: FormData) {
+export async function updatePayrollFees(
+  projectId: string,
+  listId: string,
+  _prev: { error?: string; savedAt?: number } | null,
+  form: FormData,
+): Promise<{ error?: string; savedAt?: number }> {
   const { flags } = await requireProjectAccess(projectId);
   assertPermission(flags, "canEditPayroll");
-  await prisma.$transaction(async tx => {
+  const saved = await prisma.$transaction(async tx => {
     await tx.$queryRaw`SELECT id FROM "PayrollList" WHERE id = ${listId} AND "projectId" = ${projectId} FOR UPDATE`;
     const list = await tx.payrollList.findFirst({ where: { id: listId, projectId, submitted: false }, include: { rows: true } });
-    if (!list) return;
+    if (!list) return false;
     for (const row of list.rows) {
       if (row.isSectionHeader || !form.has(`fee-${row.id}`)) continue;
       const raw = String(form.get(`fee-${row.id}`) ?? "").trim();
@@ -718,6 +723,9 @@ export async function updatePayrollFees(projectId: string, listId: string, form:
       await tx.payrollRow.update({ where: { id: row.id }, data: { honorar: amount } });
     }
     await tx.payrollList.update({ where: { id: listId }, data: { documentSavedAt: new Date() } });
+    return true;
   });
+  if (!saved) return { error: "Lønningslisten er sendt inn eller finnes ikke, og kan ikke endres." };
   revalidatePayrollPaths(projectId, listId);
+  return { savedAt: Date.now() };
 }

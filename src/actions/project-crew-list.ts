@@ -87,7 +87,7 @@ export async function syncMissingProjectCrewIntoDefaultList(projectId: string) {
 async function loadProjectCrewListPageDataCore(projectId: string) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    select: { id: true, name: true, internalTitle: true },
+    select: { id: true, name: true, internalTitle: true, customer: { select: { name: true } } },
   });
   if (!project) return null;
 
@@ -183,7 +183,7 @@ export async function ensureCrewListShare(projectId: string) {
     create: { projectId, token: newShareToken() },
     update: {},
   });
-  revalidatePath(`/projects/${projectId}/crewliste`);
+  revalidatePath(`/projects/${projectId}`);
   return row;
 }
 
@@ -197,7 +197,7 @@ export async function rotateCrewListShareToken(projectId: string) {
     create: { projectId, token },
     update: { token },
   });
-  revalidatePath(`/projects/${projectId}/crewliste`);
+  revalidatePath(`/projects/${projectId}`);
 }
 
 export async function addProjectCrewToDefaultList(
@@ -246,7 +246,6 @@ export async function addProjectCrewToDefaultList(
   await bumpProjectCrewListTimestamp(projectId);
 
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/crewliste`);
 }
 
 export async function removeProjectCrewListMember(memberId: string) {
@@ -270,7 +269,6 @@ export async function removeProjectCrewListMember(memberId: string) {
   });
   await bumpProjectCrewListTimestamp(projectId);
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/crewliste`);
 }
 
 export async function moveProjectCrewListMember(
@@ -312,5 +310,4 @@ export async function moveProjectCrewListMember(
   await bumpProjectCrewListTimestamp(projectId);
 
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/crewliste`);
 }

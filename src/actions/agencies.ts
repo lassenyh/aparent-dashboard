@@ -104,9 +104,9 @@ export async function createAgency(
 
 export async function updateAgency(
   id: string,
-  _prev: { error?: string } | null,
+  _prev: { error?: string; savedAt?: number } | null,
   formData: FormData,
-): Promise<{ error?: string } | null> {
+): Promise<{ error?: string; savedAt?: number } | null> {
   await requireInternalUser();
   const raw = {
     name: String(formData.get("name") ?? ""),
@@ -144,7 +144,14 @@ export async function updateAgency(
       },
     });
   } else {
-    const nextUrl = logoUrlFromForm || null;
+    /* Uten nytt opplastet bilde beholdes logoen, med mindre den eksplisitt fjernes.
+       (Eldre skjema med URL-felt støttes fortsatt.) */
+    const nextUrl =
+      formData.get("removeLogo") === "1"
+        ? null
+        : formData.has("logoUrl")
+          ? logoUrlFromForm || null
+          : existing.logoUrl;
     if (isPublicUploadPath(existing.logoUrl) && nextUrl !== existing.logoUrl) {
       await removePublicUploadFile(existing.logoUrl);
     }
@@ -161,7 +168,7 @@ export async function updateAgency(
   revalidatePath("/byra");
   revalidatePath(`/byra/${id}`);
   revalidatePath("/");
-  return null;
+  return { savedAt: Date.now() };
 }
 
 export async function deleteAgency(id: string) {

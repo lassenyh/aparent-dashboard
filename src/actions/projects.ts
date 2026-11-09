@@ -327,7 +327,6 @@ async function linkPersonToProjectCrew(
   });
 
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/crewliste`);
   revalidatePath("/");
 }
 
@@ -374,8 +373,9 @@ export async function addPersonToProjectFromImport(
 
 export async function submitProjectCrewRow(
   projectCrewId: string,
+  _prev: { error?: string; savedAt?: number } | null,
   formData: FormData,
-) {
+): Promise<{ error?: string; savedAt?: number }> {
   const roleOverride = String(formData.get("roleOverride") ?? "").trim();
   const rateRaw = String(formData.get("rateOverride") ?? "").trim();
   const rateTypeRaw = String(formData.get("rateTypeOverride") ?? "").trim();
@@ -392,6 +392,7 @@ export async function submitProjectCrewRow(
           : null,
     notes: notes || null,
   });
+  return { savedAt: Date.now() };
 }
 
 export async function updateProjectCrew(
@@ -426,7 +427,7 @@ export async function updateProjectCrew(
     where: { projectId: row.projectId },
     data: { updatedAt: new Date() },
   });
-  revalidatePath(`/projects/${row.projectId}/crewliste`);
+  revalidatePath(`/projects/${row.projectId}`);
   revalidatePath(`/projects/${row.projectId}/crewliste/print`);
   revalidatePath(`/projects/${row.projectId}`);
 }
@@ -443,7 +444,6 @@ export async function deactivateProjectCrew(projectCrewId: string) {
     where: { projectCrewId },
   });
   revalidatePath(`/projects/${row.projectId}`);
-  revalidatePath(`/projects/${row.projectId}/crewliste`);
 }
 
 export async function searchPeopleForProject(
@@ -523,7 +523,6 @@ export async function createPersonForProject(projectId: string, formData: FormDa
   });
   revalidatePath("/crew");
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/crewliste`);
   return { person };
 }
 

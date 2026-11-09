@@ -11,7 +11,7 @@ export function ProjectCrewListWeb({ data }: { data: CrewListSharePayload }) {
     <header className="flex flex-wrap items-start justify-between gap-6 border-b border-border p-5 sm:p-8">
       <div className="min-w-0">
         <p className="ap-kicker mb-2">{data.project.internalTitle ? `Prosjekt ${data.project.internalTitle}` : "Prosjekt"}</p>
-        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{data.project.name}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{[data.project.customerName, data.project.name].filter(Boolean).join(" · ")}</h2>
         <p className="mt-2 text-sm text-muted-foreground">{data.rows.length} {data.rows.length === 1 ? "person" : "personer"}</p>
       </div>
       <AparentLogo className="w-[120px] shrink-0 object-right" />

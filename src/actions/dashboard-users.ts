@@ -80,14 +80,15 @@ export async function createDashboardUser(
 
 export async function updateDashboardUserAccess(
   userId: string,
+  _prev: { error?: string; savedAt?: number } | null,
   formData: FormData,
-): Promise<void> {
+): Promise<{ error?: string; savedAt?: number }> {
   const actor = await requireInternalUser();
   const row = await prisma.dashboardUser.findUnique({
     where: { id: userId },
     select: { id: true, isInternal: true, isActive: true },
   });
-  if (!row) return;
+  if (!row) return { error: "Fant ikke brukeren." };
 
   const isInternal =
     formData.get("isInternal") === "on" || formData.get("isInternal") === "true";
@@ -95,8 +96,7 @@ export async function updateDashboardUserAccess(
     formData.get("isActive") === "on" || formData.get("isActive") === "true";
 
   const isSelf = actor.id === row.id;
-  if (isSelf && !isInternal) return;
-  if (isSelf && !isActive) return;
+  if (isSelf && (!isInternal || !isActive)) return { error: "Du kan ikke fjerne din egen tilgang." };
 
   await prisma.dashboardUser.update({
     where: { id: row.id },
@@ -105,6 +105,7 @@ export async function updateDashboardUserAccess(
 
   if (!isActive) await prisma.dashboardSession.deleteMany({ where: { userId } });
   revalidatePath(USER_ACCESS_PATH);
+  return { savedAt: Date.now() };
 }
 
 export async function removeDashboardUser(userId: string): Promise<void> {

@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requireProjectAccess } from "@/lib/project-access";
-import { getPayrollPageData, updatePayrollFees } from "@/actions/payroll";
+import { getPayrollPageData } from "@/actions/payroll";
+import { PayrollFeesForm } from "@/components/payroll-fees-form";
 import { PageHeader } from "@/components/page-header";
 import { PageBackLink } from "@/components/page-back-link";
 import { PayrollListEditorLoader } from "@/components/payroll-list-editor-loader";
@@ -20,11 +20,10 @@ export default async function PayrollListDetailPage({ params }: PageProps) {
   if (!flags.canEditPayroll || !flags.canViewSensitiveData) return <>
     <PageBackLink href={`/projects/${id}?tab=payroll`}>{data.project.name}</PageBackLink>
     <PageHeader title={data.listTitle} description={flags.canEditPayroll ? "Du kan endre honorarer. Person- og kontonummer forvaltes av administrator." : "Du har lesetilgang til denne lønningslisten."} />
-    <form action={updatePayrollFees.bind(null, id, listId)} className="space-y-4">
+    <PayrollFeesForm projectId={id} listId={listId} canSave={flags.canEditPayroll && !data.submitted && data.rows.length > 0}>
       <div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="border-b border-border"><th className="p-3">Navn</th><th className="p-3">E-post</th><th className="p-3">Honorar (NOK)</th></tr></thead><tbody>{data.rows.map(row => <tr key={row.id} className="border-b border-border"><td className="p-3">{row.isSectionHeader ? row.sectionTitle : row.fullName}</td><td className="p-3">{row.email}</td><td className="p-3">{!row.isSectionHeader && (flags.canEditPayroll && !data.submitted ? <Input aria-label={`Honorar for ${row.fullName}`} type="number" min="0" max="99999999" step="0.01" name={`fee-${row.id}`} defaultValue={row.honorar ?? ""} /> : row.honorar?.toLocaleString("nb-NO"))}</td></tr>)}</tbody></table></div>
       {!data.rows.length && <p className="text-sm text-muted-foreground">Listen er tom. Administrator kan legge til personer.</p>}
-      {flags.canEditPayroll && !data.submitted && data.rows.length > 0 && <Button type="submit">Lagre honorarer</Button>}
-    </form>
+    </PayrollFeesForm>
   </>;
 
   // Etter dette punktet er databasen OK; feil i UI er ofte klient/rendering (søk APARENT_PAYROLL_PAGE i logs).

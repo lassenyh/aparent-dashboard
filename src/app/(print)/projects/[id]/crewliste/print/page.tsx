@@ -21,7 +21,7 @@ export default async function ProjectCrewListPrintPage({ params }: PageProps) {
         <PayrollPrintAutoPrint />
       </Suspense>
 
-      <PrintToolbar backHref={`/projects/${id}/crewliste`} />
+      <PrintToolbar backHref={`/projects/${id}?tab=crew`} />
 
       <ProjectCrewListDocument data={payload} />
     </div>

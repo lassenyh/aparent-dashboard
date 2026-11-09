@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { ChevronDown, ExternalLink } from "lucide-react";
+import { SaveButton } from "@/components/save-button";
 import {
   deactivateProjectCrew,
   submitProjectCrewRow,
@@ -59,7 +60,7 @@ export function ProjectCrewList({ rows, canEdit = false, canEditRates = false, c
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (!rows.length) return null;
-  if (!canEdit) return <div className="divide-y divide-border">{rows.map(row => <div key={row.id} className="flex justify-between gap-4 py-3"><div><p className="font-medium">{row.person.fullName}</p><p className="text-xs text-muted-foreground">{row.effectiveRole} · {row.person.phone || row.person.email || ""}</p></div><span className="text-sm">{row.effectiveRateLabel}</span></div>)}</div>;
+  if (!canEdit) return <div className="divide-y divide-border">{rows.map(row => <div key={row.id} className="flex justify-between gap-4 py-3"><div><p className="font-medium">{row.person.fullName}</p><p className="text-xs text-muted-foreground">{row.effectiveRole} · {row.person.phone || row.person.email || ""}</p></div></div>)}</div>;
 
   return (
     <div className="divide-y divide-border">
@@ -102,20 +103,6 @@ export function ProjectCrewList({ rows, canEdit = false, canEditRates = false, c
                     {meta}
                   </p>
                 </div>
-                <div className="flex shrink-0 flex-col items-end gap-0 text-right">
-                  <span className="tabular-nums text-sm text-foreground">
-                    {row.effectiveRateLabel}
-                  </span>
-                  {row.effectiveRateSource === "person" ? (
-                    <span className="text-[10px] leading-tight text-muted-foreground">
-                      fra crew-profil
-                    </span>
-                  ) : row.effectiveRateSource === "project" ? (
-                    <span className="text-[10px] leading-tight text-muted-foreground">
-                      prosjektoverride
-                    </span>
-                  ) : null}
-                </div>
                 <ChevronDown
                   className={cn(
                     "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
@@ -146,87 +133,100 @@ export function ProjectCrewList({ rows, canEdit = false, canEditRates = false, c
             </div>
 
             {isOpen ? (
-              <form
-                action={submitProjectCrewRow.bind(null, row.id)}
-                className="mb-2 ml-2 border-l-2 border-border pl-4"
-              >
-                <div className="rounded-md bg-muted/25 px-4 py-3">
-                  <div className="mb-3 space-y-1.5 text-xs text-muted-foreground">
-                    <p>
-                      {canOpenProfile && <Link
-                        href={`/crew/${row.person.id}`}
-                        className="inline-flex items-center gap-1 hover:text-foreground"
-                      >
-                        Åpne profil
-                        <ExternalLink className="h-3 w-3" />
-                      </Link>}
-                    </p>
-                    <p>
-                      Sats i listen kommer fra «Standard sats pr dag» på
-                      crew-profilen eller fra feltene under — ikke fra navnet.
-                    </p>
-                  </div>
-                  <div className="grid max-w-lg gap-4 sm:grid-cols-2">
-                    <ProjectRoleField key={`${row.id}-${row.roleOverride}`} row={row} />
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Sats (override, NOK)
-                      </Label>
-                      <Input
-                        name="rateOverride"
-                        disabled={!canEditRates}
-                        type="number"
-                        min={0}
-                        step={1}
-                        placeholder={
-                          row.person.defaultRate != null
-                            ? String(row.person.defaultRate)
-                            : ""
-                        }
-                        defaultValue={
-                          row.rateOverride != null
-                            ? String(row.rateOverride)
-                            : ""
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Satstype
-                      </Label>
-                      <select
-                        name="rateTypeOverride"
-                        disabled={!canEditRates}
-                        className={nativeSelectClassName}
-                        defaultValue={
-                          row.rateTypeOverride != null
-                            ? row.rateTypeOverride
-                            : "__inherit__"
-                        }
-                      >
-                        <option value="__inherit__">Fra person</option>
-                        <option value="day">Dag</option>
-                        <option value="hour">Time</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label className="text-xs text-muted-foreground">
-                        Notat
-                      </Label>
-                      <Input name="notes" defaultValue={row.notes ?? ""} />
-                    </div>
-                  </div>
-                  <div className="mt-4 flex justify-end">
-                    <Button type="submit" size="sm" variant="secondary">
-                      Lagre
-                    </Button>
-                  </div>
-                </div>
-              </form>
+              <CrewRowForm row={row} canEditRates={canEditRates} canOpenProfile={canOpenProfile} />
             ) : null}
           </div>
         );
       })}
     </div>
+  );
+}
+
+function CrewRowForm({
+  row,
+  canEditRates,
+  canOpenProfile,
+}: {
+  row: ProjectCrewRowClient;
+  canEditRates: boolean;
+  canOpenProfile: boolean;
+}) {
+  const [state, action, pending] = useActionState(submitProjectCrewRow.bind(null, row.id), null);
+  return (
+    <form
+      action={action}
+      className="mb-2 ml-2 border-l-2 border-border pl-4"
+    >
+      <div className="rounded-md bg-muted/25 px-4 py-3">
+        <div className="mb-3 space-y-1.5 text-xs text-muted-foreground">
+          <p>
+            {canOpenProfile && <Link
+              href={`/crew/${row.person.id}`}
+              className="inline-flex items-center gap-1 hover:text-foreground"
+            >
+              Åpne profil
+              <ExternalLink className="h-3 w-3" />
+            </Link>}
+          </p>
+          <p>
+            Sats i listen kommer fra «Standard sats pr dag» på
+            crew-profilen eller fra feltene under — ikke fra navnet.
+          </p>
+        </div>
+        <div className="grid max-w-lg gap-4 sm:grid-cols-2">
+          <ProjectRoleField key={`${row.id}-${row.roleOverride}`} row={row} />
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">
+              Sats (override, NOK)
+            </Label>
+            <Input
+              name="rateOverride"
+              disabled={!canEditRates}
+              type="number"
+              min={0}
+              step={1}
+              placeholder={
+                row.person.defaultRate != null
+                  ? String(row.person.defaultRate)
+                  : ""
+              }
+              defaultValue={
+                row.rateOverride != null
+                  ? String(row.rateOverride)
+                  : ""
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">
+              Satstype
+            </Label>
+            <select
+              name="rateTypeOverride"
+              disabled={!canEditRates}
+              className={nativeSelectClassName}
+              defaultValue={
+                row.rateTypeOverride != null
+                  ? row.rateTypeOverride
+                  : "__inherit__"
+              }
+            >
+              <option value="__inherit__">Fra person</option>
+              <option value="day">Dag</option>
+              <option value="hour">Time</option>
+            </select>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label className="text-xs text-muted-foreground">
+              Notat
+            </Label>
+            <Input name="notes" defaultValue={row.notes ?? ""} />
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <SaveButton pending={pending} savedAt={state?.savedAt ?? null} failed={!!state?.error} size="sm" />
+        </div>
+      </div>
+    </form>
   );
 }

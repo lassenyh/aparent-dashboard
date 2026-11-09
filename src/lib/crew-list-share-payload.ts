@@ -3,7 +3,7 @@ import { formatCrewListDietaryAllergies } from "@/lib/dietary";
 import { resolveRoleForProject } from "@/lib/snapshot";
 
 export type CrewListSharePayload = {
-  project: { name: string; internalTitle: string | null };
+  project: { name: string; internalTitle: string | null; customerName: string | null };
   rows: Array<{
     id: string;
     role: string;
@@ -22,7 +22,7 @@ type MemberWithCrew = {
 };
 
 export function toCrewListSharePayload(data: {
-  project: { name: string; internalTitle: string | null };
+  project: { name: string; internalTitle: string | null; customer?: { name: string } | null };
   crewListUpdatedAt: Date;
   members: MemberWithCrew[];
 }): CrewListSharePayload {
@@ -45,6 +45,7 @@ export function toCrewListSharePayload(data: {
     project: {
       name: data.project.name,
       internalTitle: data.project.internalTitle,
+      customerName: data.project.customer?.name?.trim() || null,
     },
     rows,
     crewListUpdatedAt: data.crewListUpdatedAt.toISOString(),

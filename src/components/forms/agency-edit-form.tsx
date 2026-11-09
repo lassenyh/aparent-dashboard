@@ -4,9 +4,9 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { updateAgency } from "@/actions/agencies";
 import type { Agency } from "@prisma/client";
-import { PublicLogoImg } from "@/components/public-logo-img";
-import { sanitizePublicImageUrl } from "@/lib/img-url";
 import { Button } from "@/components/ui/button";
+import { LogoField } from "@/components/forms/logo-field";
+import { SaveButton } from "@/components/save-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -38,45 +38,15 @@ export function AgencyEditForm({ agency }: { agency: Agency }) {
         />
       </div>
 
-      {sanitizePublicImageUrl(agency.logoUrl) ? (
-        <div className="space-y-2 rounded-md border border-border bg-muted/20 px-4 py-3">
-          <p className="text-xs font-medium text-muted-foreground">Nåværende logo</p>
-          <PublicLogoImg
-            src={agency.logoUrl}
-            alt=""
-            className="h-12 max-w-[200px] object-contain object-left"
-          />
-        </div>
-      ) : null}
 
-      <div className="space-y-2">
-        <Label htmlFor="logoFile">Bytt logo (fil)</Label>
-        <Input
-          id="logoFile"
-          name="logoFile"
-          type="file"
-          accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="logoUrl">Logo (URL)</Label>
-        <Input
-          id="logoUrl"
-          name="logoUrl"
-          type="text"
-          inputMode="url"
-          defaultValue={agency.logoUrl ?? ""}
-        />
-      </div>
+      <LogoField key={state?.savedAt ?? 0} currentUrl={agency.logoUrl} />
 
       <div className="flex gap-3 pt-2">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Lagrer…" : "Lagre"}
-        </Button>
-        <Button type="button" variant="outline" asChild>
-          <Link href="/byra">Tilbake</Link>
-        </Button>
+        <SaveButton pending={pending} savedAt={state?.savedAt ?? null} failed={!!state?.error}>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/byra">Tilbake</Link>
+          </Button>
+        </SaveButton>
       </div>
     </form>
   );

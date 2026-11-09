@@ -5,6 +5,7 @@ import Link from "next/link";
 import { BrregSearch } from "@/components/brreg-search";
 import { createCustomer, createCustomerInline } from "@/actions/customers";
 import { Button } from "@/components/ui/button";
+import { LogoField } from "@/components/forms/logo-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -39,33 +40,7 @@ export function CustomerNewForm({ onCreated, onCancel, onPendingChange }: {
         <Input id={`${id}-name`} name="name" required value={name} onChange={(event) => setName(event.target.value)} />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor={`${id}-logoFile`}>Logo fra datamaskin</Label>
-        <Input
-          id={`${id}-logoFile`}
-          name="logoFile"
-          type="file"
-          accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
-        />
-        <p className="text-xs text-muted-foreground">
-          PNG, JPG, SVG, WebP eller GIF (maks 2 MB). Lagres på serveren.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor={`${id}-logoUrl`}>Alternativt: logo (URL)</Label>
-        <Input
-          id={`${id}-logoUrl`}
-          name="logoUrl"
-          type="text"
-          inputMode="url"
-          placeholder="https://…"
-        />
-        <p className="text-xs text-muted-foreground">
-          Hvis du velger fil over, ignoreres URL. URL er nyttig på hosting uten
-          skrivbar disk (f.eks. noen skyplattformer).
-        </p>
-      </div>
+      <LogoField />
 
       <div className="flex gap-3 pt-2">
         <Button type="submit" variant="sidebar" disabled={pending}>

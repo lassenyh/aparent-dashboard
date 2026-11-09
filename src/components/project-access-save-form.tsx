@@ -3,16 +3,15 @@
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { updateProjectMembership } from "@/actions/project-memberships";
-import { Button } from "@/components/ui/button";
+import { SaveButton } from "@/components/save-button";
 
 export function ProjectAccessSaveForm({ membershipId, children }: { membershipId: string; children: ReactNode }) {
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   async function save(formData: FormData) {
     setPending(true);
-    setMessage("");
     setError("");
     try {
       const result = await updateProjectMembership(membershipId, formData);
@@ -20,7 +19,7 @@ export function ProjectAccessSaveForm({ membershipId, children }: { membershipId
         setError(result.error);
         toast.error(result.error);
       } else {
-        setMessage("Rettighetene er lagret.");
+        setSavedAt(Date.now());
         toast.success("Rettighetene er lagret.");
       }
     } catch {
@@ -32,11 +31,10 @@ export function ProjectAccessSaveForm({ membershipId, children }: { membershipId
     }
   }
 
-  return <form action={save} className="space-y-3" onChange={() => { setMessage(""); setError(""); }}>
+  return <form action={save} className="space-y-3" onChange={() => setError("")}>
     <fieldset disabled={pending} className="space-y-3">{children}</fieldset>
     <div className="flex items-center gap-3">
-      <Button type="submit" size="sm" disabled={pending}>{pending ? "Lagrer …" : "Lagre"}</Button>
-      <p role="status" className="text-xs text-muted-foreground">{message}</p>
+      <SaveButton pending={pending} savedAt={savedAt} failed={!!error} size="sm" />
       {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
   </form>;

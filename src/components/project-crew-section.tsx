@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic } from "react";
+import { useOptimistic, type ReactNode } from "react";
 import { ProjectCrewPicker } from "@/components/project-crew-picker";
 import { ProjectCrewList } from "@/components/project-crew-list";
 import { primaryRole } from "@/lib/person";
@@ -41,8 +41,11 @@ export function ProjectCrewSection({
   canEdit,
   canEditRates,
   canOpenProfile,
+  actions,
 }: {
   projectId: string;
+  /** Ekstra knapper ved siden av «Legg til fra database». */
+  actions?: ReactNode;
   rows: ProjectCrewRowClient[];
   canAdd: boolean;
   canEdit: boolean;
@@ -73,6 +76,7 @@ export function ProjectCrewSection({
             }
           />
         ) : null}
+        {actions}
       </div>
       <ProjectCrewList
         canEdit={canEdit}
