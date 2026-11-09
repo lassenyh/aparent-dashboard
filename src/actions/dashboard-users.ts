@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { hashPassword } from "@/lib/auth-password";
+import { createWrapupAccount } from "@/lib/auth-accounts";
+import { newAuthToken } from "@/lib/auth-token";
 import { prisma } from "@/lib/db";
 import { requireSessionDashboardUser } from "@/lib/auth-session";
 import { requireInternalUser } from "@/lib/project-access";
@@ -55,20 +57,27 @@ export async function createDashboardUser(
     formData.get("isActive") === "on" || formData.get("isActive") === "true";
 
   if (!username) return { error: "Brukernavn mangler." };
+  if (!email) return { error: "E-post mangler. Den brukes til innlogging i alle WrapUp-tjenester." };
   if (password.length < 8) {
     return { error: "Passord må være minst 8 tegn." };
   }
 
-  const exists = await prisma.dashboardUser.findUnique({ where: { username } });
-  if (exists) return { error: "Brukernavn finnes allerede." };
+  const exists = await prisma.dashboardUser.findFirst({
+    where: { OR: [{ username }, { email: { equals: email, mode: "insensitive" } }] },
+  });
+  if (exists) return { error: "Brukernavn eller e-post finnes allerede." };
 
-  const passwordHash = await hashPassword(password);
+  /* Felles WrapUp-konto (samme som Sign og Planner); passordet lagres bare der. */
+  const account = await createWrapupAccount({ email, password, fullName });
+  if ("error" in account) return { error: account.error };
+
   await prisma.dashboardUser.create({
     data: {
       username,
-      passwordHash,
+      passwordHash: await hashPassword(newAuthToken()),
+      supabaseAuthId: account.id,
       fullName,
-      email,
+      email: email.toLowerCase(),
       isInternal,
       isActive,
     },

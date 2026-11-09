@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { hashPassword } from "@/lib/auth-password";
+import { createWrapupAccount } from "@/lib/auth-accounts";
+import { newAuthToken } from "@/lib/auth-token";
 import { prisma } from "@/lib/db";
 import {
   assertPermission,
@@ -99,18 +101,29 @@ export async function addUserToProject(
   if (existingUser) {
     userId = existingUser.id;
   } else {
+    if (!email) {
+      return { error: "E-post mangler. Den brukes til innlogging i alle WrapUp-tjenester." };
+    }
     if (password.trim().length < 8) {
       return {
         error: "Passord må være minst 8 tegn når du oppretter en ny bruker.",
       };
     }
-    const passwordHash = await hashPassword(password.trim());
+    const emailTaken = await prisma.dashboardUser.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true },
+    });
+    if (emailTaken) return { error: "En bruker med denne e-posten finnes allerede. Bruk brukernavnet til den eksisterende brukeren." };
+    /* Felles WrapUp-konto (samme som Sign og Planner); passordet lagres bare der. */
+    const account = await createWrapupAccount({ email, password: password.trim(), fullName });
+    if ("error" in account) return { error: account.error };
     const created = await prisma.dashboardUser.create({
       data: {
         username,
-        passwordHash,
+        passwordHash: await hashPassword(newAuthToken()),
+        supabaseAuthId: account.id,
         fullName,
-        email,
+        email: email.toLowerCase(),
         isInternal: false,
       },
     });

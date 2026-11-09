@@ -40,8 +40,8 @@ export function DashboardUserAddForm() {
           <Input id="du-fullname" name="fullName" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="du-email">E-post</Label>
-          <Input id="du-email" name="email" type="email" />
+          <Label htmlFor="du-email">E-post (innlogging)</Label>
+          <Input id="du-email" name="email" type="email" required />
         </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">

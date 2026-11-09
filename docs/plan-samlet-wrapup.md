@@ -208,6 +208,23 @@ Hver fase kan deployes for seg og lar appene virke underveis.
 - Felles WrapUp-design (merke, lås, tjenestevelger, overgang, startside og lasteanimasjon) ligger i `src/components/wrapup/`.
 - **Gjenstår:** Domenet `wrapup.aparent.tv`, som Lasse oppretter. Planner under `/planner` gjøres etter fase 2, fordi delt økt med Planner krever at Desk bruker samme Supabase-innlogging. Det krever også `basePath: "/planner"` i Planner-repoet, med videresending av dagens adresser og delingslenker.
 
+### Fase 2 (påbegynt 2026-11-09)
+
+Kode (egen PR):
+- Desk bruker det felles Supabase-prosjektet til Sign og Planner (`xpjkng…`).
+- Innlogging går alltid via Supabase. Brukernavn slås opp til e-posten på Desk-brukeren. Den gamle innloggingen mot `project_logins` (klartekst-passord i Desk sitt gamle Supabase-prosjekt) og de lokale passordene er fjernet.
+- «Glemt passord?» på innloggingssiden sender lenke til `/auth/complete`, der man velger nytt passord.
+- Nye brukere fra Brukertilgang og Tilgang-fanen får en felles WrapUp-konto. E-post er nå påkrevd, siden den brukes til innlogging.
+- `scripts/relink-supabase-auth.ts` kobler Desk-brukere til kontoer i det felles prosjektet. Prøvekjøring er standard, `--apply` gjennomfører, og `--create-missing` oppretter konto for de som mangler. Kobling skjer bare til bekreftede kontoer.
+- Utviklingsdatabasen er koblet: `lasse@aparent.tv` og `lassenyh@gmail.com` hadde allerede konto i det felles prosjektet. `sindre@aparent.tv` har ingen ennå.
+
+Overgang i produksjon (i denne rekkefølgen):
+1. **Supabase** (`aparent_contracts`, `xpjkng…`) → Authentication → URL Configuration → Redirect URLs: legg til `https://aparent-dashboard.vercel.app/auth/complete`, `http://localhost:3000/auth/complete` og senere `https://wrapup.aparent.tv/auth/complete`.
+2. **Vercel** (`aparent-dashboard`, Production og Preview): sett `NEXT_PUBLIC_SUPABASE_URL` til det felles prosjektet, `NEXT_PUBLIC_SUPABASE_ANON_KEY` til den nye publishable-nøkkelen (`sb_publishable_…`) og `SUPABASE_SERVICE_ROLE_KEY` til en ny secret-nøkkel (`sb_secret_…`) fra Supabase → Project Settings → API Keys. Secret-nøkkelen merkes som Sensitive. Bruk ikke legacy-nøklene (anon/service_role), som fases ut tidlig i 2027. `AUTH_PROJECT_SLUG` kan slettes.
+3. **Koble brukerne i produksjon:** Med servernøkkelen i `.env.local` og produksjonens `DATABASE_URL`, kjør skriptet først uten flagg, se over planen, og så med `--apply --create-missing`.
+4. **Merge og deploy.** Innloggede brukere beholder økten sin. Nye innlogginger bruker passordet fra Sign og Planner.
+5. **Sindre** (og andre som fikk ny konto) bruker «Glemt passord?» for å velge passord.
+
 ## 9. Beslutninger som trengs
 
 Avklart 2026-11-09:
