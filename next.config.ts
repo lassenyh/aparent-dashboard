@@ -11,6 +11,9 @@ const DESK_SECTIONS = [
   "design",
 ];
 
+/** Planner er en egen app (wrapup-planner) som kjører med basePath /planner. */
+const PLANNER_ORIGIN = (process.env.WRAPUP_PLANNER_ORIGIN || "https://wrapup-planner.vercel.app").replace(/\/$/, "");
+
 const nextConfig: NextConfig = {
   serverExternalPackages: [
     "@prisma/client",
@@ -44,6 +47,13 @@ const nextConfig: NextConfig = {
       { source: `/${section}`, destination: `/desk/${section}`, permanent: true },
       { source: `/${section}/:path*`, destination: `/desk/${section}/:path*`, permanent: true },
     ]);
+  },
+  /** wrapup.aparent.tv/planner/* → Planner-appen, så alle tjenestene deler domene og innloggingsøkt. */
+  async rewrites() {
+    return [
+      { source: "/planner", destination: `${PLANNER_ORIGIN}/planner` },
+      { source: "/planner/:path*", destination: `${PLANNER_ORIGIN}/planner/:path*` },
+    ];
   },
   experimental: {
     serverActions: {

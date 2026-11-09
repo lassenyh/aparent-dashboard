@@ -46,7 +46,8 @@ export const SERVICE_META: Record<
   planner: {
     label: "Fremdriftsplaner",
     color: "#2b4c7e",
-    url: process.env.NEXT_PUBLIC_WRAPUP_PLANNER_URL || "https://wrapup-planner.vercel.app",
+    /* Planner proxyes under /planner på samme domene (se rewrites i next.config.ts). */
+    url: process.env.NEXT_PUBLIC_WRAPUP_PLANNER_URL || "/planner",
     status: "live",
   },
   rights: { label: "Rettigheter og lisenser", color: "#8a8474", url: null, status: "soon" },

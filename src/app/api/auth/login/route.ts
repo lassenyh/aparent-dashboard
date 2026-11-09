@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 import { prisma } from "@/lib/db";
-import { supabaseAuthClient } from "@/lib/supabase/admin";
+import { supabaseSessionClient } from "@/lib/supabase/session";
 import { createDashboardSession, sessionCookieOptions } from "@/lib/auth-session";
 import { allowAuthAttempt } from "@/lib/auth-rate-limit";
 
@@ -37,11 +37,17 @@ export async function POST(request: Request) {
   }
   if (!email) return fail();
 
-  const { data, error } = await supabaseAuthClient().auth.signInWithPassword({ email, password });
-  if (error || !data.user?.email_confirmed_at) return fail();
+  /* Setter også Supabase-øktcookien, så Planner på samme domene deler innloggingen. */
+  const supabase = await supabaseSessionClient();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error || !data.user?.email_confirmed_at) {
+    if (data.session) await supabase.auth.signOut({ scope: "local" });
+    return fail();
+  }
 
   const linked = await prisma.dashboardUser.findUnique({ where: { supabaseAuthId: data.user.id } });
   if (!linked?.isActive) {
+    await supabase.auth.signOut({ scope: "local" });
     return NextResponse.json(
       { error: "Kontoen finnes, men har ikke tilgang til WrapUp Desk. Kontakt administrator." },
       { status: 403 },
