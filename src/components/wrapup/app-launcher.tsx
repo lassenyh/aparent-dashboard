@@ -47,7 +47,8 @@ export function AppLauncher({ userName }: { userName: string }) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();
     const href = hrefFor(service);
-    const internal = href.startsWith("/");
+    /* Bare Desk er en side i denne appen; /planner er en egen app bak en rewrite → full navigering. */
+    const internal = service === PRODUCT_SERVICE;
     if (internal) router.prefetch(href);
     setHandoff(service);
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
