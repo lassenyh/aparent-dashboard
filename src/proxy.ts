@@ -29,7 +29,8 @@ export function proxy(request: NextRequest) {
 
   if (
     pathname.startsWith("/api/auth/login") ||
-    pathname.startsWith("/api/auth/logout")
+    pathname.startsWith("/api/auth/logout") ||
+    pathname === "/api/auth/recover"
   ) {
     return NextResponse.next();
   }

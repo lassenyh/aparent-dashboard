@@ -33,7 +33,9 @@ Legg inn verdiene for Production. Bruk ikke ekstra anførselstegn i Vercel-felte
 | NEXT_PUBLIC_SUPABASE_URL | eksisterende Supabase-prosjekt-URL |
 | NEXT_PUBLIC_SUPABASE_ANON_KEY | eksisterende offentlig Supabase-nøkkel |
 
-Bruk samme Supabase-prosjekt for de tre Supabase-verdiene. Den hemmelige
+Bruk samme Supabase-prosjekt for de tre Supabase-verdiene. Fra fase 2 er det
+det felles WrapUp-prosjektet (`aparent_contracts`, samme som Sign og Planner),
+så én konto gjelder i alle tjenestene. Den hemmelige
 servernøkkelen må aldri ha NEXT_PUBLIC_-prefiks. Innlogging med e-post/passord
 må være aktivert i Supabase Authentication → Sign In / Providers → Email.
 Resend sender invitasjonene direkte, så denne invitasjonsflyten trenger ikke
@@ -52,7 +54,8 @@ rettigheter; kontroller første sending i Resend → Emails.
 4. Mottakeren åpner lenken, oppretter konto eller logger inn og godtar.
 5. Kontoen får et medlemskap i akkurat dette prosjektet. Nye brukere opprettes i
    Supabase Auth ved registrering, og kobles til DashboardUser med Supabase-ID.
-   Eksisterende lokale kontoer kan logge inn med sitt opprinnelige brukernavn.
+   Alle logger inn med felles WrapUp-konto; brukernavn fungerer fortsatt og slås
+   opp til e-posten på brukeren. Glemt passord: «Glemt passord?» på innloggingssiden.
 6. Endre rettigheter i prosjektets Tilgang-fane. Fjern tilgang eller trekk tilbake
    invitasjonen fra invitasjonsoversikten. En ny sending erstatter forrige lenke.
 
