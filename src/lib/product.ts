@@ -12,7 +12,7 @@ export const WRAPUP_THEME_ACTIVE = process.env.NEXT_PUBLIC_THEME !== "legacy";
 
 export const PRODUCT_PLATFORM = "WrapUp";
 
-export const PRODUCT_SERVICES = ["desk", "sign", "rights", "payroll"] as const;
+export const PRODUCT_SERVICES = ["desk", "sign", "planner", "rights", "payroll"] as const;
 export type ProductService = (typeof PRODUCT_SERVICES)[number];
 
 /** Tjenesten denne appen ER. */
@@ -26,3 +26,29 @@ export const PRODUCT_NAME = WRAPUP_THEME_ACTIVE
 export const PRODUCT_TAB_TITLE = WRAPUP_THEME_ACTIVE
   ? `wrapup | ${PRODUCT_SERVICE}`
   : PRODUCT_NAME;
+
+/**
+ * Tjenestene i WrapUp-familien, med fargen firkanten og tjenesteordet har i
+ * hver av dem, og hvor de bor. `url: null` = denne appen, eller ikke lansert.
+ * Adressene kan overstyres med NEXT_PUBLIC_WRAPUP_SIGN_URL / NEXT_PUBLIC_WRAPUP_PLANNER_URL.
+ */
+export const SERVICE_META: Record<
+  ProductService,
+  { label: string; color: string; url: string | null; status: "live" | "soon" }
+> = {
+  desk: { label: "Produksjon, crew og dagsplaner", color: "#2f5d4a", url: null, status: "live" },
+  sign: {
+    label: "Kontrakter og signering",
+    color: "#7a2e2a",
+    url: process.env.NEXT_PUBLIC_WRAPUP_SIGN_URL || "https://wrapup-sign.vercel.app",
+    status: "live",
+  },
+  planner: {
+    label: "Fremdriftsplaner",
+    color: "#7a2e2a",
+    url: process.env.NEXT_PUBLIC_WRAPUP_PLANNER_URL || "https://wrapup-planner.vercel.app",
+    status: "live",
+  },
+  rights: { label: "Rettigheter og lisenser", color: "#8a8474", url: null, status: "soon" },
+  payroll: { label: "Lønn og honorar", color: "#8a8474", url: null, status: "soon" },
+};

@@ -14,10 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useSyncExternalStore } from "react";
-import {
-  ProductLockup,
-  ProductWordmark,
-} from "@/components/product-mark";
+import { ProductWordmark } from "@/components/product-mark";
+import { ServiceSwitcher } from "@/components/service-switcher";
 import { Button } from "@/components/ui/button";
 import { PRODUCT_NAME, WRAPUP_THEME_ACTIVE } from "@/lib/product";
 import { cn } from "@/lib/utils";
@@ -110,7 +108,7 @@ export function AppSidebar({ isInternal }: { isInternal: boolean }) {
     ? savedCollapsed === "true"
     : pathname.startsWith("/dagsplaner/");
   const mark = WRAPUP_THEME_ACTIVE ? (
-    <ProductLockup size="sm" />
+    <ServiceSwitcher />
   ) : (
     <ProductWordmark size="sm" />
   );
@@ -232,7 +230,7 @@ export function AppMobileNav({ isInternal }: { isInternal: boolean }) {
   const nav = isInternal ? navInternal : navExternal;
   const pathname = usePathname();
   const mark = WRAPUP_THEME_ACTIVE ? (
-    <ProductLockup size="sm" />
+    <ServiceSwitcher />
   ) : (
     <ProductWordmark size="sm" />
   );
@@ -245,9 +243,13 @@ export function AppMobileNav({ isInternal }: { isInternal: boolean }) {
   return (
     <header className="border-b border-border bg-card md:hidden">
       <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-        <Link href="/" className="flex items-center" aria-label={PRODUCT_NAME}>
-          {mark}
-        </Link>
+        {WRAPUP_THEME_ACTIVE ? (
+          <div className="flex items-center">{mark}</div>
+        ) : (
+          <Link href="/" className="flex items-center" aria-label={PRODUCT_NAME}>
+            {mark}
+          </Link>
+        )}
         <Button
           type="button"
           variant="ghost"

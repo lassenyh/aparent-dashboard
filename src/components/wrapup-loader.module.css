@@ -10,7 +10,7 @@
 .light { left: 0; top: 0; background: #c4bca8; }
 .medium { left: 70px; top: 0; background: #9a9484; }
 .dark { left: 0; top: 70px; background: #5c574a; }
-.red { left: 70px; top: 70px; background: #7a2e2a; transform-origin: top left; animation: grow var(--duration) cubic-bezier(.4,0,.2,1) both; }
+.red { left: 70px; top: 70px; background: #2f5d4a; transform-origin: top left; animation: grow var(--duration) cubic-bezier(.4,0,.2,1) both; }
 .mark[data-loop="true"] .rotor { animation-name: orbit; animation-iteration-count: infinite; }
 .mark[data-loop="true"] .red { animation-name: seal; animation-iteration-count: infinite; }
 .mark[data-paused="true"] .rotor, .mark[data-paused="true"] .red { animation-play-state: paused; }

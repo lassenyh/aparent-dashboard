@@ -40,6 +40,7 @@
   --color-faint: var(--faint);
   --color-seal: var(--seal);
   --color-seal-foreground: var(--seal-foreground);
+  --color-wrapup-word: var(--wrapup-word);
   --color-border-hairline: var(--border-hairline);
   --color-lamp-neutral: var(--lamp-neutral);
   --color-lamp-positive: var(--lamp-positive);
@@ -96,6 +97,7 @@
   --lamp-expiring: #c45c16;
   --seal: #7a2e2a;
   --seal-foreground: #ffffff;
+  --wrapup-word: #7a2e2a;
 }
 
 @layer base {

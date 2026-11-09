@@ -4,12 +4,12 @@
     .l1 { fill: #c4bca8; }
     .l2 { fill: #9a9484; }
     .l3 { fill: #5c574a; }
-    .seal { fill: #7a2e2a; }
+    .seal { fill: #2f5d4a; }
     @media (prefers-color-scheme: dark) {
       .l1 { fill: #c4bca8; }
       .l2 { fill: #9a9484; }
       .l3 { fill: #7a7364; }
-      .seal { fill: #c8756b; }
+      .seal { fill: #7fb39a; }
     }
   </style>
   <rect class="l1" x="0" y="0" width="6" height="6" />

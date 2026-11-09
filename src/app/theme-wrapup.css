@@ -34,44 +34,48 @@ html[data-theme="wrapup"] {
 }
 
 [data-theme="wrapup"] {
-  /* 2 · Nøytraler og aksent — lys modus */
-  --background: #f7f4ed;   /* papir  */
-  --foreground: #17150f;   /* blekk  */
-  --card: #fffdf8;         /* ark    */
-  --card-foreground: #17150f;
-  --popover: #fffdf8;
-  --popover-foreground: #17150f;
+  /* 2 · Nøytraler og aksent — lys modus.
+     Desk = «Grønn filt»: samme papir/blekk-familie som Sign, men en grønnere
+     flate og flaskegrønn aksent. Låsen (wrapup | desk) er bygd likt Sign;
+     tjenesteordet og firkanten bærer tjenestens farge. */
+  --background: #f5f3ec;   /* papir  */
+  --foreground: #141a15;   /* blekk  */
+  --card: #fdfcf7;         /* ark    */
+  --card-foreground: #141a15;
+  --popover: #fdfcf7;
+  --popover-foreground: #141a15;
 
-  --primary: #17150f;              /* primærknapp = blekk, ikke teal */
-  --primary-foreground: #f7f4ed;
-  --primary-hover: #2a271d;
+  --primary: #141a15;              /* primærknapp = blekk */
+  --primary-foreground: #f5f3ec;
+  --primary-hover: #26302a;
 
-  --secondary: #f4f1e8;            /* sidemeny / rolig flate */
-  --secondary-foreground: #17150f;
-  --muted: #f4f1e8;
-  --muted-foreground: #5c574a;
-  --faint: #8a8474;                /* etiketter i kapitéler */
-  --accent: #efebe0;               /* aktiv rad / hover */
-  --accent-foreground: #17150f;
+  --secondary: #e9ece2;            /* sidemeny / rolig flate */
+  --secondary-foreground: #141a15;
+  --muted: #e9ece2;
+  --muted-foreground: #535b52;
+  --faint: #7d857b;                /* etiketter i kapitéler */
+  --accent: #e3e8dc;               /* aktiv rad / hover */
+  --accent-foreground: #141a15;
 
-  --seal: #7a2e2a;                 /* eneste aksent — lukker/gjenåpner */
-  --seal-foreground: #f7f4ed;
-  --destructive: #7a2e2a;
-  --destructive-foreground: #f7f4ed;
+  --seal: #2f5d4a;                 /* Desk-aksent: flaskegrønn */
+  --seal-foreground: #f5f3ec;
+  --wrapup-word: #2f5d4a;          /* tjenesteordet i låsen — samme grønne som aksenten */
+  --destructive: #7a2e2a;          /* sletting forblir rød */
+  --destructive-foreground: #f5f3ec;
 
-  --border: #ded8c9;
-  --border-hairline: #efeae0;      /* radskille i tabell */
-  --input: #d3ccb9;
-  --ring: #17150f;
+  --border: #d6d9cc;
+  --border-hairline: #e8ebe0;      /* radskille i tabell */
+  --input: #c9cdbd;
+  --ring: #141a15;
 
-  --sidebar: #f4f1e8;
-  --sidebar-foreground: #17150f;
-  --sidebar-primary: #17150f;
-  --sidebar-primary-foreground: #f7f4ed;
-  --sidebar-accent: #efebe0;
-  --sidebar-accent-foreground: #17150f;
-  --sidebar-border: #ded8c9;
-  --sidebar-ring: #7a2e2a;
+  --sidebar: #e9ece2;
+  --sidebar-foreground: #141a15;
+  --sidebar-primary: #141a15;
+  --sidebar-primary-foreground: #f5f3ec;
+  --sidebar-accent: #dde2d4;
+  --sidebar-accent-foreground: #141a15;
+  --sidebar-border: #d6d9cc;
+  --sidebar-ring: #2f5d4a;
 
   /* 3 · Semantiske statuser */
   --lamp-neutral: #9a9484;
@@ -113,8 +117,9 @@ html[data-theme="wrapup"] {
   --accent: #262319;
   --accent-foreground: #f2eee3;
 
-  --seal: #c8756b;
+  --seal: #7fb39a;
   --seal-foreground: #14130e;
+  --wrapup-word: #7fb39a;
   --destructive: #d69289;
   --destructive-foreground: #14130e;
 
@@ -130,7 +135,7 @@ html[data-theme="wrapup"] {
   --sidebar-accent: #262319;
   --sidebar-accent-foreground: #f2eee3;
   --sidebar-border: #2e2b22;
-  --sidebar-ring: #c8756b;
+  --sidebar-ring: #7fb39a;
 
   --lamp-neutral: #7a7364;
   --lamp-pending: #9fbecf;

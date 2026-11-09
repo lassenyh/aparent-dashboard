@@ -32,16 +32,33 @@ const MARK: Record<Size, { className: string; px: number }> = {
   lg: { className: "size-6", px: 24 },
 };
 
+/**
+ * Merket som inline SVG (samme geometri som favicon.svg), slik at firkanten
+ * som stikker ut kan bytte farge: `--mark-accent` på en forelder overstyrer
+ * tjenestefargen (brukes av tjenestevelgeren for forhåndsvisning).
+ */
 function MarkIcon({ size }: { size: Size }) {
   const mark = MARK[size];
   return (
-    <img
-      src="/Favicon/favicon.svg"
-      alt=""
+    <svg
+      viewBox="0 0 16 16"
       width={mark.px}
       height={mark.px}
+      shapeRendering="crispEdges"
       className={cn("shrink-0", mark.className)}
-    />
+      aria-hidden="true"
+    >
+      <rect x="0" y="0" width="6" height="6" fill="#c4bca8" />
+      <rect x="7" y="0" width="6" height="6" fill="#9a9484" />
+      <rect x="0" y="7" width="6" height="6" fill="#5c574a" />
+      <rect
+        x="7"
+        y="7"
+        width="8"
+        height="8"
+        style={{ fill: "var(--mark-accent, var(--seal))", transition: "fill 220ms ease" }}
+      />
+    </svg>
   );
 }
 
@@ -53,7 +70,7 @@ function Sequence({ size }: { size: Size }) {
       <span className={cn(link.open, "bg-faint/45")} />
       <span className={cn(link.open, "bg-faint/70")} />
       <span className={cn(link.open, "bg-muted-foreground")} />
-      <span className={cn(link.filled, "bg-seal")} />
+      <span className={cn(link.filled, "bg-[var(--mark-accent,var(--seal))] transition-colors duration-200")} />
     </span>
   );
 }
@@ -140,7 +157,7 @@ export function ProductLockup({
         <span className={cn("shrink-0 bg-border", RULE[size])} aria-hidden="true" />
         <span
           className={cn(
-            "font-medium leading-[0.88] tracking-[-0.045em] text-seal",
+            "font-medium leading-[0.88] tracking-[-0.045em] text-[color:var(--mark-accent,var(--wrapup-word))] transition-colors duration-200",
             WORD[size],
           )}
         >

@@ -1,0 +1,106 @@
+/* Overgang mellom WrapUp-tjenester: merket tar én runde, og firkanten som
+   stikker ut vokser og skifter fra denne tjenestens farge til neste. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  background: var(--background);
+  animation: fadeIn 180ms ease-out both;
+}
+
+.rotor {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  transform-origin: 65px 65px;
+  animation: spin var(--handoff-duration) cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.rotor span {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+}
+
+.l1 { left: 0; top: 0; background: #c4bca8; }
+.l2 { left: 70px; top: 0; background: #9a9484; }
+.l3 { left: 0; top: 70px; background: #5c574a; }
+
+.accent {
+  left: 70px;
+  top: 70px;
+  transform-origin: top left;
+  background: var(--handoff-from);
+  animation: recolor var(--handoff-duration) cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: rise var(--handoff-duration) ease-out both;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin {
+  0%, 8% { transform: rotate(0deg); }
+  72%, 100% { transform: rotate(360deg); }
+}
+@keyframes recolor {
+  0%, 30% { background: var(--handoff-from); transform: scale(1); }
+  72%, 100% { background: var(--handoff-to); transform: scale(1.3333333333); }
+}
+@keyframes rise {
+  0%, 40% { opacity: 0; transform: translateY(6px); }
+  70%, 100% { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay, .rotor, .accent, .caption { animation: none; }
+  .accent { background: var(--handoff-to); transform: scale(1.3333333333); }
+}
+
+/* Tjenestevelgeren: merket tar en runde når menyen åpnes, radene glir inn
+   én etter én, og firkanten i hver rad popper inn i tjenestens farge. */
+
+.trigger[data-state="open"] svg {
+  animation: markTurn 560ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.row {
+  animation: rowIn 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms + 40ms);
+}
+
+.row svg rect:last-child {
+  transform-box: fill-box;
+  transform-origin: top left;
+  animation: pop 420ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms + 140ms);
+}
+
+@keyframes markTurn {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pop {
+  from { transform: scale(0.35); }
+  to { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger[data-state="open"] svg,
+  .row,
+  .row svg rect:last-child { animation: none; }
+}
