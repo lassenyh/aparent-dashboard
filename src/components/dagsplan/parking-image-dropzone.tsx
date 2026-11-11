@@ -9,8 +9,14 @@ import {
 } from "@/actions/dagsplan";
 import { PublicLogoImg } from "@/components/public-logo-img";
 import { Button } from "@/components/ui/button";
-import { MAX_PARKING_IMAGE_BYTES } from "@/lib/upload-limits";
+import { ImagePrepareError, prepareImageForUpload } from "@/lib/prepare-image-upload";
+import { MAX_IMAGE_INPUT_BYTES, MAX_PARKING_IMAGE_BYTES } from "@/lib/upload-limits";
 import { cn } from "@/lib/utils";
+
+/** HEIC fra iPhone har ofte tom MIME-type i nettleseren. */
+function isImageFile(file: File): boolean {
+  return file.type.startsWith("image/") || /\.(heic|heif)$/i.test(file.name);
+}
 
 export function ParkingImageDropzone({
   locationId,
@@ -40,18 +46,21 @@ export function ParkingImageDropzone({
 
   const uploadFile = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith("image/")) {
+      if (!isImageFile(file)) {
         toast.error("Velg en bildefil");
         return;
       }
-      if (file.size > MAX_PARKING_IMAGE_BYTES) {
-        toast.error("Bildet er for stort (maks 8 MB)");
+      if (file.size > MAX_IMAGE_INPUT_BYTES) {
+        toast.error("Bildet er for stort (maks 40 MB)");
         return;
       }
       setUploading(true);
       try {
+        const prepared = await prepareImageForUpload(file, {
+          maxBytes: MAX_PARKING_IMAGE_BYTES,
+        });
         const fd = new FormData();
-        fd.set("parkingImage", file);
+        fd.set("parkingImage", prepared);
         const r = await uploadDagsplanLocationParkingImage(locationId, fd);
         if ("error" in r && r.error) {
           toast.error(r.error);
@@ -64,6 +73,12 @@ export function ParkingImageDropzone({
         }
         toast.success("Bilde lastet opp");
         router.refresh();
+      } catch (err) {
+        toast.error(
+          err instanceof ImagePrepareError
+            ? err.message
+            : "Opplastingen feilet. Prøv igjen.",
+        );
       } finally {
         setUploading(false);
       }
@@ -82,7 +97,13 @@ export function ParkingImageDropzone({
     e.stopPropagation();
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) void uploadFile(file);
+    if (file) {
+      void uploadFile(file);
+    } else {
+      toast.error(
+        "Fant ingen bildefil. Lagre bildet på maskinen først, og slipp eller velg filen.",
+      );
+    }
   };
 
   const onRemove = async () => {
@@ -111,7 +132,7 @@ export function ParkingImageDropzone({
       <input
         ref={inputRef}
         type="file"
-        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+        accept="image/*,.heic,.heif"
         className="sr-only"
         aria-hidden
         tabIndex={-1}
@@ -176,7 +197,7 @@ export function ParkingImageDropzone({
           <span className="font-medium text-foreground">
             Slipp parkeringskart / skisse her
           </span>
-          <span>eller klikk for å velge (PNG, JPG, WebP, GIF — maks 8 MB)</span>
+          <span>eller klikk for å velge — store bilder blir automatisk gjort mindre</span>
           {uploading ? (
             <span className="text-xs">Laster opp…</span>
           ) : (
