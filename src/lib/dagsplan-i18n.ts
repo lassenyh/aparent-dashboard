@@ -592,7 +592,7 @@ export type ShotDropzoneStrings = ShotDropzoneT & {
 const shotStringsNo: ShotDropzoneStrings = {
   ...shotNo,
   toastNotImage: "Velg en bildefil",
-  toastTooBig: "Bildet er for stort (maks 8 MB)",
+  toastTooBig: "Bildet er for stort (maks 40 MB)",
   toastSaved: "Shot-bilde lagret",
   toastRemoved: "Shot-bilde fjernet",
 };
@@ -600,7 +600,7 @@ const shotStringsNo: ShotDropzoneStrings = {
 const shotStringsEn: ShotDropzoneStrings = {
   ...shotEn,
   toastNotImage: "Choose an image file",
-  toastTooBig: "Image too large (max 8 MB)",
+  toastTooBig: "Image too large (max 40 MB)",
   toastSaved: "Shot image saved",
   toastRemoved: "Shot image removed",
 };

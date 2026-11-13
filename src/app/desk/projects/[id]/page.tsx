@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, Plus } from "lucide-react";
+import { Mail, Plus, Send } from "lucide-react";
 import { CrewListDialog } from "@/components/crew/crew-list-dialog";
 import { CrewListDialogContent } from "@/components/crew/crew-list-dialog-content";
 import { notFound } from "next/navigation";
@@ -79,6 +79,14 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const customerName = project.customer?.name?.trim() ?? null;
   const agencyName = project.agency?.name?.trim() ?? null;
   const deleteLabel = formatProjectDisplayName(project);
+  /** Unike e-postadresser for aktivt prosjektcrew, til «Send e-post» (mailto). */
+  const crewEmails = Array.from(
+    new Set(
+      project.crew
+        .map((row) => row.person.email?.trim())
+        .filter((email): email is string => Boolean(email)),
+    ),
+  );
 
   return (
     <>
@@ -147,6 +155,13 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                       <Mail aria-hidden /> Teknisk befaring
                     </Link>
                   </Button>
+                  {crewEmails.length ? (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`mailto:${crewEmails.join(",")}?subject=${encodeURIComponent(projectListLabel(project))}`}>
+                        <Send aria-hidden /> Send e-post
+                      </a>
+                    </Button>
+                  ) : null}
                 </>
               }
               canAdd={user.isInternal && flags.canEditCrew}
