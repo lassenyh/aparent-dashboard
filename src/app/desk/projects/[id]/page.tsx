@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, Plus, Send } from "lucide-react";
+import { Mail, Plus, Receipt, Send } from "lucide-react";
 import { CrewListDialog } from "@/components/crew/crew-list-dialog";
 import { CrewListDialogContent } from "@/components/crew/crew-list-dialog-content";
 import { notFound } from "next/navigation";
@@ -153,6 +153,11 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/desk/projects/${project.id}/befaring`}>
                       <Mail aria-hidden /> Teknisk befaring
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/desk/projects/${project.id}/oppgjor`}>
+                      <Receipt aria-hidden /> Oppgjør
                     </Link>
                   </Button>
                   {crewEmails.length ? (

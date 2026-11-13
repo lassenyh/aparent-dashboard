@@ -20,6 +20,7 @@ import {
 import { projectListSortKey } from "@/lib/utils";
 import { serializePersonForClient } from "@/lib/serialize";
 import { touchPersonLastUsed } from "@/actions/crew";
+import { normalizeExpensesUrl } from "@/lib/oppgjor-mail";
 
 const projectSchema = z.object({
   name: z.string().min(1, "Prosjektnavn er påkrevd"),
@@ -245,6 +246,20 @@ export async function updateProject(
   revalidatePath(`/desk/projects/${id}`);
   revalidatePath("/desk");
   return { success: true };
+}
+
+/** Lagrer prosjektets unike utleggslenke (Aparent Expenses). Tom streng fjerner lenken. */
+export async function updateProjectExpensesUrl(
+  projectId: string,
+  raw: string,
+): Promise<{ error: string } | { success: true; expensesUrl: string }> {
+  const { flags } = await requireProjectAccess(projectId);
+  assertPermission(flags, "canEditProjectInfo");
+  const expensesUrl = normalizeExpensesUrl(raw);
+  if (expensesUrl === null) return { error: "Ugyldig lenke. Lim inn hele adressen, f.eks. https://…" };
+  await prisma.project.update({ where: { id: projectId }, data: { expensesUrl: expensesUrl || null } });
+  revalidatePath(`/desk/projects/${projectId}/oppgjor`);
+  return { success: true, expensesUrl };
 }
 
 export async function deleteProject(projectId: string, _formData?: FormData) {
