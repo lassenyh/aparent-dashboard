@@ -75,7 +75,7 @@ Planen hadde felles kjerne (fase 3) før Sign som modul (fase 4). Det viser seg 
 - Finnes samme firma, slås de sammen: på org.nr, ellers på navn uten «AS».
 
 **Prosjekt (`Project`)**
-- `internalTitle` → `projectNumber`. Sindre kortfilm har ikke nummer, og må få et eller tillate tomt nummer. **Beslutning trengs.**
+- `internalTitle` → `projectNumber`. Tomt nummer er tillatt (Sindre kortfilm). Unikheten på `(organizationId, projectNumber)` gjelder bare når nummeret er satt.
 - `name` → `name`.
 - `status` active/archived → `ACTIVE`/`ARCHIVED` (`archivedAt`).
 - `customerId` og `agencyId` → `ProjectCompany` med rollene kunde og byrå.
@@ -105,12 +105,12 @@ Planen hadde felles kjerne (fase 3) før Sign som modul (fase 4). Det viser seg 
 - Flyttes som de er, med `organizationId` og nye fremmednøkler til kjernen.
 - Gamle cuid-ID-er beholdes som primærnøkler der det går, så gamle lenker til dagsplaner, delte crewlister og lønningslister fortsatt virker.
 
-## 5. Beslutninger som trengs
+## 5. Beslutninger (avklart 2026-11-09)
 
-1. **Ny rekkefølge** (avsnitt 3): Sign-koden inn i Desk-repoet før databasene slås sammen?
-2. **Prosjektnummer for Sindre kortfilm:** Gi den et nummer, eller tillate prosjekter uten nummer i kjernen? Sign krever i dag nummer.
-3. **Lasse sin person:** Hvilken e-post skal Lasse Nyhaugen ha på personen i kjernen: `lasse@aparent.tv` eller `lassenyh@gmail.com`?
-4. **Tidspunkt for ryddingen av Sign i produksjon:** Skriptet er klart.
+1. **Ny rekkefølge** (avsnitt 3): Sign-koden flyttes inn i Desk-repoet før databasene slås sammen.
+2. **Prosjekter uten nummer** tillates i kjernen. `projectNumber` blir valgfritt, og det er bare unikt når det er satt.
+3. **Lasse Nyhaugen** får `lasse@aparent.tv` som e-post på personen i kjernen.
+4. **Ryddingen av Sign** kjøres i produksjon nå.
 
 ## 6. Kjøring av ryddingen i produksjon
 
